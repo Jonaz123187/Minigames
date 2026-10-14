@@ -1,6 +1,6 @@
 'use strict';
 
-// Kumpel-Arcade: authoritative game simulation. No browser-supplied scores.
+// MultiplayerGames-GiG by Jonas N.: authoritative game simulation. No browser-supplied scores.
 // Physics: Matter.js (MIT, Liam Brummitt and contributors; see THIRD_PARTY.md).
 const express = require('express');
 const http = require('node:http');
@@ -9,7 +9,7 @@ const crypto = require('node:crypto');
 const { performance } = require('node:perf_hooks');
 const Matter = require('matter-js');
 const { Server } = require('socket.io');
-const { Engine, Bodies, Body, Composite, Constraint, Query } = Matter;
+const { prepareClip, defaultClip } = require('./voice');
 
 const COLORS = ['#b5f36a', '#a998ff', '#ffb86b', '#71d9ff', '#ff82ad', '#fff080', '#69e4bd', '#b9c5e2'];
 const MAX_PLAYERS = 8;
@@ -22,119 +22,14 @@ const round1 = n => Math.round(n * 10) / 10;
 const randInt = (a, b) => crypto.randomInt(a, b + 1);
 const freshControls = () => ({ throttle: 0, tilt: 0, axis: 0, target: null, at: 0 });
 
-function terrainY(x) {
-  const t = Math.max(0, x - 280);
-  return 410 - Math.sin(t / 260) * 90 - Math.sin(t / 111) * 34;
-}
-
-function createCar(world, x) {
-  const y = terrainY(x) - 65;
-  const group = Body.nextGroup(true);
-  const filter = { group, category: 2, mask: 1 };
-  const body = Bodies.rectangle(x, y, 70, 23, {
-    density: 0.002, friction: 0.8, frictionAir: 0.007,
-    collisionFilter: { ...filter }, chamfer: { radius: 5 }
-  });
-  const wheels = [-26, 26].map(dx => Bodies.circle(x + dx, y + 30, 16, {
-    density: 0.0015, friction: 1.4, frictionStatic: 2, restitution: 0.05,
-    frictionAir: 0.005, collisionFilter: { ...filter }
-  }));
-  const springs = wheels.flatMap((wheel, i) => {
-    const dx = i === 0 ? -26 : 26;
-    return [Constraint.create({
-      bodyA: body, pointA: { x: dx, y: 0 }, bodyB: wheel,
-      length: 30, stiffness: 0.35, damping: 0.12
-    }), Constraint.create({
-      bodyA: body, pointA: { x: dx * 0.25, y: 0 }, bodyB: wheel,
-      length: Math.hypot(dx * 0.75, 30), stiffness: 0.2, damping: 0.08
-    })];
-  });
-  const parts = [body, ...wheels, ...springs];
-  Composite.add(world, parts);
-  return { body, wheels, parts };
-}
-
 const GAMES = {
-  race: {
-    title: 'Hill Racer', icon: '01', seconds: 75,
-    description: 'Federung, Flugphasen und Kumpels im Rueckspiegel. Wer zuerst im Ziel ist, gewinnt.',
-    controls: '↑ / W: Gas · ↓ / S: Bremse & rueckwaerts · ← → / A D: kippen · R: bergen',
-    init(ids) {
-      const engine = Engine.create({ positionIterations: 8, constraintIterations: 6 });
-      const finish = 9000;
-      const terrain = [];
-      for (let x = -240; x <= finish + 560; x += 40) terrain.push([x, terrainY(x)]);
-      const ground = terrain.slice(1).map((b, i) => {
-        const a = terrain[i];
-        const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
-        return Bodies.rectangle((a[0] + b[0]) / 2 - Math.sin(angle) * 100,
-          (a[1] + b[1]) / 2 + Math.cos(angle) * 100,
-          Math.hypot(b[0] - a[0], b[1] - a[1]) + 2, 200,
-          { isStatic: true, angle, friction: 1.2, collisionFilter: { category: 1, mask: 2 } });
-      });
-      Composite.add(engine.world, ground);
-      const players = Object.fromEntries(ids.map(id => [id, {
-        ...createCar(engine.world, 100), maxX: 100, resets: 0, resetAt: -5000,
-        upside: 0, finished: false
-      }]));
-      return { engine, ground, terrain, finish, players };
-    },
-    meta: g => ({ terrain: g.terrain, finish: g.finish }),
-    input(g, id, input, now) {
-      if (input.action !== 'reset') return false;
-      const p = g.players[id];
-      if (now - p.resetAt < 2000) return false;
-      Composite.remove(g.engine.world, p.parts);
-      Object.assign(p, createCar(g.engine.world, clamp(p.maxX - 120, 100, g.finish - 100)));
-      p.resets++;
-      p.resetAt = now;
-      p.upside = 0;
-      return true;
-    },
-    tick(g, dt, now, round) {
-      for (const [id, p] of Object.entries(g.players)) {
-        if (!round.connected.has(id)) continue;
-        const c = round.controls[id];
-        const grounded = p.wheels.some(w => Query.collides(w, g.ground).length > 0);
-        for (const wheel of p.wheels) {
-          if (c.throttle) Body.setAngularVelocity(wheel,
-            wheel.angularVelocity + clamp(c.throttle * 0.4 - wheel.angularVelocity, -0.07, 0.07));
-        }
-        if (grounded && c.throttle) {
-          const slope = (terrainY(p.body.position.x + 10) - terrainY(p.body.position.x - 10)) / 20;
-          const force = p.body.mass * 0.00035 * c.throttle;
-          Body.applyForce(p.body, p.body.position, { x: force, y: slope * force });
-        }
-        p.body.torque += c.tilt * p.body.inertia * 0.0000018;
-      }
-      Engine.update(g.engine, dt * 1000);
-      for (const [id, p] of Object.entries(g.players)) {
-        if (!round.connected.has(id)) continue;
-        p.maxX = Math.max(p.maxX, clamp(p.body.position.x, 100, g.finish));
-        const upside = Math.cos(p.body.angle) < -0.35;
-        p.upside = upside ? p.upside + dt : 0;
-        if (p.upside > 2 || p.body.position.y > 850 || p.body.position.x < -100) {
-          GAMES.race.input(g, id, { action: 'reset' }, now);
-        }
-        if (p.body.position.x >= g.finish) p.finished = true;
-      }
-      return Object.values(g.players).some(p => p.finished);
-    },
-    view: g => ({ players: Object.fromEntries(Object.entries(g.players).map(([id, p]) => [id, {
-      x: round1(p.body.position.x), y: round1(p.body.position.y), angle: p.body.angle,
-      wheels: p.wheels.map(w => ({ x: round1(w.position.x), y: round1(w.position.y), angle: w.angle })),
-      distance: Math.round((p.maxX - 100) / 10), resets: p.resets, finished: p.finished
-    }])) }),
-    score: (g, id) => g.players[id].finished ? 100000 : Math.max(0, Math.floor(g.players[id].maxX - 100) - g.players[id].resets * 50),
-    detail: (g, id) => `${Math.round((g.players[id].maxX - 100) / 10)} m · ${g.players[id].resets} Bergungen${g.players[id].finished ? ' · ZIEL!' : ''}`,
-    dispose(g) { Composite.clear(g.engine.world, false); Engine.clear(g.engine); }
-  },
+  race: require('./racer')(Matter),
   snake: {
     title: 'Snake Arena', icon: '02', seconds: 60,
     description: 'Ein Feld, alle Schlangen. Futter schnappen, Koepfe und Koerper meiden.',
     controls: 'Pfeiltasten / WASD oder Richtungstasten · Kein Umdrehen auf der Stelle',
     init(ids) {
-      const g = { width: 48, height: 28, food: [], accumulator: 0, players: {} };
+      const g = { solo: ids.length === 1, width: 48, height: 28, food: [], accumulator: 0, players: {} };
       ids.forEach((id, i) => {
         const x = 7 + (i % 4) * 11, y = 7 + Math.floor(i / 4) * 14;
         g.players[id] = { body: Array.from({ length: 4 }, (_, j) => ({ x: x - j, y })),
@@ -186,7 +81,7 @@ const GAMES = {
       }
       g.food = g.food.filter((_, i) => !eaten.has(i));
       refillFood(g);
-      return Object.values(g.players).filter(p => p.alive).length <= 1;
+      return Object.values(g.players).filter(p => p.alive).length <= (g.solo ? 0 : 1);
     },
     view: g => ({ food: g.food, players: Object.fromEntries(Object.entries(g.players).map(([id, p]) => [id,
       { body: p.body, alive: p.alive, foods: p.foods, dir: p.dir }])) }),
@@ -313,6 +208,9 @@ const GAMES = {
   }
 };
 
+Object.assign(GAMES, require('./games'));
+const THEMES = { race:['Skill','Experte'], snake:['Arcade','Mittel'], click:['Party','Einfach'], typing:['Skill','Mittel'], pong:['Skill','Mittel'], reaction:['Party','Einfach'] };
+
 function reactionAverage(p) {
   const samples = [...p.samples];
   while (samples.length < 5) samples.push(2000);
@@ -329,11 +227,11 @@ function refillFood(g) {
   while (g.food.length < 18 && free.length) g.food.push(free.splice(randInt(0, free.length - 1), 1)[0]);
 }
 
-function createArcade() {
+function createArcade({clock = Date.now, manual = false} = {}) {
   const app = express();
   const server = http.createServer(app);
   const io = new Server(server, {
-    maxHttpBufferSize: 8192,
+    maxHttpBufferSize: 128 * 1024,
     // Allow this host, and optionally explicitly configured frontend origins.
     allowRequest(req, callback) {
       const origin = req.headers.origin;
@@ -355,10 +253,10 @@ function createArcade() {
 
   function roomState(room) {
     return { code: room.code, hostId: room.hostId, phase: room.phase,
-      players: [...room.players.values()], lastResult: room.lastResult,
+      players: [...room.players.values()], selected: room.selected, dubClip: room.dubClip ? {name:room.dubClip.name, duration:room.dubClip.duration} : null, lastResult: room.lastResult,
       round: room.round ? { id: room.round.id, game: room.round.game, startsAt: room.round.startsAt,
-        endsAt: room.round.endsAt, roster: room.round.roster, meta: room.round.meta } : null,
-      returnAt: room.returnAt, serverNow: Date.now() };
+        endsAt: room.round.endsAt, practice: room.round.practice, roster: room.round.roster, meta: room.round.meta } : null,
+      returnAt: room.returnAt, serverNow: clock() };
   }
   const broadcastRoom = room => io.to(room.code).emit('room', roomState(room));
   function disposeRound(room) {
@@ -375,7 +273,7 @@ function createArcade() {
     room.round?.connected.delete(socket.id);
     if (!room.players.size) { disposeRound(room); rooms.delete(room.code); return; }
     if (room.hostId === socket.id) room.hostId = room.players.keys().next().value;
-    if ((room.phase === 'playing' || room.phase === 'countdown') && room.players.size < 2) {
+    if ((room.phase === 'playing' || room.phase === 'countdown') && room.players.size < (room.round?.practice ? 1 : 2)) {
       disposeRound(room); room.phase = 'lobby'; room.returnAt = null;
       io.to(room.code).emit('notice', 'Runde abgebrochen: Es werden mindestens zwei Spieler gebraucht.');
     }
@@ -392,12 +290,12 @@ function createArcade() {
     rows.forEach((row, i) => {
       if (!previous || previous.raw !== row.raw || previous.connected !== row.connected) rank = i + 1;
       row.rank = rank;
-      row.points = row.connected ? (rank === 1 ? 10 : rank === 2 ? 7 : rank === 3 ? 5 : 2) : 0;
+      row.points = row.connected && !round.practice ? (rank === 1 ? 10 : rank === 2 ? 7 : rank === 3 ? 5 : 2) : 0;
       const p = room.players.get(row.id);
       if (p) p.score += row.points;
       previous = row;
     });
-    room.lastResult = { game: round.game, title: game.title, rows, endedAt: now };
+    room.lastResult = { game: round.game, title: game.title, rows, practice: round.practice, endedAt: now };
     room.phase = 'results'; room.returnAt = now + RESULTS_MS;
     broadcastSnapshot(room, now);
     broadcastRoom(room);
@@ -405,15 +303,19 @@ function createArcade() {
   function broadcastSnapshot(room, now) {
     if (!room.round) return;
     const r = room.round;
-    io.to(room.code).volatile.emit('state', { roundId: r.id, serverNow: now, phase: room.phase,
-      data: GAMES[r.game].view(r.state, now) });
+    const packet = id => ({ roundId:r.id, serverNow:now, phase:room.phase,
+      data:GAMES[r.game].view(r.state, now, id) });
+    if (GAMES[r.game].private) {
+      for (const id of r.connected) io.to(id).volatile.emit('state',packet(id));
+    } else io.to(room.code).volatile.emit('state',packet(null));
   }
-  function start(room, gameId, now) {
+
+  function start(room, gameId, now, practice) {
     const game = GAMES[gameId];
     const roster = [...room.players.values()].map(({ id, name, color }) => ({ id, name, color }));
     const startsAt = now + COUNTDOWN_MS;
-    const state = game.init(roster.map(p => p.id), startsAt);
-    room.round = { id: crypto.randomUUID(), game: gameId, startsAt, endsAt: startsAt + game.seconds * 1000,
+    const state = game.init(roster.map(p => p.id), startsAt, {clip:room.dubClip});
+    room.round = { id: crypto.randomUUID(), game: gameId, startsAt, practice, endsAt: startsAt + game.seconds * 1000,
       roster, connected: new Set(roster.map(p => p.id)), state, meta: game.meta?.(state) || {},
       controls: Object.fromEntries(roster.map(p => [p.id, freshControls()])) };
     room.phase = 'countdown'; room.returnAt = null;
@@ -422,10 +324,11 @@ function createArcade() {
 
   io.on('connection', socket => {
     socket.emit('catalog', Object.entries(GAMES).map(([id, g]) => ({ id, title: g.title, icon: g.icon,
-      seconds: g.seconds, description: g.description, controls: g.controls })));
-    let bucketAt = Date.now(), packets = 0, lobbyAt = 0;
+      seconds: g.seconds, description: g.description, controls: g.controls,
+      category:g.category || THEMES[id]?.[0] || 'Arcade', difficulty:g.difficulty || THEMES[id]?.[1] || 'Mittel', minPlayers:g.minPlayers || 1, preview:'/previews/'+id+'.png' })));
+    let bucketAt = clock(), packets = 0, lobbyAt = 0;
     function rateLimit() {
-      const now = Date.now();
+      const now = clock();
       if (now - bucketAt >= 1000) { bucketAt = now; packets = 0; }
       return ++packets <= 120;
     }
@@ -433,7 +336,7 @@ function createArcade() {
     const getRoom = () => rooms.get(socket.data.roomCode);
     socket.on('lobby', (payload, ack) => {
       if (!rateLimit()) return reply(ack, { ok: false, error: 'Zu viele Anfragen.' });
-      const now = Date.now();
+      const now = clock();
       if (now - lobbyAt < 600) return reply(ack, { ok: false, error: 'Kurz warten und erneut versuchen.' });
       lobbyAt = now;
       if (!payload || typeof payload !== 'object') return reply(ack, { ok: false, error: 'Ungueltige Anfrage.' });
@@ -448,7 +351,7 @@ function createArcade() {
         let code;
         do { code = Array.from({ length: 6 }, () => alphabet[randInt(0, alphabet.length - 1)]).join(''); } while (rooms.has(code));
         room = { code, hostId: socket.id, phase: 'lobby', players: new Map(), round: null,
-          lastResult: null, returnAt: null };
+          lastResult: null, returnAt: null, selected:'race', dubClip:defaultClip };
         rooms.set(code, room);
       } else if (payload.action === 'join') {
         const code = typeof payload.code === 'string' ? payload.code.trim().toUpperCase() : '';
@@ -458,21 +361,59 @@ function createArcade() {
         if (room.players.size >= MAX_PLAYERS) return reply(ack, { ok: false, error: 'Die Lobby ist voll (8 Spieler).' });
       } else return reply(ack, { ok: false, error: 'Unbekannte Lobby-Aktion.' });
       const used = new Set([...room.players.values()].map(p => p.color));
-      room.players.set(socket.id, { id: socket.id, name, color: COLORS.find(c => !used.has(c)), score: 0 });
+      room.players.set(socket.id, { id: socket.id, name, color: COLORS.find(c => !used.has(c)), score: 0, wish:null });
       socket.data.roomCode = room.code;
       socket.join(room.code);
       reply(ack, { ok: true }); broadcastRoom(room);
     });
+    socket.on('wish', (payload,ack) => {
+      const room=getRoom();
+      if (!rateLimit() || !room || room.phase!=='lobby' || typeof payload?.game!=='string' || !Object.hasOwn(GAMES,payload.game)) return reply(ack,{ok:false});
+      room.players.get(socket.id).wish=payload.game;
+      if (socket.id===room.hostId) room.selected=payload.game;
+      broadcastRoom(room);reply(ack,{ok:true});
+    });
+    let clipAt=0;
+    socket.on('dub:clip',(payload,ack) => {
+      const room=getRoom(),now=clock();
+      if (!rateLimit() || !room || room.hostId!==socket.id || room.phase!=='lobby' || now-clipAt<1000) return reply(ack,{ok:false,error:'Clip kann gerade nicht geändert werden.'});
+      clipAt=now;
+      try {
+        room.dubClip=prepareClip(payload?.pcm,payload?.name);
+        broadcastRoom(room);reply(ack,{ok:true});
+      } catch(e) { reply(ack,{ok:false,error:e.message}); }
+    });
+    socket.on('dub:audio',(payload,ack) => {
+      const room=getRoom();
+      if (!rateLimit() || !room || room.round?.id!==payload?.roundId || room.round.game!=='dub') return reply(ack,{ok:false});
+      const g=room.round.state;
+      if (payload.reference===true) return reply(ack,{ok:true,pcm:g.clip.pcm,name:g.clip.name});
+      if (g.phase!=='playback' && room.phase!=='results') return reply(ack,{ok:false});
+      const id=typeof payload.id==='string'?payload.id:'';
+      const p=g.players[id];
+      return reply(ack,p?.pcm?{ok:true,pcm:p.pcm}:{ok:false});
+    });
+    socket.on('abort',(_,ack) => {
+      const room=getRoom();
+      if (!rateLimit() || !room || room.hostId!==socket.id || !room.round) return reply(ack,{ok:false});
+      disposeRound(room);room.phase='lobby';room.returnAt=null;
+      io.to(room.code).emit('notice','Der Host hat die Runde ohne Wertung beendet.');
+      broadcastRoom(room);reply(ack,{ok:true});
+    });
     socket.on('start', (payload, ack) => {
       const room = getRoom();
       if (!rateLimit() || !room || room.hostId !== socket.id) return reply(ack, { ok: false, error: 'Nur der Host darf starten.' });
-      if (room.phase !== 'lobby' || room.players.size < 2) return reply(ack, { ok: false, error: 'Warte auf mindestens zwei Spieler in der Lobby.' });
+      if (room.phase !== 'lobby') return reply(ack, {ok:false,error:'Die aktuelle Runde läuft noch.'});
       if (!payload || typeof payload.game !== 'string' || !Object.hasOwn(GAMES, payload.game)) return reply(ack, { ok: false, error: 'Unbekanntes Spiel.' });
-      start(room, payload.game, Date.now()); reply(ack, { ok: true });
+      const practice = room.players.size === 1 && payload.practice === true;
+      if (room.players.size < 2 && !practice) return reply(ack,{ok:false,error:'Ein Mitspieler fehlt. Teile den Code oder aktiviere Training unter Erweitert.'});
+      if (room.players.size < (GAMES[payload.game].minPlayers || 1)) return reply(ack,{ok:false,error:'Dieses Partyspiel benötigt mindestens zwei Spieler.'});
+      if (payload.game === 'dub' && !room.dubClip) return reply(ack,{ok:false,error:'Wähle zuerst eine Dub-Vorlage aus oder lade einen Clip hoch.'});
+      start(room, payload.game, clock(), practice); reply(ack, { ok: true });
     });
     socket.on('input', (input, ack) => {
       if (!rateLimit()) return reply(ack, { ok: false });
-      const room = getRoom(), now = Date.now();
+      const room = getRoom(), now = clock();
       if (!room || room.phase !== 'playing' || !input || typeof input !== 'object') return reply(ack, { ok: false });
       const r = room.round;
       if (input.roundId !== r.id || !r.connected.has(socket.id) || now < r.startsAt || now >= r.endsAt) return reply(ack, { ok: false });
@@ -484,10 +425,10 @@ function createArcade() {
         c.at = now;
         return reply(ack, { ok: true });
       }
-      const accepted = GAMES[r.game].input?.(r.state, socket.id, input, now, r) || false;
-      reply(ack, { ok: accepted, index: r.game === 'typing' ? r.state.players[socket.id].index : undefined });
+      const result = GAMES[r.game].input?.(r.state, socket.id, input, now, r) || false;
+      reply(ack, { ok: result === true, error:result?.error, index: r.game === 'typing' ? r.state.players[socket.id].index : undefined });
     });
-    socket.on('clock', (_, ack) => { if (rateLimit()) reply(ack, { now: Date.now() }); });
+    socket.on('clock', (_, ack) => { if (rateLimit()) reply(ack, { now: clock() }); });
     socket.on('disconnect', () => leave(socket));
   });
 
@@ -511,8 +452,8 @@ function createArcade() {
       if (GAMES[r.game].tick?.(r.state, dt, now, r)) finishRound(room, now);
     }
   }
-  const timer = setInterval(() => {
-    const t = performance.now(), now = Date.now();
+  const timer = manual ? null : setInterval(() => {
+    const t = performance.now(), now = clock();
     accumulator += Math.min(t - previousTime, 100); previousTime = t;
     while (accumulator >= STEP_MS) { advance(now, STEP_MS / 1000); accumulator -= STEP_MS; }
     if (now >= nextSnapshot) {
@@ -526,13 +467,13 @@ function createArcade() {
     for (const room of rooms.values()) disposeRound(room);
     await new Promise(resolve => io.close(resolve));
   }
-  return { app, server, io, close };
+  return { app, server, io, close, step(now, dt = STEP_MS / 1000) { advance(now, dt); for (const room of rooms.values()) if(room.round) broadcastSnapshot(room,now); } };
 }
 
 if (require.main === module) {
   const arcade = createArcade();
   const port = Number(process.env.PORT) || 3000;
-  arcade.server.listen(port, '0.0.0.0', () => console.log(`Kumpel-Arcade: http://localhost:${port}`));
+  arcade.server.listen(port, '0.0.0.0', () => console.log(`MultiplayerGames-GiG by Jonas N.: http://localhost:${port}`));
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => arcade.close().then(() => process.exit(0)));
 }
 
