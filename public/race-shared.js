@@ -184,7 +184,8 @@
     if (p.finished || p.out) return;
     const road = surface(track, p),
       gas = clamp(c.throttle || 0, -1, 1),
-      steer = clamp(c.axis || 0, -1, 1),
+      // Camera-relative right is negative heading in our X/Z coordinate system.
+      steer = -clamp(c.axis || 0, -1, 1),
       drifting = !!c.drift;
     let fx = Math.sin(p.heading),
       fz = Math.cos(p.heading),
