@@ -1,54 +1,12 @@
 "use strict";
-// Session presentation, device-aware controls and bounded visual effects.
-const AVATAR_COLORS = [
-  "#c3d7f0",
-  "#f1c08e",
-  "#b8d3b0",
-  "#c4b4dd",
-  "#e7adba",
-  "#b5cfcc",
-  "#e4d89e",
-  "#d0c7be",
-];
-let avatarChoice = { shape: "round", color: 0, eyes: 0, hat: 0 };
+const AVATAR_COLORS = GiG.colors;
+let avatarChoice = { ...GiG.defaults };
 try {
-  const a = JSON.parse(localStorage.getItem("gig-avatar"));
-  if (a)
-    avatarChoice = {
-      shape: ["round", "square", "cat", "robot"].includes(a.shape)
-        ? a.shape
-        : "round",
-      color: clamp(a.color | 0, 0, 7),
-      eyes: clamp(a.eyes | 0, 0, 3),
-      hat: clamp(a.hat | 0, 0, 4),
-    };
+  avatarChoice = GiG.avatar(JSON.parse(localStorage.getItem("gig-avatar")));
 } catch {}
 let avatarDraft = { ...avatarChoice };
 function avatarSVG(a = {}) {
-  const c = AVATAR_COLORS[a.color] || AVATAR_COLORS[0],
-    shape = ["round", "square", "cat", "robot"].includes(a.shape)
-      ? a.shape
-      : "round";
-  const base =
-    shape === "cat"
-      ? `<path d="M17 33 14 12 32 23Q44 19 56 23L74 12 71 33Q79 65 58 74H30Q9 66 17 33Z" fill="${c}"/>`
-      : shape === "robot"
-        ? `<rect x="14" y="23" width="60" height="51" rx="14" fill="${c}"/><path d="M44 23V13" stroke="${c}" stroke-width="4"/><circle cx="44" cy="10" r="5" fill="${c}"/><rect x="7" y="38" width="7" height="20" rx="3" fill="${c}"/><rect x="74" y="38" width="7" height="20" rx="3" fill="${c}"/>`
-        : `<rect x="15" y="18" width="58" height="58" rx="${shape === "square" ? 15 : 28}" fill="${c}"/>`;
-  const eyes = [
-    `<circle cx="33" cy="44" r="4"/><circle cx="56" cy="44" r="4"/>`,
-    `<path d="M27 44q6-8 12 0M50 44q6-8 12 0" fill="none" stroke="#25303e" stroke-width="4" stroke-linecap="round"/>`,
-    `<path d="M25 40h17v10H25zM47 40h17v10H47zM42 43h5"/><path d="m26 42 5 4m17-4 5 4" stroke="#fff8" stroke-width="2"/>`,
-    `<circle cx="33" cy="44" r="4"/><path d="M51 45h10" stroke="#25303e" stroke-width="4" stroke-linecap="round"/>`,
-  ][a.eyes || 0];
-  const hats = [
-    "",
-    `<path d="M14 28Q22 3 49 8Q62 11 66 29H14" fill="#566a85"/><rect x="10" y="27" width="68" height="6" rx="3" fill="#35465f"/>`,
-    `<path d="m23 25-2-17 14 9 9-13 9 13 14-9-3 17Z" fill="#ecd38b"/>`,
-    `<path d="M18 27Q18 10 44 10T70 27" fill="none" stroke="#e9e4de" stroke-width="8"/><rect x="11" y="27" width="10" height="22" rx="5" fill="#545c68"/><rect x="67" y="27" width="10" height="22" rx="5" fill="#545c68"/>`,
-    `<path d="M18 28Q18 3 44 5T70 28" fill="#b6beb8"/><circle cx="44" cy="4" r="5" fill="#e3e4db"/><rect x="16" y="22" width="56" height="10" rx="4" fill="#89988f"/>`,
-  ][a.hat || 0];
-  return `<svg viewBox="0 0 88 88" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spieler-Avatar"><rect width="88" height="88" rx="24" fill="#ffffff07"/>${base}<g fill="#25303e">${eyes}<path d="M35 58q9 8 18 0" fill="none" stroke="#25303e" stroke-width="3" stroke-linecap="round"/></g>${hats}</svg>`;
+  return GiG.svg(a);
 }
 function avatarNode(a) {
   const box = el("span", "avatar");
@@ -58,42 +16,49 @@ function avatarNode(a) {
 function paintAvatarEditor() {
   $("avatarPreview").innerHTML = avatarSVG(avatarDraft);
   $("avatarOptions").replaceChildren();
-  const definitions = [
-    [
-      "Vorlage",
-      "shape",
-      ["round", "square", "cat", "robot"],
-      ["Rund", "Eckig", "Katze", "Roboter"],
-    ],
-    ["Farbe", "color", [0, 1, 2, 3, 4, 5, 6, 7], []],
-    ["Gesicht", "eyes", [0, 1, 2, 3], ["Wach", "Lächeln", "Cool", "Zwinkern"]],
-    [
-      "Accessoire",
-      "hat",
-      [0, 1, 2, 3, 4],
-      ["Ohne", "Cap", "Krone", "Kopfhörer", "Mütze"],
-    ],
-  ];
-  for (const [title, key, values, names] of definitions) {
+  const names = {
+    kind: "Figur",
+    skin: "Hautton / Material",
+    hair: "Frisur",
+    hairColor: "Haarfarbe",
+    eyes: "Gesicht",
+    outfit: "Outfit",
+    hat: "Kopfsache",
+    color: "Kleidungsfarbe",
+    background: "Hintergrund",
+  };
+  for (const [key, values] of Object.entries(GiG.choices)) {
     const group = el("div", "avatar-options");
-    values.forEach((v, i) => {
+    values.forEach((name, v) => {
+      const gate = GiG.gate(key, v),
+        locked = !GiG.owns(window.Account?.profile, gate);
       const b = makeButton(
-        names[i] || "●",
+        (locked ? "🔒 " : "") + name,
         () => {
+          if (locked) {
+            toast("Dieses Set kannst du im GiG-Shop freischalten.");
+            return;
+          }
+          delete avatarDraft.custom;
           avatarDraft[key] = v;
           paintAvatarEditor();
         },
-        avatarDraft[key] === v ? "active" : "",
+        avatarDraft[key] === v && !avatarDraft.custom ? "active" : "",
       );
       b.setAttribute("aria-pressed", String(avatarDraft[key] === v));
-      if (key === "color") {
-        b.style.color = AVATAR_COLORS[v];
-        b.setAttribute("aria-label", "Farbe " + (i + 1));
-      }
       group.append(b);
     });
-    $("avatarOptions").append(el("label", "", title), group);
+    $("avatarOptions").append(el("label", "", names[key]), group);
   }
+  const link = makeButton(
+    "Pixelatelier & eigene Bilder →",
+    () => {
+      $("avatarDialog").close();
+      window.Account?.open("atelier");
+    },
+    "quiet",
+  );
+  $("avatarOptions").append(link);
 }
 function openAvatar() {
   avatarDraft = { ...avatarChoice };
@@ -104,9 +69,15 @@ $("homeAvatar").onclick = openAvatar;
 $("editAvatar").onclick = openAvatar;
 $("homeAvatarPreview").innerHTML = avatarSVG(avatarChoice);
 $("saveAvatar").onclick = async () => {
-  if (room) {
+  if (window.Account?.profile) {
+    try {
+      await Account.save({ avatar: avatarDraft });
+    } catch (e) {
+      return toast(e.message, true);
+    }
+  } else if (room) {
     const r = await rpc("avatar", avatarDraft);
-    if (!r.ok) return toast("Avatar kann in der Lobby geändert werden.", true);
+    if (!r.ok) return toast("Ändere deinen Avatar zwischen den Runden.", true);
   }
   avatarChoice = { ...avatarDraft };
   try {
@@ -142,10 +113,16 @@ releaseKeys = function () {
   oldRelease();
 };
 function currentControls() {
+  if (document.querySelector("dialog[open]"))
+    return { throttle: 0, axis: 0, tilt: 0, target: null, drift: false };
   const d = (...codes) =>
     codes.some((c) => keys.has(c) || touchKeys.has(c)) ? 1 : 0;
   return {
-    throttle: joy.y || d("ArrowUp", "KeyW") - d("ArrowDown", "KeyS"),
+    throttle:
+      room?.round?.game === "monster"
+        ? d("ArrowUp", "KeyW", "ArrowRight", "KeyD") -
+          d("ArrowDown", "KeyS", "ArrowLeft", "KeyA")
+        : joy.y || d("ArrowUp", "KeyW") - d("ArrowDown", "KeyS"),
     axis: joy.x || d("ArrowRight", "KeyD") - d("ArrowLeft", "KeyA"),
     tilt: d("ArrowRight", "KeyD") - d("ArrowLeft", "KeyA"),
     target: pointerTarget,
@@ -237,6 +214,11 @@ renderTouch = function (id) {
     ? "Touch-Steuerung aktiv · Querformat bietet mehr Spielfläche."
     : "";
   if (!isTouchDevice) return;
+  if (id === "monster")
+    box.append(
+      touchButton("◀ Bremse / zurück", "KeyA", null, "monster-pedal"),
+      touchButton("Gas ▶", "KeyD", null, "monster-pedal gas"),
+    );
   if (id === "race") {
     const steer = el("div", "drive-steer");
     steer.append(touchButton("←", "KeyA"), touchButton("→", "KeyD"));
@@ -625,7 +607,12 @@ const REACTIONS = {
   coin: ["✦", "Coin"],
   clap: ["👏", "Applaus"],
 };
-function boardSound(key) {
+async function boardSound(key) {
+  if (window.Account?.muteBoards) return;
+  Sound.unlock();
+  try {
+    if (Sound.ctx?.state !== "running") await Sound.ctx?.resume();
+  } catch {}
   const tones = {
     buzzer: [
       [120, 0.3, 0],
@@ -805,7 +792,10 @@ renderRoom = function (next) {
   if (next.round && ["countdown", "playing"].includes(next.phase)) {
     $("playStage").classList.toggle("drawing", next.round.game === "draw");
     $("play").classList.toggle("quiz-mode", next.round.game === "quiz");
-    document.body.classList.toggle("racing", next.round.game === "race");
+    document.body.classList.toggle(
+      "racing",
+      ["race", "monster"].includes(next.round.game),
+    );
     $("raceCanvas").hidden = next.round.game !== "race";
     if (newRoundKey !== next.round.id) {
       newRoundKey = next.round.id;
@@ -929,6 +919,7 @@ function receiveSnapshot(packet) {
       "stack",
       "memory",
       "race",
+      "monster",
       "golf",
     ].includes(room?.round?.game)
   )
@@ -1321,8 +1312,16 @@ function startConfetti() {
     vy: -300 - Math.random() * 500,
     r: Math.random() * Math.PI,
     spin: (Math.random() - 0.5) * 8,
-    color: ["#d7e7fa", "#f0d9ab", "#b9d0bf", "#e1bfd1"][i % 4],
+    color: (room?.lastResult?.rows?.find((p) => p.rank === 1)?.effect ===
+    "stars"
+      ? ["#fff0a8", "#e9d179", "#fff8d2", "#d5dcf5"]
+      : room?.lastResult?.rows?.find((p) => p.rank === 1)?.effect ===
+          "fireworks"
+        ? ["#f4a3a0", "#b5f36a", "#b4a2ed", "#8edcde"]
+        : ["#d7e7fa", "#f0d9ab", "#b9d0bf", "#e1bfd1"])[i % 4],
     size: 4 + Math.random() * 5,
+    kind:
+      room?.lastResult?.rows?.find((p) => p.rank === 1)?.effect || "confetti",
   }));
 }
 function phaseClock() {
@@ -1382,7 +1381,7 @@ function phaseClock() {
         ? "Auflösung"
         : "Frage " + (state.index + 1) + " / 6";
   }
-  if (state && id === "race" && state.finishAt) {
+  if (state && ["race", "monster"].includes(id) && state.finishAt) {
     deadline = Math.min(deadline, state.finishAt);
     total = 15;
     label = "Ziel offen · letzte Sekunden";
@@ -1469,7 +1468,22 @@ function experienceFrame(now) {
       cx.translate(p.x, p.y);
       cx.rotate(p.r);
       cx.fillStyle = p.color;
-      cx.fillRect(-p.size / 2, -p.size, p.size, p.size * 1.7);
+      if (p.kind === "stars") {
+        cx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const a = (i * Math.PI) / 5 - Math.PI / 2,
+            r = i % 2 ? p.size * 0.45 : p.size;
+          i
+            ? cx.lineTo(Math.cos(a) * r, Math.sin(a) * r)
+            : cx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        }
+        cx.closePath();
+        cx.fill();
+      } else if (p.kind === "fireworks") {
+        cx.shadowColor = p.color;
+        cx.shadowBlur = 12;
+        cx.fillRect(-2, -p.size, 4, p.size * 2.5);
+      } else cx.fillRect(-p.size / 2, -p.size, p.size, p.size * 1.7);
       cx.restore();
     }
     if (age > 4000) {

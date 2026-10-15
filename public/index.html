@@ -9,10 +9,11 @@
     <meta name="theme-color" content="#111316" />
     <meta
       name="description"
-      content="MultiplayerGames-GiG: euer Spieleabend mit Meme Dub Studio, Sketch & Guess, 3D-Rennen und 16 weiteren Spielen."
+      content="MultiplayerGames-GiG: euer Spieleabend mit Meme Dub Studio, Sketch & Guess, 3D-Rennen und 17 weiteren Spielen."
     />
     <title>MultiplayerGames-GiG</title>
     <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/accounts.css" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
   <body>
@@ -23,6 +24,10 @@
           ><span>MultiplayerGames<span class="brand-gig">-GiG</span></span></a
         >
         <div class="header-right">
+          <div id="accountBar" class="account-bar">
+            <button id="loginButton" class="quiet">Login</button
+            ><button id="registerButton">Konto erstellen</button>
+          </div>
           <button
             id="soundToggle"
             class="quiet sound-button"
@@ -48,7 +53,7 @@
                 Geschichten entstehen zwischen zwei Runden.
               </p>
               <div class="intro-tags">
-                <span>19 Spiele</span><span>Bis zu 8 Freunde</span
+                <span>20 Spiele</span><span>Bis zu 8 Freunde</span
                 ><span>Euer eigener Raum</span>
               </div>
               <div class="hero-collage">
@@ -126,6 +131,13 @@
               >
                 <span>RAUMCODE</span><strong id="roomCode" class="mono"></strong
                 ><span>⧉</span></button
+              ><button
+                id="revealCode"
+                class="quiet"
+                aria-label="Raumcode anzeigen"
+                aria-pressed="false"
+              >
+                Anzeigen</button
               ><button id="invite" class="quiet">Einladungslink ↗</button>
             </div>
           </div>
@@ -149,6 +161,13 @@
               <div class="panel soundboard-panel">
                 <div class="panel-title">Wartezimmer-Sounds</div>
                 <div id="soundboard" class="soundboard"></div>
+                <div id="customSounds" class="soundboard"></div>
+                <button id="manageSounds" class="quiet">
+                  Eigene Sounds & Slots →</button
+                ><label class="small"
+                  ><input id="muteBoards" type="checkbox" /> Soundboards
+                  stummschalten</label
+                >
               </div>
               <div id="lastRound" class="panel last-round" hidden></div>
               <details id="advanced" class="advanced">
@@ -179,6 +198,23 @@
                 gemeinsam durchspielen, Gesamtsieger feiern.
               </p>
               <div id="selectedGame" class="selection-panel"></div>
+              <div id="monsterSetup" class="panel settings-panel" hidden>
+                <div class="panel-title">Monster Trails · Strecke & Garage</div>
+                <div class="settings-row">
+                  <label
+                    >Strecke<select id="monsterTrack">
+                      <option value="meadow">Wiesen-Wahnsinn</option>
+                      <option value="canyon">Canyon Club</option>
+                      <option value="frost">Frosty Run</option>
+                    </select></label
+                  ><button id="openGarage">Meine Garage →</button>
+                </div>
+                <p class="muted small">
+                  Geisterrennen · Gemeinsame Fahrzeugwerte vom Spieler mit den
+                  wenigsten Upgrades. Gäste fahren mit Basiswerten. Training
+                  bringt keine Coins.
+                </p>
+              </div>
               <div id="raceSetup" class="panel settings-panel" hidden>
                 <div class="panel-title">Grand Prix · Rennleitung</div>
                 <div class="settings-row">
@@ -437,7 +473,8 @@
           </p>
           <p>
             Die Sitzung und der Clip-Pool bleiben im Arbeitsspeicher. Verlassen
-            und Server-Neustart setzen persönliche Punkte zurück. Nach
+            und Server-Neustart setzen Session-Punkte zurück. Gespeicherte
+            Konten, GiG-Coins und Freischaltungen bleiben erhalten. Nach
             Verbindungsabbruch bitte erneut beitreten, sobald die Lobby frei
             ist. Bleibt in einer normalen Runde nur eine Person, endet sie ohne
             Wertung. Der Host wechselt automatisch.
@@ -475,14 +512,40 @@
       <div id="avatarOptions"></div>
       <button id="saveAvatar" class="primary">Look übernehmen →</button>
     </dialog>
+    <dialog id="accountDialog" class="account-dialog"></dialog>
+    <dialog id="profileDialog" class="account-dialog"></dialog>
+    <dialog id="welcomeAccount" class="welcome-account">
+      <button
+        id="dismissWelcome"
+        class="dialog-close quiet"
+        aria-label="Schließen"
+      >
+        ✕</button
+      ><span class="eyebrow">DEIN PLATZ IN DER ARCADE</span>
+      <h2>Aus Mitspielen<br />wird dein Profil.</h2>
+      <p>
+        Sammle GiG-Coins in Multiplayer-Runden. Bau deinen Pixel-Charakter,
+        deine Garage und dein eigenes Soundboard auf.
+      </p>
+      <button id="welcomeRegister" class="primary">
+        Kostenloses Konto erstellen →</button
+      ><button id="welcomeLogin" class="quiet">Ich habe schon ein Konto</button
+      ><button id="welcomeGuest" class="quiet">Als Gast weiterspielen</button>
+    </dialog>
     <canvas id="celebration" aria-hidden="true"></canvas>
     <div id="lobbyReactions" class="lobby-reactions" aria-live="polite"></div>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/economy.js"></script>
+    <script src="/vendor/matter.min.js"></script>
+    <script src="/monster-shared.js"></script>
     <script src="/race-shared.js"></script>
     <script src="/app.js"></script>
     <script src="/games-client.js"></script>
     <script src="/experience.js"></script>
+    <script src="/vendor/firebase-auth.js"></script>
+    <script src="/accounts-client.js"></script>
     <script type="module" src="/race-3d.js"></script>
+    <script type="module" src="/monster-3d.js"></script>
   </body>
 </html>

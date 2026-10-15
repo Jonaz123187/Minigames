@@ -411,7 +411,7 @@ $("invite").onclick = async () => {
     await navigator.clipboard.writeText(url.href);
     toast("Einladungslink kopiert.");
   } catch {
-    toast("Raumcode: " + room.code);
+    toast("Kopieren nicht möglich. Nutze den Anzeigen-Button.", true);
   }
 };
 $("abort").onclick = async () => {
@@ -1101,6 +1101,12 @@ function memoryTile(p) {
 function statFor(id, p) {
   if (!p) return "…";
   switch (id) {
+    case "monster":
+      return p.finished
+        ? "Ziel erreicht"
+        : Math.floor(p.progress / 20) +
+            " m · " +
+            (p.out ? "Ausgeschieden" : Math.round(p.speed) + " km/h");
     case "race":
       return p.finished
         ? (p.finishTime / 1000).toFixed(2) + " s"

@@ -1,0 +1,605 @@
+/* GiG profiles: restrained glass panels, large original pixel characters. */
+.account-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.account-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px 5px 5px;
+  border-radius: 12px;
+}
+.account-chip .avatar {
+  width: 40px;
+  height: 40px;
+}
+.coin-button,
+.wallet {
+  color: #efcf7e;
+}
+.avatar {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #202637;
+}
+.avatar svg,
+.avatar img,
+.pixel-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  object-fit: cover;
+}
+.avatar-entry #homeAvatarPreview {
+  width: 84px;
+  height: 84px;
+  overflow: hidden;
+  border-radius: 15px;
+}
+.avatar-entry svg {
+  width: 84px;
+  height: 84px;
+  image-rendering: pixelated;
+}
+.avatar-preview {
+  width: 224px;
+  height: 224px;
+  margin: 24px auto;
+  border-radius: 18px;
+  overflow: hidden;
+}
+.avatar-preview svg {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+#avatarDialog {
+  max-width: 720px;
+}
+#avatarOptions label {
+  display: block;
+  margin-top: 20px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: #b1b9ca;
+}
+.avatar-options {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.avatar-options button {
+  font-size: 12px;
+  padding: 9px 12px;
+}
+.account-dialog {
+  width: min(1000px, calc(100vw - 28px));
+  max-width: 1000px;
+  padding: 38px;
+  max-height: 90dvh;
+  overflow: auto;
+  background: linear-gradient(145deg, #20252def, #13171df7);
+  backdrop-filter: blur(24px);
+  border: 1px solid #ffffff20;
+  box-shadow: 0 30px 120px #0009;
+  border-radius: 22px;
+  color: #e9edf5;
+}
+.account-dialog::backdrop,
+.welcome-account::backdrop {
+  background: #080c15b8;
+  backdrop-filter: blur(9px);
+}
+.account-dialog h2 {
+  font-size: clamp(26px, 4vw, 38px);
+  letter-spacing: -0.04em;
+  margin: 18px 0;
+}
+.account-dialog > button {
+  margin: 12px 8px 0 0;
+}
+.account-tabs {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  padding-right: 15px;
+  margin-bottom: 30px;
+}
+.account-tabs button {
+  font-size: 12px;
+  padding: 10px 12px;
+}
+.account-tabs button.active {
+  background: #b5f36a;
+  color: #18221b;
+}
+.account-form {
+  max-width: 460px;
+  display: grid;
+  gap: 20px;
+  margin: 28px 0;
+}
+.account-field {
+  display: grid;
+  gap: 9px;
+  font-size: 12px;
+  color: #bdc6d5;
+}
+.account-field input,
+.account-field textarea,
+.account-field select {
+  width: 100%;
+  margin: 0;
+}
+.account-field textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.account-private {
+  padding: 15px;
+  border: 1px solid #ffffff15;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+.account-warning {
+  color: #e6be7a;
+}
+.profile-editor {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 26px 0;
+}
+.profile-editor > .account-field:first-child {
+  grid-column: 1/-1;
+}
+.gig-profile {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #ffffff16;
+  border-radius: 16px;
+  background: #151b26;
+  margin: 22px 0;
+}
+.profile-banner {
+  height: 130px;
+  background:
+    radial-gradient(ellipse at 80% 110%, #6d8d72 0, transparent 60%),
+    linear-gradient(120deg, #343f50, #1c2332);
+}
+.theme-arcade .profile-banner {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 28px, #ffffff08 29px 30px),
+    linear-gradient(135deg, #443b61, #173e4a);
+}
+.theme-space .profile-banner {
+  background:
+    radial-gradient(circle at 75% 40%, #ada2c9 0 25px, transparent 26px),
+    radial-gradient(ellipse at 80% 100%, #53547b, transparent 70%), #202638;
+}
+.theme-sunset .profile-banner {
+  background:
+    radial-gradient(circle at 75% 80%, #f3d599 0 45px, transparent 46px),
+    linear-gradient(140deg, #936d86, #bd8b75);
+}
+.theme-ice .profile-banner {
+  background: linear-gradient(145deg, #819fb6, #374e64);
+}
+.profile-hero {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  padding: 0 30px;
+  margin-top: -40px;
+  position: relative;
+}
+.profile-hero h2 {
+  margin: 8px 0;
+}
+.profile-avatar {
+  width: 128px;
+  height: 128px;
+  flex: 0 0 128px;
+  border: 5px solid #161d2a;
+  border-radius: 15px;
+}
+.frame-gold {
+  outline: 3px solid #e6c57e;
+}
+.frame-pixel {
+  outline: 4px dashed #b5f36a;
+}
+.frame-neon {
+  outline: 2px solid #b5a2ef;
+  box-shadow: 0 0 20px #9e85e744;
+}
+.profile-title {
+  font-size: 12px;
+  color: #c0c8d8;
+}
+.profile-bio {
+  padding: 0 30px;
+  color: #c4cddd;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.profile-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  gap: 18px;
+  padding: 20px 30px;
+  border-top: 1px solid #ffffff0d;
+}
+.profile-stats strong,
+.profile-stats small {
+  display: block;
+}
+.profile-stats strong {
+  font-size: 20px;
+}
+.profile-stats small {
+  font-size: 10px;
+  color: #8d9aac;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 8px;
+}
+.badge-shelf {
+  padding: 0 30px 25px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.achievement {
+  padding: 9px 12px;
+  background: #e9c87a12;
+  border: 1px solid #e9c87a25;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #e4ce99;
+}
+.pixel-pet {
+  display: block;
+  width: 58px;
+  height: 58px;
+  margin-left: auto;
+  image-rendering: pixelated;
+  animation: pet-bob 3s ease-in-out infinite;
+}
+.pixel-pet svg {
+  width: 100%;
+  height: 100%;
+}
+.shop-category {
+  margin: 32px 0 15px;
+  font-size: 15px;
+}
+.wallet {
+  font-size: 25px;
+  margin: 25px 0;
+}
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.shop-item {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #ffffff12;
+  background: #ffffff03;
+  border-radius: 12px;
+}
+.shop-item strong {
+  font-size: 14px;
+  flex: 1;
+}
+.shop-item button {
+  font-size: 12px;
+}
+.shop-item.owned {
+  border-color: #b5f36a24;
+}
+.shop-glyph {
+  width: 58px;
+  height: 58px;
+  font-size: 36px;
+  color: #b5f36a;
+  display: grid;
+  place-items: center;
+}
+.shop-glyph svg {
+  width: 58px;
+  height: 58px;
+  border-radius: 8px;
+}
+.upgrade-grid,
+.sound-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 24px 0;
+}
+.upgrade-card,
+.sound-slot {
+  border: 1px solid #ffffff16;
+  padding: 18px;
+  border-radius: 12px;
+  background: #ffffff03;
+}
+.upgrade-card h3 {
+  font-size: 15px;
+}
+.upgrade-pips {
+  color: #b5f36a;
+  font-size: 24px;
+  letter-spacing: 4px;
+  margin-top: 20px;
+}
+.sound-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow: hidden;
+}
+.sound-slot input {
+  font-size: 11px;
+  max-width: 100%;
+}
+.pixel-tools {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.pixel-tools input {
+  width: 50px;
+  height: 40px;
+  padding: 3px;
+}
+.pixel-editor {
+  display: block;
+  width: min(384px, 100%);
+  height: auto;
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+  border: 1px solid #ffffff30;
+  background-color: #242b36;
+  background-image:
+    linear-gradient(45deg, #ffffff0b 25%, transparent 25%),
+    linear-gradient(-45deg, #ffffff0b 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ffffff0b 75%),
+    linear-gradient(-45deg, transparent 75%, #ffffff0b 75%);
+  background-size: 24px 24px;
+  background-position:
+    0 0,
+    0 12px,
+    12px -12px,
+    -12px 0;
+  touch-action: none;
+  cursor: crosshair;
+}
+.welcome-account {
+  width: min(480px, calc(100vw - 28px));
+  padding: 38px;
+  background: linear-gradient(150deg, #27312c, #161c22);
+  border: 1px solid #ffffff25;
+  border-radius: 20px;
+  color: #f1f3f7;
+}
+.welcome-account h2 {
+  font-size: 38px;
+  letter-spacing: -0.04em;
+}
+.welcome-account p {
+  line-height: 1.7;
+  color: #b9c5c6;
+}
+.welcome-account > button:not(.dialog-close) {
+  width: 100%;
+  margin-top: 10px;
+}
+.profile-link {
+  cursor: pointer;
+}
+.profile-link:hover {
+  color: #b5f36a;
+}
+.kick-button {
+  padding: 6px !important;
+  min-width: 25px;
+  color: #b3a0a0;
+}
+.join-request {
+  padding: 18px;
+  border: 1px solid #d6bd7c55;
+  border-radius: 12px;
+  background: #27271d;
+  margin: 12px 0;
+}
+.join-request strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.join-request button {
+  font-size: 11px;
+  margin: 3px;
+}
+.monster-pedal {
+  min-width: 140px;
+  min-height: 75px;
+  touch-action: none;
+  font-size: 18px;
+}
+.showcase-editor {
+  grid-column: 1/-1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.showcase-editor label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.showcase-editor input {
+  width: auto;
+}
+.soundboard-panel > label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+.soundboard-panel > label input {
+  width: auto;
+}
+.monster-hud {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  color: #fff;
+}
+#customSounds {
+  margin-top: 10px;
+}
+#monsterSetup button {
+  align-self: end;
+}
+@keyframes pet-bob {
+  50% {
+    transform: translateY(-5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pixel-pet {
+    animation: none;
+  }
+}
+@media (max-width: 700px) {
+  .account-dialog {
+    padding: 24px 18px;
+  }
+  .shop-grid,
+  .upgrade-grid,
+  .sound-slots {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .profile-editor {
+    grid-template-columns: 1fr;
+  }
+  .account-bar {
+    gap: 4px;
+  }
+  .account-bar > button {
+    font-size: 11px;
+    padding: 8px;
+  }
+  .account-chip > span:not(.avatar) {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .account-chip .avatar {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+  .profile-hero {
+    padding: 0 18px;
+    gap: 15px;
+  }
+  .profile-avatar {
+    width: 96px;
+    height: 96px;
+    flex-basis: 96px;
+  }
+  .profile-hero h2 {
+    font-size: 25px;
+  }
+  .profile-stats {
+    padding: 18px;
+    grid-template-columns: 1fr 1fr;
+  }
+  .profile-stats > div:last-child {
+    grid-column: 1/-1;
+  }
+  .profile-bio,
+  .badge-shelf {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .pixel-pet {
+    width: 40px;
+    height: 40px;
+  }
+  .header-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .avatar {
+    width: 56px;
+    height: 56px;
+    flex-basis: 56px;
+  }
+  .account-tabs {
+    gap: 4px;
+  }
+  .account-tabs button {
+    font-size: 11px;
+    padding: 9px;
+  }
+  .shop-item {
+    padding: 12px;
+  }
+  .shop-item button {
+    padding: 10px 5px;
+  }
+  .monster-pedal {
+    min-width: 120px;
+  }
+  .avatar-preview {
+    width: 192px;
+    height: 192px;
+  }
+  .player {
+    gap: 8px;
+  }
+  .player-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 420px) {
+  .sound-slots {
+    grid-template-columns: 1fr;
+  }
+  .profile-hero {
+    gap: 10px;
+  }
+  .profile-avatar {
+    width: 80px;
+    height: 80px;
+    flex-basis: 80px;
+  }
+  .account-chip > span:not(.avatar) {
+    max-width: 65px;
+  }
+}
+#monsterCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  z-index: 0;
+}

@@ -51,6 +51,7 @@ function rpc(event, data) {
   );
 }
 async function enter(action) {
+  if (window.Account) await Account.ready;
   if (!socket.connected)
     return toast("Noch keine Verbindung zum Server.", true);
   if (!$("name").reportValidity()) return;
@@ -95,9 +96,9 @@ $("leave").onclick = async () => {
 $("copyCode").onclick = async () => {
   try {
     await navigator.clipboard.writeText(room.code);
-    toast("Raumcode kopiert: " + room.code);
+    toast("Raumcode kopiert.");
   } catch {
-    toast("Dein Raumcode: " + room.code);
+    toast("Kopieren nicht möglich. Nutze den Anzeigen-Button.", true);
   }
 };
 $("start").onclick = async () => {
@@ -197,7 +198,7 @@ function renderRoom(next) {
   const isHost = next.hostId === myId;
   if (next.phase === "lobby") {
     showScreen("lobby");
-    $("roomCode").textContent = next.code;
+    $("roomCode").textContent = window.codeVisible ? next.code : "••••••";
     $("playerCount").textContent = next.players.length + " / 8";
     $("players").replaceChildren(
       ...next.players.map((p) => {
@@ -378,7 +379,12 @@ function snakeDirection(key) {
   }[key];
 }
 document.addEventListener("keydown", (e) => {
-  if (!active() || ["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
+  if (
+    !active() ||
+    document.querySelector("dialog[open]") ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)
+  )
+    return;
   const controlKeys = [
     "ArrowUp",
     "ArrowDown",
@@ -416,7 +422,7 @@ document.addEventListener("visibilitychange", () => {
 setInterval(() => {
   if (
     !active() ||
-    !["race", "pong", "dodge", "tag", "bomber", "runner"].includes(
+    !["race", "monster", "pong", "dodge", "tag", "bomber", "runner"].includes(
       room.round.game,
     )
   )
@@ -921,7 +927,7 @@ function frame(now) {
         (-viewport.x * canvas.width) / viewport.w,
         (-viewport.y * canvas.height) / viewport.h,
       );
-      if (room.round.game === "race") {
+      if (["race", "monster"].includes(room.round.game)) {
         ctx.clearRect(0, 0, W, H);
       } else background();
       if (state) {
