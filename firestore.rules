@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Browsers use authenticated Express endpoints. Only the Admin SDK accesses Firestore.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

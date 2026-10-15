@@ -1,21 +1,29 @@
 {
   "name": "multiplayergames-gig",
-  "version": "3.0.0",
-  "description": "19 Multiplayer-Spiele mit 3D-Rennen, Dub Studio, Party-Playlist und privaten Lobbys",
+  "version": "4.0.0",
+  "description": "20 Multiplayer-Spiele mit Konten, Pixelart-Profilen, GiG-Coins und Geister-Trials",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "build:auth": "esbuild scripts/firebase-client.js --bundle --minify --format=iife --global-name=GiGFirebase --outfile=public/vendor/firebase-auth.js"
   },
   "keywords": [],
   "author": "Jonas N.",
   "license": "UNLICENSED",
   "type": "commonjs",
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "express": "^5.3.0",
+    "firebase-admin": "^14.5.0",
+    "matter-js": "^0.20.0",
+    "music-metadata": "^12.2.1",
+    "pngjs": "^7.0.0",
     "socket.io": "^4.8.4"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
+    "firebase": "^13.0.0",
     "socket.io-client": "^4.8.4"
   },
   "engines": {

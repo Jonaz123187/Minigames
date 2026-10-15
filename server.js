@@ -8,6 +8,8 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { performance } = require("node:perf_hooks");
 const highlights = require("./highlights");
+const Economy = require("./public/economy");
+const { createAccounts } = require("./accounts");
 const { Server } = require("socket.io");
 const { prepareClip, defaultClip } = require("./voice");
 
@@ -390,10 +392,14 @@ const GAMES = {
   },
 };
 
-Object.assign(GAMES, require("./games"), { quiz: require("./quiz") });
+Object.assign(GAMES, require("./games"), {
+  quiz: require("./quiz"),
+  monster: require("./monster"),
+});
 const ORDER = [
   "dub",
   "draw",
+  "monster",
   "race",
   "quiz",
   "bomber",
@@ -413,18 +419,12 @@ const ORDER = [
   "click",
 ];
 const DEFAULT_SETTINGS = {
+  monster: { track: "meadow" },
   mode: "single",
   race: { track: "coast", laps: 3, collisions: true },
   dub: { rounds: 1, listen: 8, record: 25 },
 };
-const avatarOf = (a) => ({
-  shape: ["round", "square", "cat", "robot"].includes(a?.shape)
-    ? a.shape
-    : "round",
-  color: Number.isInteger(a?.color) ? clamp(a.color, 0, 7) : 0,
-  eyes: Number.isInteger(a?.eyes) ? clamp(a.eyes, 0, 3) : 0,
-  hat: Number.isInteger(a?.hat) ? clamp(a.hat, 0, 4) : 0,
-});
+const avatarOf = (a, p) => Economy.avatar(a, p);
 const shuffled = (a) => {
   a = [...a];
   for (let i = a.length - 1; i > 0; i--) {
@@ -462,7 +462,11 @@ function refillFood(g) {
     g.food.push(free.splice(randInt(0, free.length - 1), 1)[0]);
 }
 
-function createArcade({ clock = Date.now, manual = false } = {}) {
+function createArcade({
+  clock = Date.now,
+  manual = false,
+  accountOptions = {},
+} = {}) {
   const app = express();
   const server = http.createServer(app);
   const io = new Server(server, {
@@ -483,12 +487,48 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
     },
   });
   app.disable("x-powered-by");
+  app.set("trust proxy", 1);
   app.use((req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "same-origin");
     next();
   });
+  const cookieKey =
+    process.env.GUEST_COOKIE_SECRET || crypto.randomBytes(32).toString("hex");
+  const sign = (id) =>
+    crypto.createHmac("sha256", cookieKey).update(id).digest("hex");
+  const device = (raw) => {
+    const [id, mac] = String(raw || "").split(".");
+    return /^[a-f0-9]{32}$/.test(id) && mac === sign(id) ? id : null;
+  };
+  app.use((req, res, next) => {
+    const raw = req.headers.cookie?.match(/(?:^|; )gig_device=([^;]+)/)?.[1];
+    if (!device(raw)) {
+      const id = crypto.randomBytes(16).toString("hex");
+      res.append(
+        "Set-Cookie",
+        "gig_device=" +
+          id +
+          "." +
+          sign(id) +
+          "; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000" +
+          (req.headers["x-forwarded-proto"] === "https" ? "; Secure" : ""),
+      );
+    }
+    next();
+  });
+  const accounts = createAccounts(app, accountOptions);
+  io.use((socket, next) => {
+    const raw = socket.handshake.headers.cookie?.match(
+      /(?:^|; )gig_device=([^;]+)/,
+    )?.[1];
+    socket.data.device = device(raw) || crypto.randomBytes(16).toString("hex");
+    next();
+  });
   app.use(express.static(path.join(__dirname, "public")));
+  app.get("/profile", (req, res) =>
+    res.sendFile(path.join(__dirname, "public/index.html")),
+  );
   app.get("/health", (req, res) => res.json({ ok: true }));
   const rooms = new Map();
 
@@ -497,7 +537,7 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
       code: room.code,
       hostId: room.hostId,
       phase: room.phase,
-      players: [...room.players.values()],
+      players: [...room.players.values()].map(({ identity, ...p }) => p),
       settings: room.settings,
       party: room.party,
       clips: room.clips.map((c) => ({
@@ -519,7 +559,7 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
             startsAt: room.round.startsAt,
             endsAt: room.round.endsAt,
             practice: room.round.practice,
-            roster: room.round.roster,
+            roster: room.round.roster.map(({ identity, ...p }) => p),
             meta: room.round.meta,
           }
         : null,
@@ -543,6 +583,8 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
     if (!room) return;
     socket.leave(room.code);
     room.players.delete(socket.id);
+    if (room.hostId === socket.id)
+      for (const [key, request] of room.pending || []) room.pending.delete(key);
     if (room.phase === "lobby") clearReady(room);
     room.round?.connected.delete(socket.id);
     if (!room.players.size) {
@@ -590,11 +632,43 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
     const round = room.round,
       game = GAMES[round.game];
     const rows = round.roster.map((p) => ({
-      ...p,
+      ...Object.fromEntries(
+        Object.entries(p).filter(([k]) => k !== "identity"),
+      ),
       connected: round.connected.has(p.id),
       raw: game.score(round.state, p.id),
       detail: game.detail(round.state, p.id),
     }));
+    const participants = new Set(round.roster.map((p) => p.identity)).size;
+    for (const row of rows) {
+      if (!row.uid || !row.connected) continue;
+      accounts
+        .reward(row.uid, {
+          roundId: round.id,
+          game: round.game,
+          rank: rows.filter((x) => x.connected && x.raw > row.raw).length + 1,
+          active: (round.activity[row.id] || 0) >= 2,
+          practice: round.practice,
+          participants,
+          duration: now - round.startsAt,
+        })
+        .then((result) => {
+          if (!result?.profile) return;
+          io.to(row.id).emit("account:reward", {
+            coins: result.coins,
+            profile: result.profile,
+            roundId: round.id,
+          });
+        })
+        .catch(() =>
+          io
+            .to(row.id)
+            .emit(
+              "notice",
+              "Deine GiG-Coins konnten gerade nicht gespeichert werden. Bitte die Verbindung zur Datenbank prüfen.",
+            ),
+        );
+    }
     // A departure forfeits the round; the frozen roster still appears in results.
     rows.sort(
       (a, b) => Number(b.connected) - Number(a.connected) || b.raw - a.raw,
@@ -669,7 +743,31 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
   function start(room, gameId, now, practice) {
     const game = GAMES[gameId];
     const roster = [...room.players.values()].map(
-      ({ id, name, color, avatar }) => ({ id, name, color, avatar }),
+      ({
+        id,
+        name,
+        color,
+        avatar,
+        uid,
+        car,
+        trail,
+        effect,
+        frame,
+        pet,
+        identity,
+      }) => ({
+        id,
+        name,
+        color,
+        avatar,
+        uid,
+        car,
+        trail,
+        effect,
+        frame,
+        pet,
+        identity,
+      }),
     );
     const startsAt = now + COUNTDOWN_MS;
     const available = room.clips.filter(
@@ -685,7 +783,17 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
     const state = game.init(
       roster.map((p) => p.id),
       startsAt,
-      { clip: room.dubClip, clips, settings: room.settings },
+      {
+        clip: room.dubClip,
+        clips,
+        settings: room.settings,
+        upgrades: Object.fromEntries(
+          roster.map((p) => [
+            p.id,
+            accounts.upgrades(io.sockets.sockets.get(p.id)?.data.account),
+          ]),
+        ),
+      },
     );
     if (gameId === "dub" && state.clip.id) room.usedClips.add(state.clip.id);
     room.round = {
@@ -695,6 +803,7 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
       practice,
       endsAt: startsAt + (game.duration?.(state) || game.seconds) * 1000,
       roster,
+      activity: {},
       connected: new Set(roster.map((p) => p.id)),
       state,
       meta: game.meta?.(state) || {},
@@ -740,7 +849,125 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
       if (typeof ack === "function") ack(payload);
     };
     const getRoom = () => rooms.get(socket.data.roomCode);
-    socket.on("lobby", (payload, ack) => {
+    const identity = () =>
+      socket.data.account
+        ? "u:" + socket.data.account.uid
+        : "g:" + socket.data.device;
+    socket.on("account:login", async (payload, ack) => {
+      try {
+        if (!rateLimit() || getRoom())
+          throw new Error("Bitte vor dem Kontowechsel die Lobby verlassen.");
+        const profile = await accounts.sync(socket, payload?.token);
+        reply(ack, { ok: true, profile });
+      } catch (e) {
+        reply(ack, { ok: false, error: e.message });
+      }
+    });
+    socket.on("account:refresh", async (_, ack) => {
+      try {
+        if (!rateLimit() || !socket.data.account)
+          return reply(ack, { ok: false });
+        const p = await accounts.get(socket.data.account.uid);
+        socket.data.account = p;
+        const room = getRoom();
+        if (room?.phase === "lobby") {
+          Object.assign(room.players.get(socket.id), {
+            avatar: p.avatar,
+            car: p.car,
+            trail: p.trail,
+            effect: p.effect,
+            frame: p.frame,
+            pet: p.pet,
+          });
+          broadcastRoom(room);
+        }
+        reply(ack, { ok: true, profile: p });
+      } catch {
+        reply(ack, { ok: false });
+      }
+    });
+    socket.on("account:logout", (_, ack) => {
+      if (getRoom())
+        return reply(ack, {
+          ok: false,
+          error: "Bitte zuerst die Lobby verlassen.",
+        });
+      socket.data.account = null;
+      reply(ack, { ok: true });
+    });
+    socket.on("lobby:kick", (payload, ack) => {
+      const room = getRoom(),
+        target = room?.players.get(payload?.id);
+      if (
+        !rateLimit() ||
+        !target ||
+        room.hostId !== socket.id ||
+        target.id === socket.id
+      )
+        return reply(ack, { ok: false });
+      room.kicked.set(target.identity, "ask");
+      const other = io.sockets.sockets.get(target.id);
+      if (other) {
+        other.emit("lobby:kicked");
+        leave(other);
+      }
+      reply(ack, { ok: true });
+    });
+    socket.on("lobby:decision", (payload, ack) => {
+      const room = getRoom();
+      if (!rateLimit() || !room || room.hostId !== socket.id)
+        return reply(ack, { ok: false });
+      const entry = [...room.pending.entries()].find(
+        ([, p]) => p.id === payload?.id,
+      );
+      if (!entry) return reply(ack, { ok: false });
+      const [key, request] = entry;
+      room.pending.delete(key);
+      room.kicked.set(key, payload.allow === true ? "allow" : "blocked");
+      const other = io.sockets.sockets.get(request.socketId);
+      other?.emit("lobby:decision", { allowed: payload.allow === true });
+      reply(ack, { ok: true });
+    });
+    let soundAt = -10000;
+    socket.on("sound:play", async (payload, ack) => {
+      const room = getRoom(),
+        now = clock(),
+        p = socket.data.account;
+      try {
+        if (
+          !rateLimit() ||
+          !room ||
+          room.phase !== "lobby" ||
+          !p ||
+          now - soundAt < 5500
+        )
+          throw new Error(
+            "Eigene Sounds sind alle 5,5 Sekunden in der Lobby möglich.",
+          );
+        soundAt = now;
+        const fresh = await accounts.get(p.uid),
+          slot = Number(payload?.slot);
+        if (
+          !Number.isInteger(slot) ||
+          slot < 1 ||
+          slot > 6 ||
+          !Economy.owns(fresh, "sound-" + slot) ||
+          !fresh.sounds[slot]
+        )
+          throw new Error("Sound-Slot ist leer oder gesperrt.");
+        const url = await accounts.media(p.uid, "sound-" + slot + ".mp3");
+        if (getRoom() !== room) return;
+        io.to(room.code).emit("sound:play", {
+          id: socket.id,
+          url,
+          name: fresh.sounds[slot].name,
+        });
+        reply(ack, { ok: true });
+      } catch (e) {
+        reply(ack, { ok: false, error: e.message });
+      }
+    });
+    socket.on("lobby", async (payload, ack) => {
       if (!rateLimit())
         return reply(ack, { ok: false, error: "Zu viele Anfragen." });
       const now = clock();
@@ -761,7 +988,7 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
           ok: false,
           error: "Du bist bereits in einer Lobby.",
         });
-      const name =
+      let name =
         typeof payload.name === "string"
           ? payload.name
               .normalize("NFKC")
@@ -771,6 +998,19 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
           : "";
       if (!name)
         return reply(ack, { ok: false, error: "Bitte einen Namen eingeben." });
+      if (socket.data.account) {
+        try {
+          const p = await accounts.get(socket.data.account.uid);
+          if (!p) throw new Error();
+          socket.data.account = p;
+          name = p.username;
+        } catch {
+          return reply(ack, {
+            ok: false,
+            error: "Kontodaten konnten nicht geladen werden.",
+          });
+        }
+      } else name = "Gast-" + name.replace(/^Gast-/i, "").slice(0, 15);
       let room;
       if (payload.action === "create") {
         if (rooms.size >= MAX_ROOMS)
@@ -788,6 +1028,8 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
           hostId: socket.id,
           phase: "lobby",
           players: new Map(),
+          kicked: new Map(),
+          pending: new Map(),
           round: null,
           lastResult: null,
           returnAt: null,
@@ -819,6 +1061,28 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
         room = rooms.get(code);
         if (!room)
           return reply(ack, { ok: false, error: "Raumcode nicht gefunden." });
+        const status = room.kicked.get(identity());
+        if (status === "blocked")
+          return reply(ack, {
+            ok: false,
+            error: "Du bist für diese Lobby gesperrt.",
+          });
+        if (status === "ask") {
+          if (!room.pending.has(identity())) {
+            const request = {
+              id: crypto.randomUUID(),
+              name,
+              socketId: socket.id,
+            };
+            room.pending.set(identity(), request);
+            io.to(room.hostId).emit("lobby:request", { id: request.id, name });
+          }
+          return reply(ack, {
+            ok: false,
+            pending: true,
+            error: "Der Host entscheidet über deinen erneuten Beitritt.",
+          });
+        }
         if (room.phase !== "lobby")
           return reply(ack, {
             ok: false,
@@ -831,6 +1095,17 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
           });
       } else
         return reply(ack, { ok: false, error: "Unbekannte Lobby-Aktion." });
+      if (
+        [...room.players.values()].some(
+          (p) =>
+            p.name.toLowerCase() === name.toLowerCase() ||
+            p.identity === identity(),
+        )
+      )
+        return reply(ack, {
+          ok: false,
+          error: "Dieser Name oder dieses Konto ist bereits in der Lobby.",
+        });
       const used = new Set([...room.players.values()].map((p) => p.color));
       room.players.set(socket.id, {
         id: socket.id,
@@ -839,7 +1114,17 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
         score: 0,
         wish: null,
         ready: false,
-        avatar: avatarOf(payload.avatar),
+        avatar: avatarOf(
+          socket.data.account?.avatar || payload.avatar,
+          socket.data.account,
+        ),
+        uid: socket.data.account?.uid || null,
+        identity: identity(),
+        car: socket.data.account?.car || "truck",
+        trail: socket.data.account?.trail || "none",
+        effect: socket.data.account?.effect || "default",
+        frame: socket.data.account?.frame || "default",
+        pet: socket.data.account?.pet || "none",
         ping: null,
       });
       clearReady(room);
@@ -883,7 +1168,10 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
       const room = getRoom();
       if (!rateLimit() || !room || room.phase !== "lobby")
         return reply(ack, { ok: false });
-      room.players.get(socket.id).avatar = avatarOf(payload);
+      room.players.get(socket.id).avatar = avatarOf(
+        payload,
+        socket.data.account,
+      );
       broadcastRoom(room);
       reply(ack, { ok: true });
     });
@@ -899,6 +1187,8 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
       const integer = (v, lo, hi, fallback) =>
         Number.isInteger(v) ? clamp(v, lo, hi) : fallback;
       const current = room.settings;
+      if (["meadow", "canyon", "frost"].includes(payload?.monster?.track))
+        current.monster.track = payload.monster.track;
       if (payload?.mode === "party" || payload?.mode === "single")
         current.mode = payload.mode;
       if (payload?.race) {
@@ -1182,10 +1472,14 @@ function createArcade({ clock = Date.now, manual = false } = {}) {
         c.drift = input.drift === true;
         c.seq = Number.isSafeInteger(input.seq) ? Math.max(0, input.seq) : 0;
         c.at = now;
+        if (Math.abs(c.throttle) + Math.abs(c.axis) + Math.abs(c.tilt) > 0.15)
+          r.activity[socket.id] = (r.activity[socket.id] || 0) + 1;
         return reply(ack, { ok: true });
       }
       const result =
         GAMES[r.game].input?.(r.state, socket.id, input, now, r) || false;
+      if (result === true)
+        r.activity[socket.id] = (r.activity[socket.id] || 0) + 1;
       reply(ack, {
         ok: result === true,
         error: result?.error,

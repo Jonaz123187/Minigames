@@ -12,6 +12,18 @@ module.exports = function highlights(game, g, roster) {
     }
   };
   switch (game) {
+    case "monster":
+      best(
+        "Längster Flug",
+        (p) => p.airtime,
+        (v) => v.toFixed(1) + " s Airtime",
+      );
+      best(
+        "Weit gekommen",
+        (p) => p.best,
+        (v) => Math.floor(v / 20) + " m",
+      );
+      break;
     case "race":
       best(
         "Tempo-König",
