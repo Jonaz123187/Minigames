@@ -1,7 +1,7 @@
 {
   "name": "multiplayergames-gig",
-  "version": "2.0.0",
-  "description": "18 werbefreie Multiplayer-Minigames, private Lobbys, Meme-Dubs und Skill-Challenges",
+  "version": "3.0.0",
+  "description": "19 Multiplayer-Spiele mit 3D-Rennen, Dub Studio, Party-Playlist und privaten Lobbys",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -13,7 +13,6 @@
   "type": "commonjs",
   "dependencies": {
     "express": "^5.3.0",
-    "matter-js": "^0.20.0",
     "socket.io": "^4.8.4"
   },
   "devDependencies": {

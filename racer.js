@@ -1,95 +1,172 @@
-'use strict';
-// A time-trial course: braking gates, gaps, landings, limited recoveries.
-module.exports = function createRacer(Matter) {
-  const {Engine,Bodies,Body,Composite,Constraint,Query}=Matter;
-  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-  const profile=[[0,430],[500,430],[800,300],[1100,430],[1450,430],[1750,285],[2110,390],[2400,390],[2750,235],[3100,280],[3300,430],[3700,430],[4050,300],[4450,380],[4850,260],[5150,420],[5600,420],[5900,290],[6300,420],[7000,420]];
-  const gaps=[[1840,1990],[4200,4310],[5980,6100]];
-  const gates=[{x:1300,speed:3.1},{x:3500,speed:3.1},{x:5400,speed:3.1}];
-  function yAt(x) {
-    if(x<=0)return 430;
-    const i=profile.findIndex(p=>p[0]>=x);
-    if(i<0)return 420;
-    const a=profile[Math.max(0,i-1)],b=profile[i],t=clamp((x-a[0])/(b[0]-a[0]||1),0,1);
-    return a[1]+(b[1]-a[1])*(.5-.5*Math.cos(t*Math.PI));
-  }
-  function car(world,x) {
-    const y=yAt(x)-70,filter={group:Body.nextGroup(true),category:2,mask:1};
-    const body=Bodies.rectangle(x,y,70,23,{density:.002,friction:.8,frictionAir:.01,collisionFilter:{...filter},chamfer:{radius:5}});
-    const wheels=[-26,26].map(dx=>Bodies.circle(x+dx,y+30,16,{density:.0015,friction:1.5,frictionStatic:2,frictionAir:.005,collisionFilter:{...filter}}));
-    const springs=wheels.flatMap((wheel,i)=>{
-      const dx=i?-26:26;
-      // Correct sign follows the actual wheel, not the list's direction.
-      const anchor=i?26:-26;
-      return [Constraint.create({bodyA:body,pointA:{x:anchor,y:0},bodyB:wheel,length:30,stiffness:.35,damping:.12}),
-        Constraint.create({bodyA:body,pointA:{x:anchor*.25,y:0},bodyB:wheel,length:Math.hypot(dx*.75,30),stiffness:.2,damping:.08})];
+"use strict";
+const R = require("./public/race-shared");
+const game = {
+  title: "GiG Grand Prix",
+  icon: "01",
+  seconds: 360,
+  category: "Skill",
+  difficulty: "Racing",
+  description:
+    "Echte 3D-Rennen. Triff die Ideallinie, lade Drift-Boosts und riskiere die Abkürzung. Drei Strecken.",
+  controls:
+    "W / ↑ Gas · S / ↓ Bremse & Rückwärts · A D / ← → lenken · Leertaste driften · R zurück auf die Strecke",
+  init(ids, startsAt, options = {}) {
+    const settings = options.settings?.race || {},
+      track = R.makeTrack(settings.track),
+      laps = R.clamp(Math.round(settings.laps || 3), 1, 5);
+    return {
+      track,
+      laps,
+      collisions: settings.collisions !== false,
+      finishAt: null,
+      startsAt,
+      players: Object.fromEntries(
+        ids.map((id, i) => [
+          id,
+          {
+            ...R.spawn(track, i),
+            lap: 0,
+            nextCheckpoint: 0,
+            checkpoints: 0,
+            progress: 0,
+            finished: false,
+            finishTime: null,
+            bestLap: null,
+            lapAt: startsAt,
+            resets: 0,
+            resetAt: -10000,
+            collisions: 0,
+            lastCollision: -10000,
+            lastSeq: 0,
+          },
+        ]),
+      ),
+    };
+  },
+  duration: (g) => Math.max(120, g.laps * 100),
+  meta: (g) => ({
+    track: g.track.id,
+    laps: g.laps,
+    collisions: g.collisions,
+    length: g.track.length,
+  }),
+  input(g, id, input, now) {
+    const p = g.players[id];
+    if (input.action !== "reset" || p.finished || now - p.resetAt < 2000)
+      return false;
+    const index =
+      g.track.checkpointIndices[
+        (p.nextCheckpoint - 1 + g.track.checkpointIndices.length) %
+          g.track.checkpointIndices.length
+      ];
+    const s = g.track.segments[p.checkpoints ? index : 0];
+    Object.assign(p, {
+      x: s.x,
+      z: s.z,
+      heading: Math.atan2(s.dx, s.dz),
+      vx: 0,
+      vz: 0,
+      speed: 0,
+      drift: 0,
+      boostUntil: 0,
+      resetAt: now,
     });
-    const parts=[body,...wheels,...springs];Composite.add(world,parts);return {body,wheels,parts};
-  }
-  function rescue(g,p,now,reason) {
-    if(p.out||now-p.resetAt<1400)return false;
-    Composite.remove(g.engine.world,p.parts);p.resets++;p.resetAt=now;p.upside=0;p.reason=reason;
-    Object.assign(p,car(g.engine.world,p.checkpoint));
-    if(p.resets>=6){p.out=true;[p.body,...p.wheels].forEach(b=>Body.setStatic(b,true));}
+    p.resets++;
     return true;
-  }
-  return {
-    title:'Hill Climb: Trials',icon:'01',seconds:100,category:'Skill',difficulty:'Experte',
-    description:'Bremszonen, echte Sprünge und sechs Versuche. Vollgas allein bringt dich nicht durchs Ziel.',
-    controls:'W / ↑ Gas · S / ↓ bremsen · A D / ← → in der Luft ausbalancieren · R bergen · Vor gelben Toren unter 19 km/h · Gas loslassen kühlt den Motor',
-    init(ids){
-      const engine=Engine.create({positionIterations:8,constraintIterations:6}),terrain=[];
-      for(let x=-240;x<=7000;x+=20)terrain.push([x,yAt(x)]);
-      const ground=terrain.slice(1).flatMap((b,i)=>{
-        const a=terrain[i],middle=(a[0]+b[0])/2;
-        if(gaps.some(([l,r])=>middle>l&&middle<r))return [];
-        const angle=Math.atan2(b[1]-a[1],b[0]-a[0]);
-        return [Bodies.rectangle(middle-Math.sin(angle)*100,(a[1]+b[1])/2+Math.cos(angle)*100,Math.hypot(b[0]-a[0],b[1]-a[1])+1,200,{isStatic:true,angle,friction:1.2,collisionFilter:{category:1,mask:2}})];
-      });
-      Composite.add(engine.world,ground);
-      return {engine,ground,terrain,gaps,gates,finish:6500,solo:ids.length===1,
-        players:Object.fromEntries(ids.map(id=>[id,{...car(engine.world,100),maxX:100,checkpoint:100,nextGate:0,resetAt:-5000,resets:0,upside:0,out:false,heat:0,reason:'',finished:false}]))};
-    },
-    meta:g=>({terrain:g.terrain,gaps:g.gaps,gates:g.gates,finish:g.finish}),
-    input(g,id,input,now){return input.action==='reset'&&rescue(g,g.players[id],now,'Geborgen');},
-    tick(g,dt,now,r){
-      for(const [id,p] of Object.entries(g.players)){
-        if(p.out||!r.connected.has(id))continue;
-        const c=r.controls[id],onGround=p.wheels.some(w=>Query.collides(w,g.ground).length);
-        p.heat=clamp(p.heat+(c.throttle>0?14*c.throttle:-27)*dt,0,100);
-        const power=p.heat>=95?.15:1;
-        for(const w of p.wheels){
-          if(c.throttle)Body.setAngularVelocity(w,w.angularVelocity+clamp(c.throttle*.43*power-w.angularVelocity,-.1,.065));
+  },
+  tick(g, dt, now, r) {
+    const checkpoints = g.track.checkpointIndices,
+      n = checkpoints.length;
+    for (const [id, p] of Object.entries(g.players)) {
+      if (!r.connected.has(id) || p.finished) continue;
+      const previous = { x: p.x, z: p.z },
+        c = r.controls[id];
+      R.stepCar(p, c, dt, g.track, now);
+      p.lastSeq = c.seq || 0;
+      const cp = g.track.segments[checkpoints[p.nextCheckpoint]],
+        len = cp.length;
+      const before =
+          ((previous.x - cp.x) * cp.dx + (previous.z - cp.z) * cp.dz) / len,
+        after = ((p.x - cp.x) * cp.dx + (p.z - cp.z) * cp.dz) / len;
+      const lateral =
+        Math.abs((p.x - cp.x) * cp.dz - (p.z - cp.z) * cp.dx) / len;
+      if (before < 0 && after >= 0 && lateral < g.track.width * 0.8) {
+        if (p.nextCheckpoint === 0 && p.checkpoints > 0) {
+          p.lap++;
+          const lapTime = now - p.lapAt;
+          p.bestLap =
+            p.bestLap === null ? lapTime : Math.min(p.bestLap, lapTime);
+          p.lapAt = now;
+          if (p.lap >= g.laps) {
+            p.finished = true;
+            p.finishTime = now - g.startsAt;
+            g.finishAt ??= now + 15000;
+          }
         }
-        if(onGround&&c.throttle){
-          const slope=(yAt(p.body.position.x+5)-yAt(p.body.position.x-5))/10;
-          const force=p.body.mass*(c.throttle<0?.00075:.00032)*c.throttle*power;
-          Body.applyForce(p.body,p.body.position,{x:force,y:slope*force});
-        }
-        p.body.torque+=c.tilt*p.body.inertia*.0000035;
+        p.checkpoints++;
+        p.nextCheckpoint = (p.nextCheckpoint + 1) % n;
       }
-      Engine.update(g.engine,dt*1000);
-      for(const [id,p] of Object.entries(g.players)){
-        if(p.out||!r.connected.has(id))continue;
-        const x=p.body.position.x,gate=g.gates[p.nextGate];
-        if(gate&&x>=gate.x){
-          if(Math.abs(p.body.velocity.x)>gate.speed||Math.cos(p.body.angle)<.75){rescue(g,p,now,'Zu schnell am Bremstor!');continue;}
-          p.nextGate++;p.checkpoint=gate.x+65;p.reason='Checkpoint!';
+      // A checkpoint-relative metric prevents reversing or cutting across the map to gain laps.
+      const target = g.track.points[checkpoints[p.nextCheckpoint]],
+        distance = Math.hypot(p.x - target.x, p.z - target.z);
+      p.progress = p.checkpoints + 1 / (1 + distance / 100);
+      if (Math.abs(p.x) > 1500 || Math.abs(p.z) > 1500)
+        game.input(g, id, { action: "reset" }, now);
+    }
+    if (g.collisions) {
+      const all = Object.entries(g.players).filter(
+        ([id, p]) => r.connected.has(id) && !p.finished,
+      );
+      for (let i = 0; i < all.length; i++)
+        for (let j = i + 1; j < all.length; j++) {
+          const a = all[i][1],
+            b = all[j][1],
+            dx = b.x - a.x,
+            dz = b.z - a.z,
+            d = Math.hypot(dx, dz);
+          if (d >= 3.4) continue;
+          const nx = d > 0.001 ? dx / d : 1,
+            nz = d > 0.001 ? dz / d : 0,
+            push = (3.4 - d) / 2;
+          a.x -= nx * push;
+          a.z -= nz * push;
+          b.x += nx * push;
+          b.z += nz * push;
+          const closing = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;
+          if (closing > 0) {
+            a.vx -= nx * closing * 0.65;
+            a.vz -= nz * closing * 0.65;
+            b.vx += nx * closing * 0.65;
+            b.vz += nz * closing * 0.65;
+            if (now - a.lastCollision > 700) {
+              a.collisions++;
+              b.collisions++;
+              a.lastCollision = b.lastCollision = now;
+            }
+          }
         }
-        p.maxX=Math.max(p.maxX,clamp(x,100,gate?gate.x:g.finish));
-        p.upside=Math.cos(p.body.angle)<-.15?p.upside+dt:0;
-        if(p.upside>.65||p.body.position.y>650||x<0){rescue(g,p,now,'Landung verpasst');continue;}
-        if(x>=g.finish&&p.nextGate===g.gates.length)p.finished=true;
-      }
-      return Object.values(g.players).some(p=>p.finished)||Object.entries(g.players).every(([id,p])=>p.out||!r.connected.has(id));
-    },
-    view:g=>({players:Object.fromEntries(Object.entries(g.players).map(([id,p])=>[id,{
-      x:p.body.position.x,y:p.body.position.y,angle:p.body.angle,wheels:p.wheels.map(w=>({x:w.position.x,y:w.position.y,angle:w.angle})),
-      distance:Math.round((p.maxX-100)/10),speed:Math.round(Math.abs(p.body.velocity.x)*6),heat:Math.round(p.heat),nextGate:p.nextGate,
-      resets:p.resets,out:p.out,reason:p.reason,finished:p.finished
-    }]))}),
-    score:(g,id)=>g.players[id].finished?100000:Math.max(0,Math.floor(g.players[id].maxX-100)-g.players[id].resets*120),
-    detail:(g,id)=>`${Math.round((g.players[id].maxX-100)/10)} m · ${g.players[id].nextGate}/3 Tore · ${g.players[id].resets}/6 Bergungen${g.players[id].finished?' · ZIEL':''}`,
-    dispose(g){Composite.clear(g.engine.world,false);Engine.clear(g.engine);}
-  };
+    }
+    return (
+      [...r.connected].every((id) => g.players[id].finished) ||
+      (g.finishAt !== null && now >= g.finishAt)
+    );
+  },
+  view: (g) => ({ players: g.players, finishAt: g.finishAt }),
+  score: (g, id) =>
+    g.players[id].finished
+      ? 1e9 - g.players[id].finishTime
+      : Math.round(g.players[id].progress * 10000),
+  detail: (g, id) => {
+    const p = g.players[id];
+    return p.finished
+      ? (p.finishTime / 1000).toFixed(2) + " s · " + g.laps + " Runden"
+      : p.lap +
+          "/" +
+          g.laps +
+          " Runden · " +
+          Math.round(p.topSpeed * 3.6 || 0) +
+          " km/h Spitze";
+  },
 };
+module.exports = () => game;
+module.exports.game = game;

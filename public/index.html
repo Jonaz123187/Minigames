@@ -1,33 +1,488 @@
 <!doctype html>
 <html lang="de">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#090d17"><meta name="description" content="18 kostenlose Multiplayer-Minigames mit Freunden. Private Lobbys, Skill-Duelle, Zeichnen, Meme-Dubs und Arcade. Entwickelt von Jonas N.">
-<title>MultiplayerGames-GiG · Von Jonas N.</title><link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
-</head>
-<body>
-<div class="shell">
-<header><a class="brand" href="/" aria-label="MultiplayerGames-GiG Startseite"><span class="brand-mark" aria-hidden="true">G</span><span>MultiplayerGames<span class="brand-gig">-GiG</span><small>ENTWICKELT VON JONAS N.</small></span></a><div class="header-right"><button id="soundToggle" class="quiet sound-button" aria-pressed="true" title="Spielsounds umschalten">♫ <span>SFX an</span></button><div id="network" class="network"><span class="dot"></span><span id="networkText">Verbinden</span></div><button id="leave" class="quiet" hidden>Verlassen ↗</button></div></header>
-<main>
-<section id="home">
-  <div class="welcome"><div class="intro"><div class="eyebrow"><span class="live-dot"></span> DEINE CREW. EUER SPIELEABEND.</div><h1>Gute Freunde.<br><span class="gradient-text">Starke Duelle.</span></h1><p>Von „noch eine Runde“ bis „das war Glück“.<br>18 Spiele für Skill, Köpfchen und herrliches Chaos.</p><div class="intro-tags"><span class="tag">◉ Private Lobbys</span><span class="tag">1–8 Spieler*</span><span class="tag">Keine Werbung. Kein Account.</span></div><div class="hero-preview"><img src="/previews/race.png" alt="Vorschau Hill Climb Trials: Fahrzeuge, anspruchsvolle Strecke und Bremszonen"><div class="hero-preview-caption"><span><small>FÜR ECHTE SKILL-MOMENTE</small><strong>Hill Climb: Trials</strong></span><span class="tag">SKILL / EXPERTE</span></div></div></div>
-  <form id="entryForm" class="entry-card"><div class="entry-label"><span class="live-dot"></span> PRIVATE SESSION</div><h2>Der Abend<br>gehört euch.</h2><p>Ein Name. Ein Raumcode. Alle zusammen.</p><label for="name">DEIN SPIELERNAME</label><input id="name" maxlength="20" placeholder="Wie nennen dich deine Kumpels?" autocomplete="nickname" required><button id="create" type="button" class="primary">Eigene Lobby erstellen <span>↗</span></button><div class="divider">DU HAST SCHON EINEN CODE?</div><label for="code">RAUMCODE</label><div class="join-row"><input id="code" maxlength="6" placeholder="ABC234" autocomplete="off" spellcheck="false"><button type="submit">Rein da →</button></div><p class="entry-note">Die Lobby bleibt privat. Nur wer den Code hat, kommt rein.</p><div class="entry-fineprint">* Normal ab 2 Spielern. Einzeltraining für 16 Spiele unter den erweiterten Lobby-Optionen.</div></form></div>
-  <div class="home-feature-strip"><div><b>18</b><span>UNTERSCHIEDLICHE SPIELE</span></div><div><b>100 %</b><span>KOSTENLOS & WERBEFREI</span></div><div><b>GiG</b><span>GEMEINSAM IST GEILER.</span></div></div>
-</section>
-<section id="lobby" hidden>
-  <div class="lobby-top"><div><div class="eyebrow">PRIVATE SESSION <span id="sessionMode">/ LOBBY</span></div><h1>Eure nächste Runde<span class="accent">.</span></h1></div><div class="lobby-invite"><button id="copyCode" class="code-button" title="Raumcode kopieren"><span>RAUMCODE<br>Zum Kopieren klicken</span><strong id="roomCode" class="mono"></strong><span>⧉</span></button><button id="invite" class="quiet">Einladungslink ↗</button></div></div>
-  <div class="lobby-grid"><aside class="lobby-sidebar"><div class="panel crew-panel"><div class="panel-title"><span>DEINE CREW</span><span id="playerCount"></span></div><div id="players"></div><p id="hostHint" class="host-hint"></p></div><div id="lobbyStatus" class="lobby-status" role="status"></div><div id="lastRound" class="panel last-round" hidden></div><details id="advanced" class="advanced"><summary>Erweitert</summary><label class="practice-label"><input id="practice" type="checkbox"> Solo-Training aktivieren</label><p>Starte allein und übe ohne Arcade-Punkte. Sketch & Guess und Hot Potato brauchen Mitspieler.</p></details></aside>
-  <div class="game-library"><div id="selectedGame" class="selection-panel"></div><div id="dubSetup" class="panel dub-setup" hidden><div><div class="eyebrow">DEINE CLIPS. EURE STIMMEN.</div><h3>Dub-Vorlage für die Lobby</h3><p id="clipStatus" class="muted small"></p><p class="small muted">Die Demo ist ein selbst erzeugter Sprachclip. Für deutsche Original-Memes: eigene Audiodatei importieren oder eine Vorlage einsprechen.</p></div><div id="clipHostControls"><label for="clipFile">AUDIO IMPORTIEREN (WAV, MP3, OGG …)</label><input id="clipFile" type="file" accept="audio/*"><div class="clip-trim"><label>Start (s)<input id="clipStart" type="number" min="0" step="0.1" value="0"></label><label>Länge (s)<input id="clipLength" type="number" min="0.3" max="6" step="0.1" value="4"></label><button id="clipPreview" type="button">Anhören</button><button id="clipShare" type="button" class="primary">Für Lobby übernehmen</button></div><button id="referenceRecord" type="button" class="quiet">● Eigene Vorlage aufnehmen (max. 6 s)</button></div></div>
-  <div class="game-section-top"><div><div class="eyebrow" style="margin-bottom:6px">SPIELEBIBLIOTHEK</div><h2>Worauf habt ihr Lust?</h2></div><span id="gameCount" class="tag">18 Spiele</span></div><div class="filter-row"><div id="filters" class="filters"></div><label for="gameSearch" class="screen-reader">Spiele suchen</label><input id="gameSearch" type="search" placeholder="Spiel suchen …" autocomplete="off"></div><p class="wish-help">Klickt auf ein Spiel, um euren Wunsch zu zeigen. Alle sehen, wer worauf Lust hat. Der Host entscheidet über den Start.</p><div id="games" class="games"></div><p id="emptyGames" class="muted" hidden>Kein Spiel gefunden. Probier einen anderen Namen.</p><div class="launch"><div><strong id="launchTitle">Bereit für die nächste Runde?</strong><p id="launchHint"></p></div><button id="start" class="primary">Runde starten →</button></div></div></div>
-</section>
-<section id="play" hidden>
-  <div class="play-top"><span id="gameNumber" class="eyebrow" style="margin:0"></span><h2 id="gameTitle"></h2><span id="roundPhase" class="pill">Bereitmachen</span><span id="timer" class="timer">00:00</span><button id="abort" class="quiet compact" hidden title="Runde ohne Wertung beenden">✕</button></div><div id="liveScores" class="live-scores"></div>
-  <div class="canvas-wrap"><canvas id="canvas" width="1120" height="630" aria-label="Multiplayer-Spielfeld"></canvas><div id="countdown" class="countdown" hidden><span>Alle am Start?</span><b id="countdownNumber">3</b><span>Gleich geht’s los.</span></div></div><div class="play-bottom"><p id="instructions" class="instructions"></p><button id="action" class="action-button" hidden>DRÜCKEN!</button><div id="touchControls" class="touch-controls"></div></div>
-  <div id="gamePanel" class="game-panel" hidden></div>
-  <div id="typingPanel" class="typing-panel" hidden><div id="words" class="words"></div><form id="typingForm" class="typing-form"><label for="typingInput" class="screen-reader">Aktuelles Wort</label><input id="typingInput" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Wort tippen …"><button type="submit" class="primary">Wort senden ↵</button></form><p class="small muted" style="margin:12px 0 0">Leertaste oder Enter bestätigt. Falsche Wörter kannst du korrigieren.</p></div>
-</section>
-<section id="results" class="results" hidden><div class="eyebrow">SAUBER GESPIELT.</div><h1 id="resultTitle">Runde geschafft.</h1><p id="resultSub" class="result-sub"></p><div class="panel"><table class="result-table"><thead><tr><th>Platz</th><th>Spieler / Ergebnis</th><th style="text-align:right">Arcade-Punkte</th></tr></thead><tbody id="resultRows"></tbody></table></div><p id="backCounter" class="back-counter"></p></section>
-<details class="rules"><summary>Regeln & Technik</summary><p>Normalmodus: Platz 1/2/3 gibt 10/7/5 Arcade-Punkte, weitere Plätze 2. Gleichstände teilen den Platz. Training gibt keine Arcade-Punkte. Nach jeder Runde landet ihr automatisch wieder in der Lobby. Punkte bleiben für diese Sitzung; beim Verlassen oder Server-Neustart werden sie nicht gespeichert.</p><p>Bei Verbindungsabbruch wird die Teilnahme aufgegeben. Bleibt in einer normalen Runde nur eine Person, wird sie ohne Wertung beendet. Der Host wechselt automatisch. Reaktions- und Rhythmuswertungen werden beim Server gemessen; die Verbindung kann das Ergebnis beeinflussen.</p><p>Dub Studio vergleicht Rhythmus, Lautstärkeverlauf und relative Tonhöhe. Es bewertet keine Worterkennung oder Stimmidentität. Audio wird ausschließlich mit der aktuellen Lobby geteilt und nicht auf dem Server dauerhaft gespeichert. Mikrofonzugriff benötigt HTTPS oder localhost und deine Browser-Freigabe. Nutzt für importierte Clips eigene oder freigegebene Vorlagen.</p><p>Entwickelt von <strong>Jonas N.</strong> · Physik: <a href="https://github.com/liabru/matter-js" target="_blank" rel="noopener">Matter.js (MIT)</a> · Node.js, Express, Socket.IO, Canvas & Web Audio. Ohne Werbung, Tracking und externe Frontend-CDNs.</p></details>
-</main><footer><span><strong>MultiplayerGames-GiG</strong><br>Entwickelt von Jonas N.</span><span>GUTE FREUNDE. GUTE SPIELE.<br>© 2026 · 100 % WERBEFREI</span></footer>
-</div><div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<script src="/socket.io/socket.io.js"></script><script src="/app.js"></script><script src="/games-client.js"></script>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#111316" />
+    <meta
+      name="description"
+      content="MultiplayerGames-GiG: euer Spieleabend mit Meme Dub Studio, Sketch & Guess, 3D-Rennen und 16 weiteren Spielen."
+    />
+    <title>MultiplayerGames-GiG</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <a class="brand" href="/" aria-label="MultiplayerGames-GiG Startseite"
+          ><span class="brand-mark" aria-hidden="true">G<span>•</span></span
+          ><span>MultiplayerGames<span class="brand-gig">-GiG</span></span></a
+        >
+        <div class="header-right">
+          <button
+            id="soundToggle"
+            class="quiet sound-button"
+            aria-pressed="true"
+            title="Effekte und Soundboard umschalten"
+          >
+            ♫ <span>SFX an</span>
+          </button>
+          <div id="network" class="network">
+            <span class="dot"></span><span id="networkText">Verbinden</span>
+          </div>
+          <button id="leave" class="quiet" hidden>Verlassen ↗</button>
+        </div>
+      </header>
+      <main>
+        <section id="home">
+          <div class="welcome">
+            <div class="intro">
+              <div class="eyebrow">SPIELEABEND, ABER GUT.</div>
+              <h1>Alle da.<br />Alles drin.</h1>
+              <p>
+                Zeichnen, nachsprechen, um die Wette fahren.<br />Die besten
+                Geschichten entstehen zwischen zwei Runden.
+              </p>
+              <div class="intro-tags">
+                <span>19 Spiele</span><span>Bis zu 8 Freunde</span
+                ><span>Euer eigener Raum</span>
+              </div>
+              <div class="hero-collage">
+                <div class="hero-preview">
+                  <img src="/previews/dub.png" alt="Meme Dub Studio" />
+                  <div class="hero-preview-caption">
+                    <span
+                      ><small>EUER NÄCHSTER INSIDER</small
+                      ><strong>Meme Dub Studio</strong></span
+                    ><span>↗</span>
+                  </div>
+                </div>
+                <div class="hero-preview secondary">
+                  <img src="/previews/draw.png" alt="Sketch & Guess" />
+                  <div class="hero-preview-caption">
+                    <strong>Sketch & Guess</strong><span>✎</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <form id="entryForm" class="entry-card">
+              <span class="eyebrow">01 / REINKOMMEN</span>
+              <h2>Platz für<br />deine Leute.</h2>
+              <p>Starte eine Lobby oder komm mit dem Code dazu.</p>
+              <button id="homeAvatar" type="button" class="avatar-entry">
+                <span id="homeAvatarPreview"></span
+                ><span
+                  >Dein Look <small>Avatar zusammenstellen ↗</small></span
+                ></button
+              ><label for="name">Spielername</label
+              ><input
+                id="name"
+                maxlength="20"
+                placeholder="Wie heißt du?"
+                autocomplete="nickname"
+                required
+              /><button id="create" type="button" class="primary">
+                Lobby erstellen <span>↗</span>
+              </button>
+              <div class="divider">ODER BEITRETEN</div>
+              <label for="code">Raumcode</label>
+              <div class="join-row">
+                <input
+                  id="code"
+                  maxlength="6"
+                  placeholder="ABC234"
+                  autocomplete="off"
+                  spellcheck="false"
+                /><button type="submit">Beitreten →</button>
+              </div>
+              <p class="entry-note">
+                Teile den Code nur mit deinen Mitspielern.
+              </p>
+            </form>
+          </div>
+          <div class="home-feature-strip">
+            <span><b>01</b> Lobby öffnen</span
+            ><span><b>02</b> Freunde einladen</span
+            ><span><b>03</b> Bereit drücken. Losspielen.</span>
+          </div>
+        </section>
+        <section id="lobby" hidden>
+          <div class="lobby-top">
+            <div>
+              <div class="eyebrow">
+                EURE SESSION <span id="sessionMode">/ LOBBY</span>
+              </div>
+              <h1>Was spielen wir?</h1>
+            </div>
+            <div class="lobby-invite">
+              <button
+                id="copyCode"
+                class="code-button"
+                title="Raumcode kopieren"
+              >
+                <span>RAUMCODE</span><strong id="roomCode" class="mono"></strong
+                ><span>⧉</span></button
+              ><button id="invite" class="quiet">Einladungslink ↗</button>
+            </div>
+          </div>
+          <div class="lobby-grid">
+            <aside class="lobby-sidebar">
+              <div class="panel crew-panel">
+                <div class="panel-title">
+                  <span>Am Start</span><span id="playerCount"></span>
+                </div>
+                <div id="players"></div>
+                <div class="crew-actions">
+                  <button id="readyButton" class="primary">
+                    Ich bin bereit</button
+                  ><button id="editAvatar" class="quiet" title="Avatar ändern">
+                    Dein Look ↗
+                  </button>
+                </div>
+                <p id="hostHint" class="host-hint"></p>
+              </div>
+              <div id="lobbyStatus" class="lobby-status" role="status"></div>
+              <div class="panel soundboard-panel">
+                <div class="panel-title">Wartezimmer-Sounds</div>
+                <div id="soundboard" class="soundboard"></div>
+              </div>
+              <div id="lastRound" class="panel last-round" hidden></div>
+              <details id="advanced" class="advanced">
+                <summary>Erweitert</summary>
+                <label class="practice-label"
+                  ><input id="practice" type="checkbox" /> Solo-Training
+                  aktivieren</label
+                >
+                <p>
+                  Übe allein ohne Session-Punkte. Sketch & Guess und Hot Potato
+                  brauchen Mitspieler.
+                </p>
+              </details>
+            </aside>
+            <div class="game-library">
+              <div class="session-controls">
+                <div>
+                  <span class="eyebrow">ABENDPLAN</span>
+                  <h3>Eine Runde oder gleich fünf?</h3>
+                </div>
+                <div id="sessionModes" class="segmented">
+                  <button data-mode="single">Einzelspiel</button
+                  ><button data-mode="party">Party-Playlist · 5</button>
+                </div>
+              </div>
+              <p id="partyHint" class="muted small" hidden>
+                Fünf verschiedene Spiele, zufällig gezogen. Einmal bereitmachen,
+                gemeinsam durchspielen, Gesamtsieger feiern.
+              </p>
+              <div id="selectedGame" class="selection-panel"></div>
+              <div id="raceSetup" class="panel settings-panel" hidden>
+                <div class="panel-title">Grand Prix · Rennleitung</div>
+                <div class="settings-row">
+                  <label
+                    >Strecke<select id="raceTrack">
+                      <option value="coast">Coastal Club</option>
+                      <option value="alpine">Alpine Switchback</option>
+                      <option value="night">Midnight Docks</option>
+                    </select></label
+                  ><label
+                    >Runden<select id="raceLaps">
+                      <option>1</option>
+                      <option>2</option>
+                      <option selected>3</option>
+                      <option>4</option>
+                      <option>5</option>
+                    </select></label
+                  ><label class="checkbox-label"
+                    ><input id="raceCollisions" type="checkbox" checked />
+                    Fahrzeugkollisionen</label
+                  >
+                </div>
+                <p id="trackDescription" class="muted small"></p>
+              </div>
+              <div id="dubSetup" class="panel dub-setup" hidden>
+                <div class="panel-title">
+                  <span>Dub Studio · Clip-Pool</span
+                  ><span id="poolCount"></span>
+                </div>
+                <p id="clipStatus" class="muted small"></p>
+                <div class="settings-row">
+                  <label>Runden<select id="dubRounds"></select></label
+                  ><label
+                    >Vorbereitung<select id="dubListen">
+                      <option value="4">4 s</option>
+                      <option value="8" selected>8 s</option>
+                      <option value="12">12 s</option>
+                      <option value="15">15 s</option>
+                    </select></label
+                  ><label
+                    >Aufnahmefenster<select id="dubRecord">
+                      <option value="15">15 s</option>
+                      <option value="25" selected>25 s</option>
+                      <option value="40">40 s</option>
+                    </select></label
+                  >
+                </div>
+                <div id="clipHostControls">
+                  <div id="clipDrop" class="drop-zone">
+                    <strong>Clips hier ablegen</strong
+                    ><span
+                      >Mehrere Dateien · WAV, MP3, OGG · bis zu 24
+                      Vorlagen</span
+                    ><label class="file-button" for="clipFile"
+                      >Dateien auswählen</label
+                    ><input
+                      id="clipFile"
+                      type="file"
+                      accept="audio/*"
+                      multiple
+                    />
+                  </div>
+                  <div class="clip-trim">
+                    <label
+                      >Start je Datei (s)<input
+                        id="clipStart"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value="0" /></label
+                    ><label
+                      >Clip-Länge (s)<input
+                        id="clipLength"
+                        type="number"
+                        min="0.3"
+                        max="6"
+                        step="0.1"
+                        value="6" /></label
+                    ><button id="clipPreview" type="button">
+                      Ersten Clip anhören</button
+                    ><button id="clipShare" type="button" class="primary">
+                      Auswahl zum Pool hinzufügen
+                    </button>
+                  </div>
+                  <progress
+                    id="uploadProgress"
+                    value="0"
+                    max="1"
+                    hidden
+                  ></progress>
+                  <div class="pool-actions">
+                    <button id="referenceRecord" type="button" class="quiet">
+                      ● Vorlage einsprechen</button
+                    ><button id="resetPool" type="button" class="quiet">
+                      Gespielte Clips wieder freigeben
+                    </button>
+                  </div>
+                </div>
+                <div id="clipPool" class="clip-pool"></div>
+                <p class="small muted">
+                  Zufällige Reihenfolge, keine Wiederholung. Automatischer
+                  Soundmatch; ab 4 Spielern zusätzlich Publikumsvoting (+150
+                  Matchpunkte). Eigene oder freigegebene Clips verwenden.
+                </p>
+              </div>
+              <div class="game-section-top">
+                <div>
+                  <span class="eyebrow">ENTDECKEN</span>
+                  <h2>Für jeden einen Favoriten.</h2>
+                </div>
+                <span id="gameCount" class="tag">19 Spiele</span>
+              </div>
+              <div class="filter-row">
+                <div id="filters" class="filters"></div>
+                <label for="gameSearch" class="screen-reader"
+                  >Spiele suchen</label
+                ><input
+                  id="gameSearch"
+                  type="search"
+                  placeholder="Spiel suchen …"
+                  autocomplete="off"
+                />
+              </div>
+              <p class="wish-help">
+                Markiert euren Favoriten. Eure Wünsche sind für alle sichtbar.
+              </p>
+              <div id="games" class="games"></div>
+              <p id="emptyGames" class="muted" hidden>Kein Spiel gefunden.</p>
+              <div class="launch">
+                <div>
+                  <strong id="launchTitle"
+                    >Bereit für die nächste Runde?</strong
+                  >
+                  <p id="launchHint"></p>
+                </div>
+                <button id="start" class="primary">Runde starten →</button>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="play" hidden>
+          <div class="play-top">
+            <span id="gameNumber" class="eyebrow"></span>
+            <h2 id="gameTitle"></h2>
+            <span id="roundPhase" class="pill">Bereitmachen</span
+            ><span id="timer" class="timer" role="timer">00:00</span
+            ><button
+              id="abort"
+              class="quiet compact"
+              hidden
+              title="Runde ohne Wertung beenden"
+            >
+              ✕
+            </button>
+          </div>
+          <div id="timeTrack" class="time-track"><div id="timeFill"></div></div>
+          <div id="phaseHelp" class="phase-help"></div>
+          <div id="liveScores" class="live-scores"></div>
+          <div id="playStage" class="play-stage">
+            <div class="stage-main">
+              <div class="canvas-wrap">
+                <canvas
+                  id="raceCanvas"
+                  hidden
+                  aria-label="3D-Rennstrecke"
+                ></canvas
+                ><canvas
+                  id="canvas"
+                  width="1120"
+                  height="630"
+                  aria-label="Multiplayer-Spielfeld"
+                ></canvas>
+                <div id="spectator" class="spectator" hidden>
+                  <span id="spectatorName"></span
+                  ><button id="nextSpectator">Nächster →</button>
+                </div>
+                <div id="eventOverlay" class="event-overlay" hidden>
+                  <small id="eventLabel"></small
+                  ><strong id="eventTitle"></strong><span id="eventText"></span>
+                </div>
+                <div id="countdown" class="countdown" hidden>
+                  <span id="countdownCaption">Bereitmachen</span
+                  ><b id="countdownNumber">3</b
+                  ><span id="countdownFoot">Gleich geht’s los.</span>
+                </div>
+                <div
+                  id="reactionFeed"
+                  class="reaction-feed"
+                  aria-live="polite"
+                ></div>
+              </div>
+              <div class="play-bottom">
+                <p id="instructions" class="instructions"></p>
+                <button id="action" class="action-button" hidden>
+                  DRÜCKEN!
+                </button>
+                <div id="touchControls" class="touch-controls"></div>
+              </div>
+            </div>
+            <div id="gamePanel" class="game-panel" hidden></div>
+          </div>
+          <div id="typingPanel" class="typing-panel" hidden>
+            <div id="words" class="words"></div>
+            <form id="typingForm" class="typing-form">
+              <label for="typingInput" class="screen-reader"
+                >Aktuelles Wort</label
+              ><input
+                id="typingInput"
+                maxlength="40"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                placeholder="Wort tippen …"
+              /><button type="submit" class="primary">Senden ↵</button>
+            </form>
+          </div>
+          <div class="round-tools">
+            <button id="quickToggle" class="quiet" aria-expanded="false">
+              ☺ Quick-Chat <kbd>Q</kbd>
+            </button>
+            <div id="quickMenu" class="quick-menu" hidden></div>
+            <span id="touchHint" class="muted small"></span>
+          </div>
+        </section>
+        <section id="results" class="results" hidden>
+          <div class="eyebrow" id="resultEyebrow">RUNDE GESPIELT</div>
+          <div id="winnerAvatar" class="winner-avatar"></div>
+          <h1 id="resultTitle">Runde geschafft.</h1>
+          <p id="resultSub" class="result-sub"></p>
+          <div id="highlights" class="highlights"></div>
+          <div class="panel">
+            <table class="result-table">
+              <thead>
+                <tr>
+                  <th>Platz</th>
+                  <th>Spieler / Ergebnis</th>
+                  <th style="text-align: right">Punkte</th>
+                </tr>
+              </thead>
+              <tbody id="resultRows"></tbody>
+            </table>
+          </div>
+          <div id="partyStandings" class="panel" hidden></div>
+          <p id="backCounter" class="back-counter"></p>
+          <div class="return-track"><div id="returnFill"></div></div>
+        </section>
+        <details class="rules">
+          <summary>Spielregeln & Hinweise</summary>
+          <p>
+            Platz 1/2/3 gibt 10/7/5 Session-Punkte, weitere Plätze 2.
+            Gleichstände teilen den Platz. Training zählt nicht. Nach einer
+            Runde geht es automatisch zurück in die Lobby; eine Party-Playlist
+            spielt fünf verschiedene Spiele nacheinander. Vor dem ersten Start
+            müssen alle bereit sein. Änderungen an Spiel oder Einstellungen
+            setzen den Bereitschaftsstatus zurück.
+          </p>
+          <p>
+            Die Sitzung und der Clip-Pool bleiben im Arbeitsspeicher. Verlassen
+            und Server-Neustart setzen persönliche Punkte zurück. Nach
+            Verbindungsabbruch bitte erneut beitreten, sobald die Lobby frei
+            ist. Bleibt in einer normalen Runde nur eine Person, endet sie ohne
+            Wertung. Der Host wechselt automatisch.
+          </p>
+          <p>
+            Dub Studio vergleicht Rhythmus, Lautstärkeverlauf und relative
+            Tonhöhe. Es prüft keine gesprochenen Wörter und keine
+            Stimmidentität. Mikrofon braucht HTTPS oder localhost und deine
+            Freigabe. Aufnahmen werden nur in der aktuellen Lobby abgespielt und
+            danach verworfen. Vorlagen bleiben bis zum Entfernen oder Schließen
+            der Lobby. Ab vier Spielern: eine Stimme pro Person, keine
+            Eigenstimme; Gleichstände teilen den Bonus von jeweils 150
+            Matchpunkten.
+          </p>
+          <p>
+            Reaktionsspiele werden am Server gewertet. Ping kann die Ergebnisse
+            beeinflussen. Rennfahrzeuge werden lokal vorausberechnet und mit dem
+            Server abgeglichen. Andere Fahrzeuge erscheinen zeitversetzt
+            interpoliert.
+          </p>
+        </details>
+      </main>
+      <footer>
+        <span>MultiplayerGames-GiG</span
+        ><span>Entwickelt von <strong>Jonas N.</strong></span>
+      </footer>
+    </div>
+    <dialog id="avatarDialog">
+      <form method="dialog">
+        <button class="dialog-close quiet" aria-label="Schließen">✕</button>
+      </form>
+      <span class="eyebrow">DEIN SPIELER-ICON</span>
+      <h2>Mach's zu deinem.</h2>
+      <div id="avatarPreview" class="avatar-preview"></div>
+      <div id="avatarOptions"></div>
+      <button id="saveAvatar" class="primary">Look übernehmen →</button>
+    </dialog>
+    <canvas id="celebration" aria-hidden="true"></canvas>
+    <div id="lobbyReactions" class="lobby-reactions" aria-live="polite"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/race-shared.js"></script>
+    <script src="/app.js"></script>
+    <script src="/games-client.js"></script>
+    <script src="/experience.js"></script>
+    <script type="module" src="/race-3d.js"></script>
+  </body>
+</html>
