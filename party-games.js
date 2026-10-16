@@ -56,7 +56,7 @@ const header = (
 });
 const telephone = {
   ...header(
-    "Pixel-Flüsterpost",
+    "Pixel Relay",
     "21",
     150,
     "Ein Satz wird zum Bild und wieder zum Satz. Am Ende schaut ihr eure ganze Geschichte an.",
@@ -179,7 +179,7 @@ function fakerTurn(g, at) {
 }
 const faker = {
   ...header(
-    "Finde den Faker",
+    "Sketch Suspect",
     "22",
     150,
     "Alle zeichnen denselben Begriff. Eine Person kennt nur die Kategorie. Entlarvt sie!",
@@ -314,7 +314,7 @@ const estimates = [
 ];
 const estimate = {
   ...header(
-    "Schätz mal!",
+    "Guesswork",
     "23",
     96,
     "Sechs Zahlenfragen. Je näher du liegst, desto mehr Punkte bekommst du.",
@@ -409,7 +409,7 @@ function detectiveTurn(g, now) {
 }
 const detective = {
   ...header(
-    "Pixel-Detektiv",
+    "Pixel Shift",
     "24",
     90,
     "Präge dir die Pixeltafel ein. Danach verändert sich genau ein Feld.",
@@ -493,7 +493,7 @@ function buttonTrial(g, now) {
 }
 const onebutton = {
   ...header(
-    "Eine Taste reicht",
+    "One Tap",
     "25",
     65,
     "Stoppe die Anzeige, lande im Ziel und reagiere erst auf Grün. Sechs kurze Aufgaben.",
@@ -581,7 +581,7 @@ function coopTask(g, now, r) {
 }
 const coop = {
   ...header(
-    "Gemeinsam gegen die Uhr",
+    "Code Crew",
     "26",
     120,
     "Jeder kennt eine Ziffer. Tauscht eure Hinweise aus und entschärft gemeinsam fünf Schlösser.",

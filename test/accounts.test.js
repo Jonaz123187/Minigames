@@ -249,7 +249,7 @@ test("Account registration: verified emails, unique case-insensitive names, priv
   assert.equal(saved.data.profile.theme, "default");
   assert.equal(saved.data.profile.owner, false);
 });
-test("Owner entitlements preserve legitimate welcome currency without inventing achievements", async (t) => {
+test("Owner cosmetic awards preserve legitimate welcome currency and real game statistics", async (t) => {
   const before = process.env.OWNER_UIDS;
   process.env.OWNER_UIDS = "owner";
   t.after(() => {
@@ -262,6 +262,15 @@ test("Owner entitlements preserve legitimate welcome currency without inventing 
   assert.equal(r.data.profile.coins, 50);
   assert.ok(G.owns(r.data.profile, "sound-6"));
   assert.equal(r.data.profile.stats.wins, 0);
+  assert.deepEqual(
+    r.data.profile.achievements,
+    G.badges.map((b) => b.id),
+  );
+  assert.equal(r.data.profile.title, "origin");
+  assert.deepEqual(
+    r.data.profile.showcase,
+    G.badges.map((b) => b.id),
+  );
   const save = await api(
     "/api/profile",
     "POST",
@@ -822,4 +831,114 @@ test("Crew progress is lobby-scoped and public; guest linking is verified, betwe
   await rpc(c, "ready", { ready: true });
   await rpc(a, "start", { game: "click" });
   assert.equal((await rpc(c, "account:refresh", { token: "owner" })).ok, false);
+});
+
+test("Creator awards follow OWNER_UIDS, remain cosmetic, and cannot be forged by other accounts", async (t) => {
+  const before = process.env.OWNER_UIDS;
+  process.env.OWNER_UIDS = "owner";
+  t.after(() => {
+    if (before === undefined) delete process.env.OWNER_UIDS;
+    else process.env.OWNER_UIDS = before;
+  });
+  const { api, store } = await setup(t);
+  const created = await api(
+    "/api/register",
+    "POST",
+    { username: "Creator" },
+    "owner",
+  );
+  assert.equal(created.data.profile.achievements.length, G.badges.length);
+  const raw = structuredClone(store.data.get("gigPlayers/owner"));
+  assert.deepEqual(raw.achievements, []);
+  assert.deepEqual(raw.stats, { rounds: 0, wins: 0, games: {} });
+  assert.equal(raw.earned, 0);
+  assert.equal(
+    (await api("/api/profiles/owner")).data.profile.achievements.includes(
+      "gig-origin",
+    ),
+    true,
+  );
+  const edited = await api(
+    "/api/profile",
+    "POST",
+    { title: "mythic", showcase: ["gig-origin", "crew-myth"] },
+    "owner",
+  );
+  assert.equal(edited.data.profile.title, "mythic");
+  assert.deepEqual(edited.data.profile.showcase, ["gig-origin", "crew-myth"]);
+  const again = await api("/api/me", "GET", undefined, "owner");
+  assert.equal(again.data.profile.title, "mythic");
+  assert.deepEqual(again.data.profile.showcase, ["gig-origin", "crew-myth"]);
+  assert.equal(again.data.profile.coins, 50);
+  await api("/api/register", "POST", { username: "Alice" });
+  const forged = await api("/api/profile", "POST", {
+    owner: true,
+    uid: "owner",
+    title: "origin",
+    achievements: G.badges.map((b) => b.id),
+    showcase: ["gig-origin", "crew-myth"],
+    stats: { rounds: 1000, wins: 1000 },
+  });
+  assert.equal(forged.data.profile.owner, false);
+  assert.deepEqual(forged.data.profile.achievements, []);
+  assert.equal(forged.data.profile.title, "none");
+  assert.deepEqual(forged.data.profile.showcase, []);
+  assert.equal(forged.data.profile.stats.rounds, 0);
+  assert.equal(
+    (await api("/api/buy", "POST", { id: "title-origin" })).status,
+    403,
+  );
+  assert.equal(
+    G.owns(
+      {
+        ...forged.data.profile,
+        owned: ["title-origin"],
+        achievements: ["gig-origin"],
+      },
+      "title-origin",
+    ),
+    false,
+  );
+  process.env.OWNER_UIDS = "";
+  const revoked = await api("/api/me", "GET", undefined, "owner");
+  assert.equal(revoked.data.profile.owner, false);
+  assert.equal(revoked.data.profile.title, "none");
+  assert.equal(revoked.data.profile.achievements.includes("gig-origin"), false);
+  assert.equal(revoked.data.profile.achievements.includes("crew-myth"), false);
+  assert.deepEqual(revoked.data.profile.showcase, []);
+});
+
+test("Rare badges derive from real stored progress and unlock titles without a purchase", async (t) => {
+  const { api, store } = await setup(t);
+  const p = fresh("alice", "Alice");
+  p.stats = { rounds: 1000, wins: 100, games: { click: 1000 } };
+  p.coins = 321;
+  store.data.set("gigPlayers/alice", p);
+  const result = await api("/api/me");
+  for (const id of ["century-club", "arcade-legend", "crew-myth"])
+    assert.ok(result.data.profile.achievements.includes(id));
+  assert.equal(result.data.profile.achievements.includes("gig-origin"), false);
+  const saved = await api("/api/profile", "POST", {
+    title: "mythic",
+    showcase: ["crew-myth", "arcade-legend"],
+  });
+  assert.equal(saved.data.profile.title, "mythic");
+  assert.deepEqual(saved.data.profile.showcase, ["crew-myth", "arcade-legend"]);
+  assert.equal(saved.data.profile.stats.wins, 100);
+  assert.equal(saved.data.profile.coins, 371);
+  assert.equal(
+    (await api("/api/buy", "POST", { id: "title-mythic" })).status,
+    400,
+  );
+});
+
+test("Badge metadata handles guests and gates every creator-only cosmetic", () => {
+  assert.deepEqual(G.badgesFor(null), []);
+  assert.equal(G.owns(null, "title-mythic"), false);
+  assert.equal(G.owns(undefined, "avatar-hats"), false);
+  assert.equal(G.owns({ owner: true }, "title-origin"), true);
+  assert.equal(
+    G.owns({ owner: false, achievements: ["gig-origin"] }, "gig-origin"),
+    false,
+  );
 });

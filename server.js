@@ -985,8 +985,17 @@ function createArcade({
           category: g.category || THEMES[id]?.[0] || "Arcade",
           difficulty: g.difficulty || THEMES[id]?.[1] || "Mittel",
           minPlayers: g.minPlayers || 1,
-          preview: Object.hasOwn(require("./party-games"), id)
-            ? "/previews/" + id + ".svg"
+          preview: [
+            "telephone",
+            "faker",
+            "estimate",
+            "onebutton",
+            "detective",
+            "coop",
+            "monster",
+            "race",
+          ].includes(id)
+            ? "/previews/covers/" + id + ".webp"
             : "/previews/" + id + ".png",
         };
       }),

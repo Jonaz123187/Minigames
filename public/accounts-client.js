@@ -18,14 +18,7 @@
     linkingLobby = false;
   let crew = { key: "", at: 0, profiles: [], pending: false };
   let panel = $("accountDialog");
-  const dialog = panel,
-    badgeNames = {
-      "first-round": "Erste Runde",
-      "five-wins": "Fünf Siege",
-      regular: "Stammgast",
-      "sketch-star": "Zeichen-Star",
-      "trail-star": "Trail-Champion",
-    };
+  const dialog = panel;
   const button = (label, fn, cls = "") => {
     const b = makeButton(label, fn, cls);
     b.type = "button";
@@ -410,6 +403,42 @@
     w.append(sel);
     return { wrap: w, sel };
   }
+  const rarityNames = {
+    common: "Basis",
+    rare: "Selten",
+    epic: "Episch",
+    legendary: "Legendär",
+    mythic: "Mythisch",
+    unique: "Einzigartig",
+  };
+  function badgeNode(id, locked = false) {
+    const def = GiG.badges.find((b) => b.id === id),
+      badge = el(
+        "span",
+        "achievement rarity-" +
+          (def?.rarity || "common") +
+          (locked ? " badge-locked" : ""),
+      );
+    badge.title =
+      (def?.description || id) +
+      " · " +
+      (rarityNames[def?.rarity] || "Abzeichen");
+    badge.append(
+      el(
+        "span",
+        "badge-mark",
+        locked
+          ? "◇"
+          : def?.rarity === "unique"
+            ? "♛"
+            : def?.rarity === "mythic"
+              ? "✺"
+              : "✦",
+      ),
+      el("span", "", def?.name || id),
+    );
+    return badge;
+  }
   function profileCard(p, parent) {
     const card = el("article", "gig-profile theme-" + (p.theme || "default")),
       banner = el("div", "profile-banner"),
@@ -502,8 +531,7 @@
     card.append(records);
     const badges = el("div", "badge-shelf");
     const shown = p.showcase?.length ? p.showcase : p.achievements || [];
-    for (const id of shown)
-      badges.append(el("span", "achievement", "✦ " + (badgeNames[id] || id)));
+    for (const id of shown) badges.append(badgeNode(id));
     if (!shown.length)
       badges.append(
         el(
@@ -612,16 +640,18 @@
       c.type = "checkbox";
       c.value = id;
       c.checked = A.profile.showcase.includes(id);
-      lab.append(c, el("span", "", badgeNames[id] || id));
+      lab.append(c, badgeNode(id));
       shelf.append(lab);
     }
     fields.append(
       el(
         "p",
         "small muted",
-        GiG.owns(A.profile, "showcase")
-          ? "Vitrine: bis zu sechs Abzeichen auswählen."
-          : "Vitrine: zwei Abzeichen auswählen. Erweiterbar im Shop.",
+        A.profile.owner
+          ? "Ersteller-Vitrine: alle Abzeichen inklusive der einzigartigen Auszeichnung auswählen."
+          : GiG.owns(A.profile, "showcase")
+            ? "Vitrine: bis zu sechs Abzeichen auswählen."
+            : "Vitrine: zwei Abzeichen auswählen. Erweiterbar im Shop.",
       ),
       shelf,
     );
@@ -726,9 +756,11 @@
         const buy = button(
           owned
             ? "✓ Freigeschaltet"
-            : item.achievement
-              ? item.description
-              : item.price + " GiG-Coins",
+            : item.ownerOnly
+              ? "Ersteller exklusiv"
+              : item.achievement
+                ? item.description
+                : item.price + " GiG-Coins",
           () =>
             attempt(async () => {
               const r = await api("/api/buy", "POST", { id: item.id });
@@ -738,12 +770,15 @@
             }),
         );
         buy.disabled =
-          owned || !!item.achievement || A.profile.coins < item.price;
+          owned ||
+          !!item.ownerOnly ||
+          !!item.achievement ||
+          A.profile.coins < item.price;
         card.append(buy);
         if (owned && item.id.startsWith("site-"))
           card.append(
             button(
-              "In Einstellungen auswählen →",
+              "Unter Aussehen auswählen →",
               () => {
                 A.profileSection = "appearance";
                 A.open("profile");
@@ -1091,6 +1126,57 @@
     }
   }
   function collection() {
+    panel.append(
+      el("h3", "", "Deine Abzeichen-Sammlung"),
+      el(
+        "p",
+        "muted small",
+        A.profile.owner
+          ? "Dein Erstellerkonto hat alle Abzeichen und Titel. GiG-Ursprung bleibt exklusiv für dein Konto. Siege und Rekorde zeigen weiterhin deine echten Ergebnisse."
+          : "Spiele gemeinsam, erreiche Meilensteine und stelle deine Vitrine zusammen.",
+      ),
+    );
+    const awards = el("div", "award-collection");
+    for (const def of GiG.badges) {
+      const unlocked = A.profile.achievements.includes(def.id),
+        card = el(
+          "article",
+          "award-card rarity-" + def.rarity + (unlocked ? "" : " badge-locked"),
+        );
+      card.append(
+        badgeNode(def.id, !unlocked),
+        el("small", "rarity-label", rarityNames[def.rarity]),
+        el("p", "small muted", def.description),
+      );
+      if (unlocked) {
+        const lab = el("label", "checkbox-label"),
+          check = el("input");
+        check.type = "checkbox";
+        check.checked = A.profile.showcase.includes(def.id);
+        check.onchange = () =>
+          attempt(async () => {
+            const selected = new Set(A.profile.showcase),
+              limit = A.profile.owner
+                ? GiG.badges.length
+                : GiG.owns(A.profile, "showcase")
+                  ? 6
+                  : 2;
+            if (check.checked) selected.add(def.id);
+            else selected.delete(def.id);
+            if (selected.size > limit) {
+              check.checked = false;
+              throw new Error(
+                "Deine Vitrine bietet Platz für " + limit + " Abzeichen.",
+              );
+            }
+            await A.save({ showcase: [...selected] });
+          });
+        lab.append(check, el("span", "", "In meiner Vitrine zeigen"));
+        card.append(lab);
+      } else card.append(el("small", "muted", "Noch nicht freigeschaltet"));
+      awards.append(card);
+    }
+    panel.append(awards, el("h3", "", "Zeichnungen & Geschichten"));
     panel.append(
       el(
         "p",

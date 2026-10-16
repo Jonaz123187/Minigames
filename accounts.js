@@ -31,8 +31,27 @@ const ownerOf = (uid) =>
     .split(",")
     .map((s) => s.trim())
     .includes(uid);
-const expose = (p) =>
-  p
+const decorate = (p) => {
+  if (!p) return null;
+  const owner = ownerOf(p.uid),
+    achievements = G.badgesFor({ ...p, owner });
+  const title =
+    p.title &&
+    p.title !== "none" &&
+    !G.owns({ ...p, owner }, "title-" + p.title)
+      ? "none"
+      : p.title;
+  return {
+    ...p,
+    owner,
+    achievements,
+    title,
+    showcase: (p.showcase || []).filter((id) => achievements.includes(id)),
+  };
+};
+const expose = (p) => {
+  p = decorate(p);
+  return p
     ? {
         uid: p.uid,
         username: p.username,
@@ -61,6 +80,7 @@ const expose = (p) =>
         owner: ownerOf(p.uid),
       }
     : null;
+};
 const fresh = (uid, username) => ({
   uid,
   username,
@@ -169,7 +189,7 @@ function createAccounts(
   const doc = (uid) => db.collection("gigPlayers").doc(uid);
   async function get(uid) {
     const s = await doc(uid).get();
-    return s.exists ? { ...s.data(), owner: ownerOf(uid) } : null;
+    return s.exists ? decorate(s.data()) : null;
   }
   async function mutate(uid, fn) {
     return db.runTransaction(async (t) => {
@@ -181,7 +201,9 @@ function createAccounts(
       const result = await fn(p);
       delete p.owner;
       t.set(r, p);
-      return result === undefined ? { ...p, owner: ownerOf(uid) } : result;
+      if (result?.profile)
+        return { ...result, profile: decorate(result.profile) };
+      return result === undefined ? decorate(p) : result;
     });
   }
   async function verify(token) {
@@ -295,7 +317,13 @@ function createAccounts(
       if (profile.exists) {
         const p = profile.data(),
           granted = welcomeBonus(p);
-        if (granted) t.set(ref, p);
+        const creatorSetup = ownerOf(uid) && !p.creatorSetupAt;
+        if (creatorSetup) {
+          p.showcase = G.badges.map((b) => b.id);
+          if (!p.title || p.title === "none") p.title = "origin";
+          p.creatorSetupAt = Date.now();
+        }
+        if (granted || creatorSetup) t.set(ref, p);
         return granted;
       }
       if (!pending.exists || pending.data().completed) return 0;
@@ -309,6 +337,11 @@ function createAccounts(
       const p = fresh(uid, data.username);
       p.avatar = G.avatar(data.avatar, { ...p, owner: ownerOf(uid) });
       const granted = welcomeBonus(p);
+      if (ownerOf(uid)) {
+        p.showcase = G.badges.map((b) => b.id);
+        p.title = "origin";
+        p.creatorSetupAt = Date.now();
+      }
       t.set(handle, { uid });
       t.set(ref, p);
       t.set(pendingRef, { completed: true });
@@ -554,9 +587,12 @@ function createAccounts(
             p[k] = v;
         }
         p.showcase = Array.isArray(a.showcase)
-          ? a.showcase
-              .filter((x) => p.achievements.includes(x))
-              .slice(0, G.owns(p, "showcase") ? 6 : 2)
+          ? [...new Set(a.showcase)]
+              .filter((x) => G.badgesFor(p).includes(x))
+              .slice(
+                0,
+                p.owner ? G.badges.length : G.owns(p, "showcase") ? 6 : 2,
+              )
           : p.showcase;
       });
       res.json({ ok: true, profile });
@@ -571,6 +607,11 @@ function createAccounts(
       const profile = await mutate(u.uid, (p) => {
         const item = G.items.find((i) => i.id === id);
         if (!item) throw fail("Unbekannter Artikel.");
+        if (item.ownerOnly)
+          throw fail(
+            "Dieser Titel ist ausschließlich für das hinterlegte Erstellerkonto.",
+            403,
+          );
         if (item.achievement)
           throw fail(
             "Diesen Titel kannst du nur erspielen: " + item.description + ".",
@@ -912,7 +953,11 @@ function createAccounts(
         ...(game === "draw" && rank === 1 ? ["sketch-star"] : []),
         ...(game === "monster" && rank === 1 ? ["trail-star"] : []),
       ];
-      p.achievements = [...new Set([...p.achievements, ...badges])];
+      p.achievements = G.badgesFor({
+        ...p,
+        owner: false,
+        achievements: [...new Set([...p.achievements, ...badges])],
+      });
       return { coins, profile: { ...p, owner: ownerOf(uid) } };
     });
   }
