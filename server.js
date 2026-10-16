@@ -641,16 +641,30 @@ function createArcade({
     }));
     const participants = new Set(round.roster.map((p) => p.identity)).size;
     for (const row of rows) {
-      if (!row.uid || !row.connected) continue;
+      if (!row.connected) continue;
+      const eligibility = {
+        rank: rows.filter((x) => x.connected && x.raw > row.raw).length + 1,
+        active: (round.activity[row.id] || 0) >= 2,
+        practice: round.practice,
+        participants,
+        duration: now - round.startsAt,
+      };
+      if (!row.uid) {
+        const coins = Economy.rewardCoins(eligibility);
+        if (coins)
+          io.to(row.id).emit("account:opportunity", {
+            roundId: round.id,
+            coins,
+          });
+        continue;
+      }
       accounts
         .reward(row.uid, {
+          ...eligibility,
           roundId: round.id,
           game: round.game,
-          rank: rows.filter((x) => x.connected && x.raw > row.raw).length + 1,
-          active: (round.activity[row.id] || 0) >= 2,
-          practice: round.practice,
-          participants,
-          duration: now - round.startsAt,
+          raw: row.raw,
+          detail: row.detail,
         })
         .then((result) => {
           if (!result?.profile) return;
@@ -698,6 +712,7 @@ function createArcade({
       previous = row;
     });
     room.lastResult = {
+      roundId: round.id,
       game: round.game,
       title: game.title,
       rows,
@@ -863,15 +878,35 @@ function createArcade({
         reply(ack, { ok: false, error: e.message });
       }
     });
-    socket.on("account:refresh", async (_, ack) => {
+    socket.on("account:refresh", async (payload, ack) => {
       try {
-        if (!rateLimit() || !socket.data.account)
-          return reply(ack, { ok: false });
-        const p = await accounts.get(socket.data.account.uid);
+        if (!rateLimit()) return reply(ack, { ok: false });
+        const room = getRoom(),
+          linkingGuest = !socket.data.account;
+        let uid = socket.data.account?.uid;
+        if (linkingGuest) {
+          if (!room || room.phase !== "lobby" || !payload?.token) throw Error();
+          const user = await accounts.verify(payload.token);
+          if (!user.email_verified) throw Error();
+          uid = user.uid;
+        }
+        const p = await accounts.get(uid);
+        if (!p) throw Error();
+        if (
+          linkingGuest &&
+          (getRoom() !== room ||
+            room.phase !== "lobby" ||
+            [...room.players.values()].some(
+              (player) => player.id !== socket.id && player.uid === uid,
+            ))
+        )
+          throw Error();
         socket.data.account = p;
-        const room = getRoom();
         if (room?.phase === "lobby") {
           Object.assign(room.players.get(socket.id), {
+            uid: p.uid,
+            name: p.username,
+            identity: "u:" + p.uid,
             avatar: p.avatar,
             car: p.car,
             trail: p.trail,
@@ -879,11 +914,42 @@ function createArcade({
             frame: p.frame,
             pet: p.pet,
           });
+          if (linkingGuest) clearReady(room);
           broadcastRoom(room);
         }
         reply(ack, { ok: true, profile: p });
       } catch {
         reply(ack, { ok: false });
+      }
+    });
+    socket.on("crew:progress", async (_, ack) => {
+      const room = getRoom();
+      if (!rateLimit() || !room) return reply(ack, { ok: false });
+      try {
+        const uids = [
+          ...new Set(
+            [...room.players.values()].map((p) => p.uid).filter(Boolean),
+          ),
+        ].sort();
+        const key = uids.join(",");
+        if (
+          room.crewProgressCache?.key !== key ||
+          clock() - room.crewProgressCache.at > 15000
+        ) {
+          const profiles = (
+            await Promise.all(uids.map((uid) => accounts.get(uid)))
+          )
+            .filter(Boolean)
+            .map(accounts.public);
+          room.crewProgressCache = { key, at: clock(), profiles };
+        }
+        if (getRoom() !== room) return reply(ack, { ok: false });
+        reply(ack, { ok: true, profiles: room.crewProgressCache.profiles });
+      } catch {
+        reply(ack, {
+          ok: false,
+          error: "Crew-Fortschritt gerade nicht verfügbar.",
+        });
       }
     });
     socket.on("account:logout", (_, ack) => {

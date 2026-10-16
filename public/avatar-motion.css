@@ -1,0 +1,355 @@
+/* Generated from the same joint poses used by SVG previews. Run npm run build:avatars. */
+.avatar-art .avatar-character { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-character 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-character {
+  0.00000% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  8.33333% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  16.66667% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  25.00000% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  33.33333% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  41.66667% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  50.00000% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  58.33333% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  66.66667% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  75.00000% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  83.33333% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  91.66667% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  100% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+}
+.avatar-art .avatar-upper { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-upper 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-upper {
+  0.00000% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  8.33333% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  16.66667% { transform: translate(0px, -1px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  25.00000% { transform: translate(0px, -1px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  33.33333% { transform: translate(0px, -1px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  41.66667% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  50.00000% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  58.33333% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  66.66667% { transform: translate(0px, -1px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  75.00000% { transform: translate(0px, -1px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  83.33333% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  91.66667% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  100% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+}
+.avatar-art .avatar-head { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-head 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-head {
+  0.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  8.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(-3deg) scale(1, 1) translate(-19px, -22px); }
+  16.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(-5deg) scale(1, 1) translate(-19px, -22px); }
+  25.00000% { transform: translate(1px, 0px) translate(19px, 22px) rotate(-3deg) scale(1, 1) translate(-19px, -22px); }
+  33.33333% { transform: translate(1px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  41.66667% { transform: translate(1px, 0px) translate(19px, 22px) rotate(4deg) scale(1, 1) translate(-19px, -22px); }
+  50.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(5deg) scale(1, 1) translate(-19px, -22px); }
+  58.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(3deg) scale(1, 1) translate(-19px, -22px); }
+  66.66667% { transform: translate(-1px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  75.00000% { transform: translate(-1px, 0px) translate(19px, 22px) rotate(-3deg) scale(1, 1) translate(-19px, -22px); }
+  83.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(-3deg) scale(1, 1) translate(-19px, -22px); }
+  91.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  100% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+}
+.avatar-art .avatar-eyes { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-eyes 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-eyes {
+  0.00000% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  8.33333% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  16.66667% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  25.00000% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 0.14) translate(-19px, -17px); }
+  33.33333% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  41.66667% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  50.00000% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  58.33333% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  66.66667% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  75.00000% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  83.33333% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 0.14) translate(-19px, -17px); }
+  91.66667% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  100% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+}
+.avatar-art .avatar-mouth { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-mouth 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-mouth {
+  0.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  8.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  16.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  25.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  33.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  41.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  50.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  58.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  66.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  75.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  83.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  91.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  100% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+}
+.avatar-art .avatar-arm-left { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-arm-left 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-arm-left {
+  0.00000% { transform: translate(0px, 0px) translate(9px, 24px) rotate(10deg) scale(1, 1) translate(-9px, -24px); }
+  8.33333% { transform: translate(0px, 0px) translate(9px, 24px) rotate(4deg) scale(1, 1) translate(-9px, -24px); }
+  16.66667% { transform: translate(0px, 0px) translate(9px, 24px) rotate(-4deg) scale(1, 1) translate(-9px, -24px); }
+  25.00000% { transform: translate(0px, 0px) translate(9px, 24px) rotate(-12deg) scale(1, 1) translate(-9px, -24px); }
+  33.33333% { transform: translate(0px, 0px) translate(9px, 24px) rotate(-18deg) scale(1, 1) translate(-9px, -24px); }
+  41.66667% { transform: translate(0px, 0px) translate(9px, 24px) rotate(-12deg) scale(1, 1) translate(-9px, -24px); }
+  50.00000% { transform: translate(0px, 0px) translate(9px, 24px) rotate(-4deg) scale(1, 1) translate(-9px, -24px); }
+  58.33333% { transform: translate(0px, 0px) translate(9px, 24px) rotate(4deg) scale(1, 1) translate(-9px, -24px); }
+  66.66667% { transform: translate(0px, 0px) translate(9px, 24px) rotate(12deg) scale(1, 1) translate(-9px, -24px); }
+  75.00000% { transform: translate(0px, 0px) translate(9px, 24px) rotate(16deg) scale(1, 1) translate(-9px, -24px); }
+  83.33333% { transform: translate(0px, 0px) translate(9px, 24px) rotate(14deg) scale(1, 1) translate(-9px, -24px); }
+  91.66667% { transform: translate(0px, 0px) translate(9px, 24px) rotate(10deg) scale(1, 1) translate(-9px, -24px); }
+  100% { transform: translate(0px, 0px) translate(9px, 24px) rotate(10deg) scale(1, 1) translate(-9px, -24px); }
+}
+.avatar-art .avatar-arm-right { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-arm-right 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-arm-right {
+  0.00000% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-10deg) scale(1, 1) translate(-29px, -24px); }
+  8.33333% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-14deg) scale(1, 1) translate(-29px, -24px); }
+  16.66667% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-18deg) scale(1, 1) translate(-29px, -24px); }
+  25.00000% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-8deg) scale(1, 1) translate(-29px, -24px); }
+  33.33333% { transform: translate(0px, 0px) translate(29px, 24px) rotate(4deg) scale(1, 1) translate(-29px, -24px); }
+  41.66667% { transform: translate(0px, 0px) translate(29px, 24px) rotate(12deg) scale(1, 1) translate(-29px, -24px); }
+  50.00000% { transform: translate(0px, 0px) translate(29px, 24px) rotate(16deg) scale(1, 1) translate(-29px, -24px); }
+  58.33333% { transform: translate(0px, 0px) translate(29px, 24px) rotate(8deg) scale(1, 1) translate(-29px, -24px); }
+  66.66667% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-2deg) scale(1, 1) translate(-29px, -24px); }
+  75.00000% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-10deg) scale(1, 1) translate(-29px, -24px); }
+  83.33333% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-14deg) scale(1, 1) translate(-29px, -24px); }
+  91.66667% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-10deg) scale(1, 1) translate(-29px, -24px); }
+  100% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-10deg) scale(1, 1) translate(-29px, -24px); }
+}
+.avatar-art .avatar-forearm-left { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-forearm-left 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-forearm-left {
+  0.00000% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+  8.33333% { transform: translate(0px, 0px) translate(9px, 28px) rotate(5deg) scale(1, 1) translate(-9px, -28px); }
+  16.66667% { transform: translate(0px, 0px) translate(9px, 28px) rotate(10deg) scale(1, 1) translate(-9px, -28px); }
+  25.00000% { transform: translate(0px, 0px) translate(9px, 28px) rotate(18deg) scale(1, 1) translate(-9px, -28px); }
+  33.33333% { transform: translate(0px, 0px) translate(9px, 28px) rotate(25deg) scale(1, 1) translate(-9px, -28px); }
+  41.66667% { transform: translate(0px, 0px) translate(9px, 28px) rotate(18deg) scale(1, 1) translate(-9px, -28px); }
+  50.00000% { transform: translate(0px, 0px) translate(9px, 28px) rotate(10deg) scale(1, 1) translate(-9px, -28px); }
+  58.33333% { transform: translate(0px, 0px) translate(9px, 28px) rotate(4deg) scale(1, 1) translate(-9px, -28px); }
+  66.66667% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+  75.00000% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+  83.33333% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+  91.66667% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+  100% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+}
+.avatar-art .avatar-forearm-right { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-forearm-right 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-forearm-right {
+  0.00000% { transform: translate(0px, 0px) translate(29px, 28px) rotate(0deg) scale(1, 1) translate(-29px, -28px); }
+  8.33333% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-8deg) scale(1, 1) translate(-29px, -28px); }
+  16.66667% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-15deg) scale(1, 1) translate(-29px, -28px); }
+  25.00000% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-22deg) scale(1, 1) translate(-29px, -28px); }
+  33.33333% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-12deg) scale(1, 1) translate(-29px, -28px); }
+  41.66667% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-4deg) scale(1, 1) translate(-29px, -28px); }
+  50.00000% { transform: translate(0px, 0px) translate(29px, 28px) rotate(0deg) scale(1, 1) translate(-29px, -28px); }
+  58.33333% { transform: translate(0px, 0px) translate(29px, 28px) rotate(0deg) scale(1, 1) translate(-29px, -28px); }
+  66.66667% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-8deg) scale(1, 1) translate(-29px, -28px); }
+  75.00000% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-16deg) scale(1, 1) translate(-29px, -28px); }
+  83.33333% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-8deg) scale(1, 1) translate(-29px, -28px); }
+  91.66667% { transform: translate(0px, 0px) translate(29px, 28px) rotate(0deg) scale(1, 1) translate(-29px, -28px); }
+  100% { transform: translate(0px, 0px) translate(29px, 28px) rotate(0deg) scale(1, 1) translate(-29px, -28px); }
+}
+.avatar-art .avatar-leg-left { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-leg-left 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-leg-left {
+  0.00000% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  8.33333% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  16.66667% { transform: translate(0px, 0px) translate(15px, 30px) rotate(-4deg) scale(1, 1) translate(-15px, -30px); }
+  25.00000% { transform: translate(0px, -1px) translate(15px, 30px) rotate(-4deg) scale(1, 1) translate(-15px, -30px); }
+  33.33333% { transform: translate(0px, -1px) translate(15px, 30px) rotate(-4deg) scale(1, 1) translate(-15px, -30px); }
+  41.66667% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  50.00000% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  58.33333% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  66.66667% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  75.00000% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  83.33333% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  91.66667% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  100% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+}
+.avatar-art .avatar-leg-right { transform-box: view-box; transform-origin: 0 0; animation: joint-idle-leg-right 3.6s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-idle-leg-right {
+  0.00000% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  8.33333% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  16.66667% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  25.00000% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  33.33333% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  41.66667% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  50.00000% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  58.33333% { transform: translate(0px, 0px) translate(23px, 30px) rotate(4deg) scale(1, 1) translate(-23px, -30px); }
+  66.66667% { transform: translate(0px, -1px) translate(23px, 30px) rotate(4deg) scale(1, 1) translate(-23px, -30px); }
+  75.00000% { transform: translate(0px, -1px) translate(23px, 30px) rotate(4deg) scale(1, 1) translate(-23px, -30px); }
+  83.33333% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  91.66667% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  100% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+}
+.podium-winner .avatar-art .avatar-character { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-character 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-character {
+  0.00000% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  8.33333% { transform: translate(0px, -1px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  16.66667% { transform: translate(0px, -2px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  25.00000% { transform: translate(0px, -3px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  33.33333% { transform: translate(0px, -2px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  41.66667% { transform: translate(0px, -1px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  50.00000% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  58.33333% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  66.66667% { transform: translate(0px, -2px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  75.00000% { transform: translate(0px, -3px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  83.33333% { transform: translate(0px, -2px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  91.66667% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+  100% { transform: translate(0px, 0px) translate(19px, 34px) rotate(0deg) scale(1, 1) translate(-19px, -34px); }
+}
+.podium-winner .avatar-art .avatar-upper { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-upper 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-upper {
+  0.00000% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  8.33333% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  16.66667% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  25.00000% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  33.33333% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  41.66667% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  50.00000% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  58.33333% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  66.66667% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  75.00000% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  83.33333% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  91.66667% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+  100% { transform: translate(0px, 0px) translate(19px, 30px) rotate(0deg) scale(1, 1) translate(-19px, -30px); }
+}
+.podium-winner .avatar-art .avatar-head { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-head 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-head {
+  0.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(-5deg) scale(1, 1) translate(-19px, -22px); }
+  8.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(-3deg) scale(1, 1) translate(-19px, -22px); }
+  16.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  25.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(4deg) scale(1, 1) translate(-19px, -22px); }
+  33.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(5deg) scale(1, 1) translate(-19px, -22px); }
+  41.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(3deg) scale(1, 1) translate(-19px, -22px); }
+  50.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  58.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(-4deg) scale(1, 1) translate(-19px, -22px); }
+  66.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(-5deg) scale(1, 1) translate(-19px, -22px); }
+  75.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(-2deg) scale(1, 1) translate(-19px, -22px); }
+  83.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(2deg) scale(1, 1) translate(-19px, -22px); }
+  91.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1, 1) translate(-19px, -22px); }
+  100% { transform: translate(0px, 0px) translate(19px, 22px) rotate(-5deg) scale(1, 1) translate(-19px, -22px); }
+}
+.podium-winner .avatar-art .avatar-eyes { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-eyes 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-eyes {
+  0.00000% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  8.33333% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  16.66667% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  25.00000% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  33.33333% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  41.66667% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  50.00000% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 0.14) translate(-19px, -17px); }
+  58.33333% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  66.66667% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  75.00000% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  83.33333% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  91.66667% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+  100% { transform: translate(0px, 0px) translate(19px, 17px) rotate(0deg) scale(1, 1) translate(-19px, -17px); }
+}
+.podium-winner .avatar-art .avatar-mouth { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-mouth 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-mouth {
+  0.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  8.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  16.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  25.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  33.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  41.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  50.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  58.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  66.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  75.00000% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  83.33333% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  91.66667% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+  100% { transform: translate(0px, 0px) translate(19px, 22px) rotate(0deg) scale(1.25, 1.2) translate(-19px, -22px); }
+}
+.podium-winner .avatar-art .avatar-arm-left { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-arm-left 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-arm-left {
+  0.00000% { transform: translate(0px, 0px) translate(9px, 24px) rotate(115deg) scale(1, 1) translate(-9px, -24px); }
+  8.33333% { transform: translate(0px, 0px) translate(9px, 24px) rotate(130deg) scale(1, 1) translate(-9px, -24px); }
+  16.66667% { transform: translate(0px, 0px) translate(9px, 24px) rotate(145deg) scale(1, 1) translate(-9px, -24px); }
+  25.00000% { transform: translate(0px, 0px) translate(9px, 24px) rotate(155deg) scale(1, 1) translate(-9px, -24px); }
+  33.33333% { transform: translate(0px, 0px) translate(9px, 24px) rotate(145deg) scale(1, 1) translate(-9px, -24px); }
+  41.66667% { transform: translate(0px, 0px) translate(9px, 24px) rotate(135deg) scale(1, 1) translate(-9px, -24px); }
+  50.00000% { transform: translate(0px, 0px) translate(9px, 24px) rotate(120deg) scale(1, 1) translate(-9px, -24px); }
+  58.33333% { transform: translate(0px, 0px) translate(9px, 24px) rotate(135deg) scale(1, 1) translate(-9px, -24px); }
+  66.66667% { transform: translate(0px, 0px) translate(9px, 24px) rotate(150deg) scale(1, 1) translate(-9px, -24px); }
+  75.00000% { transform: translate(0px, 0px) translate(9px, 24px) rotate(160deg) scale(1, 1) translate(-9px, -24px); }
+  83.33333% { transform: translate(0px, 0px) translate(9px, 24px) rotate(145deg) scale(1, 1) translate(-9px, -24px); }
+  91.66667% { transform: translate(0px, 0px) translate(9px, 24px) rotate(125deg) scale(1, 1) translate(-9px, -24px); }
+  100% { transform: translate(0px, 0px) translate(9px, 24px) rotate(115deg) scale(1, 1) translate(-9px, -24px); }
+}
+.podium-winner .avatar-art .avatar-arm-right { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-arm-right 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-arm-right {
+  0.00000% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-125deg) scale(1, 1) translate(-29px, -24px); }
+  8.33333% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-145deg) scale(1, 1) translate(-29px, -24px); }
+  16.66667% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-155deg) scale(1, 1) translate(-29px, -24px); }
+  25.00000% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-145deg) scale(1, 1) translate(-29px, -24px); }
+  33.33333% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-130deg) scale(1, 1) translate(-29px, -24px); }
+  41.66667% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-115deg) scale(1, 1) translate(-29px, -24px); }
+  50.00000% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-130deg) scale(1, 1) translate(-29px, -24px); }
+  58.33333% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-150deg) scale(1, 1) translate(-29px, -24px); }
+  66.66667% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-160deg) scale(1, 1) translate(-29px, -24px); }
+  75.00000% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-150deg) scale(1, 1) translate(-29px, -24px); }
+  83.33333% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-135deg) scale(1, 1) translate(-29px, -24px); }
+  91.66667% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-120deg) scale(1, 1) translate(-29px, -24px); }
+  100% { transform: translate(0px, 0px) translate(29px, 24px) rotate(-125deg) scale(1, 1) translate(-29px, -24px); }
+}
+.podium-winner .avatar-art .avatar-forearm-left { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-forearm-left 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-forearm-left {
+  0.00000% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+  8.33333% { transform: translate(0px, 0px) translate(9px, 28px) rotate(12deg) scale(1, 1) translate(-9px, -28px); }
+  16.66667% { transform: translate(0px, 0px) translate(9px, 28px) rotate(24deg) scale(1, 1) translate(-9px, -28px); }
+  25.00000% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+  33.33333% { transform: translate(0px, 0px) translate(9px, 28px) rotate(12deg) scale(1, 1) translate(-9px, -28px); }
+  41.66667% { transform: translate(0px, 0px) translate(9px, 28px) rotate(24deg) scale(1, 1) translate(-9px, -28px); }
+  50.00000% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+  58.33333% { transform: translate(0px, 0px) translate(9px, 28px) rotate(12deg) scale(1, 1) translate(-9px, -28px); }
+  66.66667% { transform: translate(0px, 0px) translate(9px, 28px) rotate(24deg) scale(1, 1) translate(-9px, -28px); }
+  75.00000% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+  83.33333% { transform: translate(0px, 0px) translate(9px, 28px) rotate(12deg) scale(1, 1) translate(-9px, -28px); }
+  91.66667% { transform: translate(0px, 0px) translate(9px, 28px) rotate(24deg) scale(1, 1) translate(-9px, -28px); }
+  100% { transform: translate(0px, 0px) translate(9px, 28px) rotate(0deg) scale(1, 1) translate(-9px, -28px); }
+}
+.podium-winner .avatar-art .avatar-forearm-right { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-forearm-right 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-forearm-right {
+  0.00000% { transform: translate(0px, 0px) translate(29px, 28px) rotate(0deg) scale(1, 1) translate(-29px, -28px); }
+  8.33333% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-12deg) scale(1, 1) translate(-29px, -28px); }
+  16.66667% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-24deg) scale(1, 1) translate(-29px, -28px); }
+  25.00000% { transform: translate(0px, 0px) translate(29px, 28px) rotate(0deg) scale(1, 1) translate(-29px, -28px); }
+  33.33333% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-12deg) scale(1, 1) translate(-29px, -28px); }
+  41.66667% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-24deg) scale(1, 1) translate(-29px, -28px); }
+  50.00000% { transform: translate(0px, 0px) translate(29px, 28px) rotate(0deg) scale(1, 1) translate(-29px, -28px); }
+  58.33333% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-12deg) scale(1, 1) translate(-29px, -28px); }
+  66.66667% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-24deg) scale(1, 1) translate(-29px, -28px); }
+  75.00000% { transform: translate(0px, 0px) translate(29px, 28px) rotate(0deg) scale(1, 1) translate(-29px, -28px); }
+  83.33333% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-12deg) scale(1, 1) translate(-29px, -28px); }
+  91.66667% { transform: translate(0px, 0px) translate(29px, 28px) rotate(-24deg) scale(1, 1) translate(-29px, -28px); }
+  100% { transform: translate(0px, 0px) translate(29px, 28px) rotate(0deg) scale(1, 1) translate(-29px, -28px); }
+}
+.podium-winner .avatar-art .avatar-leg-left { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-leg-left 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-leg-left {
+  0.00000% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  8.33333% { transform: translate(0px, 0px) translate(15px, 30px) rotate(-3deg) scale(1, 1) translate(-15px, -30px); }
+  16.66667% { transform: translate(0px, 0px) translate(15px, 30px) rotate(-6deg) scale(1, 1) translate(-15px, -30px); }
+  25.00000% { transform: translate(0px, 0px) translate(15px, 30px) rotate(-8deg) scale(1, 1) translate(-15px, -30px); }
+  33.33333% { transform: translate(0px, 0px) translate(15px, 30px) rotate(-6deg) scale(1, 1) translate(-15px, -30px); }
+  41.66667% { transform: translate(0px, 0px) translate(15px, 30px) rotate(-3deg) scale(1, 1) translate(-15px, -30px); }
+  50.00000% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  58.33333% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  66.66667% { transform: translate(0px, 0px) translate(15px, 30px) rotate(-5deg) scale(1, 1) translate(-15px, -30px); }
+  75.00000% { transform: translate(0px, 0px) translate(15px, 30px) rotate(-8deg) scale(1, 1) translate(-15px, -30px); }
+  83.33333% { transform: translate(0px, 0px) translate(15px, 30px) rotate(-5deg) scale(1, 1) translate(-15px, -30px); }
+  91.66667% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+  100% { transform: translate(0px, 0px) translate(15px, 30px) rotate(0deg) scale(1, 1) translate(-15px, -30px); }
+}
+.podium-winner .avatar-art .avatar-leg-right { transform-box: view-box; transform-origin: 0 0; animation: joint-cheer-leg-right 1.8s steps(1, end) var(--avatar-delay, 0s) infinite; }
+@keyframes joint-cheer-leg-right {
+  0.00000% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  8.33333% { transform: translate(0px, 0px) translate(23px, 30px) rotate(3deg) scale(1, 1) translate(-23px, -30px); }
+  16.66667% { transform: translate(0px, 0px) translate(23px, 30px) rotate(6deg) scale(1, 1) translate(-23px, -30px); }
+  25.00000% { transform: translate(0px, 0px) translate(23px, 30px) rotate(8deg) scale(1, 1) translate(-23px, -30px); }
+  33.33333% { transform: translate(0px, 0px) translate(23px, 30px) rotate(6deg) scale(1, 1) translate(-23px, -30px); }
+  41.66667% { transform: translate(0px, 0px) translate(23px, 30px) rotate(3deg) scale(1, 1) translate(-23px, -30px); }
+  50.00000% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  58.33333% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  66.66667% { transform: translate(0px, 0px) translate(23px, 30px) rotate(5deg) scale(1, 1) translate(-23px, -30px); }
+  75.00000% { transform: translate(0px, 0px) translate(23px, 30px) rotate(8deg) scale(1, 1) translate(-23px, -30px); }
+  83.33333% { transform: translate(0px, 0px) translate(23px, 30px) rotate(5deg) scale(1, 1) translate(-23px, -30px); }
+  91.66667% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+  100% { transform: translate(0px, 0px) translate(23px, 30px) rotate(0deg) scale(1, 1) translate(-23px, -30px); }
+}
+.pixel-image { animation: none !important; transform: none !important; }
+@media (prefers-reduced-motion: reduce) { .avatar-art [class^="avatar-"], .podium-winner .avatar-art [class^="avatar-"] { animation: none; transform: none; } }

@@ -63,11 +63,21 @@ function paintAvatarEditor() {
 function openAvatar() {
   avatarDraft = { ...avatarChoice };
   paintAvatarEditor();
+  $("saveGuestAvatarAccount").hidden = !!window.Account?.profile;
   $("avatarDialog").showModal();
 }
 $("homeAvatar").onclick = openAvatar;
 $("editAvatar").onclick = openAvatar;
 $("homeAvatarPreview").innerHTML = avatarSVG(avatarChoice);
+$("saveGuestAvatarAccount").onclick = () => {
+  avatarChoice = GiG.avatar(avatarDraft);
+  try {
+    localStorage.setItem("gig-avatar", JSON.stringify(avatarChoice));
+  } catch {}
+  $("homeAvatarPreview").innerHTML = avatarSVG(avatarChoice);
+  $("avatarDialog").close();
+  window.Account?.open("register");
+};
 $("saveAvatar").onclick = async () => {
   if (window.Account?.profile) {
     try {

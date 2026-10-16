@@ -14,6 +14,9 @@
     busy = false,
     currentBoard = null,
     profileVersion = 0;
+  let guestOpportunity = null,
+    linkingLobby = false;
+  let crew = { key: "", at: 0, profiles: [], pending: false };
   let panel = $("accountDialog");
   const dialog = panel,
     badgeNames = {
@@ -108,7 +111,10 @@
       $("name").value = p.username;
       $("name").readOnly = true;
       if (socket.connected) {
-        if (room) await rpc("account:refresh", {});
+        if (room)
+          await rpc("account:refresh", {
+            token: await GiGFirebase.getIdToken(A.user),
+          });
         else
           await rpc("account:login", {
             token: await GiGFirebase.getIdToken(A.user),
@@ -117,6 +123,8 @@
     }
     paintBar();
     paintCustomSounds();
+    paintGuestOpportunity();
+    if (room?.phase === "lobby") refreshCrew(room);
   }
   A.save = async (changes) => {
     const r = await api("/api/profile", "POST", { ...A.profile, ...changes });
@@ -215,6 +223,7 @@
         : "Willkommen zurück.",
       "E-Mail bleibt privat. Dein Benutzername ist später öffentlich sichtbar.",
     );
+    accountPreview();
     accountBenefits();
     const form = el("form", "account-form"),
       email = field("E-Mail", "email"),
@@ -269,6 +278,7 @@
             }
             await api("/api/register/start", "POST", {
               username: username.input.value,
+              avatar: avatarChoice,
             });
             A.open("register");
             await GiGFirebase.sendEmailVerification(user, {
@@ -373,8 +383,11 @@
       attempt(async () => {
         const r = await api("/api/register", "POST", {
           username: name.input.value,
+          avatar: avatarChoice,
         });
         await adopt(r.profile);
+        if (r.welcome)
+          toast("Willkommen! +50 GiG-Coins sind auf deinem Konto.");
         A.open("profile");
       });
     };
@@ -446,6 +459,32 @@
       stats.append(cell);
     }
     card.append(stats);
+    const records = el("div", "record-shelf");
+    records.append(el("h3", "", "Persönliche Multiplayer-Rekorde"));
+    const bests = Object.entries(p.records || {}).sort(
+      ([a], [b]) => Number(b === p.favorite) - Number(a === p.favorite),
+    );
+    if (!bests.length)
+      records.append(
+        el(
+          "p",
+          "muted small",
+          "Dein erster Rekord wartet in einer aktiven Multiplayer-Runde.",
+        ),
+      );
+    for (const [id, record] of bests.slice(0, 4)) {
+      const row = el("div", "record-row");
+      row.append(
+        el("span", "", catalog.find((g) => g.id === id)?.title || id),
+        el(
+          "strong",
+          "",
+          record.detail || Math.round(record.raw) + " Spielpunkte",
+        ),
+      );
+      records.append(row);
+    }
+    card.append(records);
     const badges = el("div", "badge-shelf");
     const shown = p.showcase?.length ? p.showcase : p.achievements || [];
     for (const id of shown)
@@ -620,7 +659,11 @@
                 : "✦";
         card.append(glyph, el("strong", "", item.name));
         const buy = button(
-          owned ? "✓ Freigeschaltet" : item.price + " GiG-Coins",
+          owned
+            ? "✓ Freigeschaltet"
+            : item.achievement
+              ? item.description
+              : item.price + " GiG-Coins",
           () =>
             attempt(async () => {
               const r = await api("/api/buy", "POST", { id: item.id });
@@ -629,7 +672,8 @@
               A.open("shop");
             }),
         );
-        buy.disabled = owned || A.profile.coins < item.price;
+        buy.disabled =
+          owned || !!item.achievement || A.profile.coins < item.price;
         card.append(buy);
         if (owned && item.id.startsWith("site-"))
           card.append(
@@ -944,12 +988,41 @@
       upload,
     );
   }
+  function accountPreview() {
+    const preview = el("div", "account-preview");
+    const avatar = avatarNode(avatarChoice);
+    avatar.classList.add("account-preview-avatar");
+    const info = el("div", "account-preview-info");
+    info.append(
+      el("span", "eyebrow", "DEIN LOOK · DEIN KONTO"),
+      el("strong", "", "Diesen Charakter mitnehmen"),
+      el(
+        "small",
+        "muted",
+        "Pixelprofil, Rekorde und eigene Sounds nach Slot-Kauf.",
+      ),
+    );
+    const sound = el("span", "preview-sound", "😂");
+    sound.title =
+      "Beispiel für deinen eigenen Sound-Button · Slot im Shop freischalten";
+    const edit = button(
+      "Avatar ausprobieren →",
+      () => {
+        dialog.close();
+        openAvatar();
+      },
+      "quiet compact",
+    );
+    preview.append(avatar, info, sound, edit);
+    panel.append(preview);
+  }
   function accountBenefits() {
     const benefits = el("ul", "account-benefits");
     for (const text of [
       "GiG-Coins im Multiplayer",
+      "50 Coins nach E-Mail-Bestätigung",
       "Pixelprofil & eigene Sounds",
-      "Fortschritt dauerhaft speichern",
+      "Crew-Rekorde & Titel speichern",
     ])
       benefits.append(el("li", "", text));
     panel.append(benefits);
@@ -1090,6 +1163,7 @@
     if (A.user?.emailVerified) {
       const r = await api("/api/me");
       await adopt(r.profile);
+      if (r.welcome) toast("Willkommen! +50 GiG-Coins sind auf deinem Konto.");
     } else {
       A.profile = null;
       paintBar();
@@ -1141,13 +1215,173 @@
   const originalReset = resetLocal;
   resetLocal = function () {
     window.codeVisible = false;
+    guestOpportunity = null;
+    crew = { key: "", at: 0, profiles: [], pending: false };
+    paintGuestOpportunity();
     $("revealCode").textContent = "Anzeigen";
     $("revealCode").setAttribute("aria-pressed", "false");
     originalReset();
   };
+  async function maybeLinkLobby(next) {
+    const own = next.players.find((p) => p.id === myId);
+    if (
+      linkingLobby ||
+      next.phase !== "lobby" ||
+      !A.profile ||
+      !A.user ||
+      own?.uid === A.profile.uid
+    )
+      return;
+    linkingLobby = true;
+    try {
+      const token = await GiGFirebase.getIdToken(A.user);
+      await rpc("account:refresh", { token });
+    } catch {
+      // The next lobby update can retry after a transient auth/network failure.
+    } finally {
+      linkingLobby = false;
+    }
+  }
+  function paintGuestOpportunity() {
+    const box = $("guestAccountHint");
+    box.replaceChildren();
+    const visible =
+      !A.user &&
+      !A.profile &&
+      !!guestOpportunity &&
+      room?.phase === "results" &&
+      !room.lastResult?.practice &&
+      guestOpportunity?.roundId === room.lastResult?.roundId;
+    box.hidden = !visible;
+    if (!visible) return;
+    const message = el("div");
+    message.append(
+      el(
+        "strong",
+        "",
+        "Mit Konto hättest du in dieser Runde " +
+          guestOpportunity.coins +
+          " GiG-Coins verdient.",
+      ),
+      el(
+        "p",
+        "muted small",
+        "Ab deiner nächsten angemeldeten Runde sammelst du Coins. Nach E-Mail-Bestätigung gibt es einmalig 50 zum Start.",
+      ),
+    );
+    box.append(
+      message,
+      button("Konto erstellen →", () => A.open("register"), "quiet"),
+    );
+  }
+  socket.on("account:opportunity", (result) => {
+    if (
+      !result ||
+      !Number.isInteger(result.coins) ||
+      result.coins < 20 ||
+      result.coins > 50
+    )
+      return;
+    guestOpportunity = result;
+    paintGuestOpportunity();
+  });
+  function drawCrew(next) {
+    const box = $("crewProgress");
+    box.replaceChildren(
+      el("div", "panel-title", "Crew-Bestenliste"),
+      el("p", "small muted", "Konten in dieser Lobby · Siege insgesamt"),
+    );
+    const profiles = [...crew.profiles].sort(
+      (a, b) =>
+        (b.stats?.wins || 0) - (a.stats?.wins || 0) ||
+        (b.stats?.rounds || 0) - (a.stats?.rounds || 0) ||
+        a.username.localeCompare(b.username),
+    );
+    profiles.slice(0, 3).forEach((p) => {
+      const rank =
+        profiles.filter(
+          (q) =>
+            (q.stats?.wins || 0) > (p.stats?.wins || 0) ||
+            ((q.stats?.wins || 0) === (p.stats?.wins || 0) &&
+              (q.stats?.rounds || 0) > (p.stats?.rounds || 0)),
+        ).length + 1;
+      const row = button(
+        "",
+        () => openPublicProfile(p.uid),
+        "crew-record quiet",
+      );
+      const label = el("span", "crew-record-label");
+      label.append(
+        el("strong", "", p.username),
+        el(
+          "small",
+          "muted",
+          (p.stats?.wins || 0) +
+            " Siege · " +
+            (p.stats?.rounds || 0) +
+            " Runden",
+        ),
+      );
+      row.append(
+        el("span", "crew-rank", String(rank)),
+        avatarNode(p.avatar),
+        label,
+      );
+      box.append(row);
+    });
+    if (!profiles.length)
+      box.append(
+        el(
+          "p",
+          "small muted",
+          crew.pending
+            ? "Crew-Fortschritt wird geladen …"
+            : "Mit einem Konto bleiben eure Siege und Rekorde gespeichert.",
+        ),
+      );
+    if (!A.profile)
+      box.append(
+        button(
+          "Deinen Fortschritt speichern →",
+          () => A.open("register"),
+          "quiet compact",
+        ),
+      );
+  }
+  async function refreshCrew(next) {
+    const box = $("crewProgress");
+    box.hidden = next.phase !== "lobby";
+    if (next.phase !== "lobby") return;
+    const key =
+      next.code +
+      ":" +
+      next.players
+        .map((p) => p.uid || p.id)
+        .sort()
+        .join(",");
+    if (crew.key !== key) crew = { key, at: 0, profiles: [], pending: false };
+    drawCrew(next);
+    if (crew.pending || (crew.at && Date.now() - crew.at < 15000)) return;
+    crew.pending = true;
+    try {
+      const result = await rpc("crew:progress", {});
+      if (crew.key !== key || room?.code !== next.code) return;
+      crew.at = Date.now();
+      crew.profiles =
+        result.ok && Array.isArray(result.profiles) ? result.profiles : [];
+    } finally {
+      if (crew.key === key) {
+        crew.pending = false;
+        if (room?.code === next.code && room.phase === "lobby") drawCrew(next);
+      }
+    }
+  }
   const originalRoom = renderRoom;
   renderRoom = function (next) {
     originalRoom(next);
+    paintGuestOpportunity();
+    refreshCrew(next);
+    maybeLinkLobby(next);
     $("monsterSetup").hidden =
       next.phase !== "lobby" || next.selected !== "monster";
     $("monsterTrack").value = next.settings?.monster?.track || "meadow";
@@ -1239,6 +1473,7 @@
   socket.on("account:reward", async (result) => {
     if (result.profile?.uid !== A.user?.uid) return;
     A.profile = result.profile;
+    crew.at = 0;
     paintBar();
     toast("+" + result.coins + " GiG-Coins · Fortschritt gespeichert");
   });
