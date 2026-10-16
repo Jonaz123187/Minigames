@@ -179,6 +179,40 @@
   ])
     add("title-" + id, name, "Profil", 90);
   add("showcase", "Große Profilvitrine", "Profil", 200);
+  for (const [id, name, achievement, description] of [
+    ["regular", "Crew-Stammgast", "regular", "25 Multiplayer-Runden spielen"],
+    ["champion", "Siegertyp", "five-wins", "5 Multiplayer-Siege schaffen"],
+    [
+      "artist",
+      "Pixel-Picasso",
+      "sketch-star",
+      "Eine Runde Sketch & Guess gewinnen",
+    ],
+    [
+      "trailmaster",
+      "Trail-Legende",
+      "trail-star",
+      "Eine Runde Monster Trails gewinnen",
+    ],
+  ])
+    add("title-" + id, name, "Erspielbare Titel", null, {
+      achievement,
+      description,
+    });
+  function rewardCoins({ practice, participants, active, duration, rank }) {
+    if (
+      practice ||
+      !Number.isFinite(participants) ||
+      participants < 2 ||
+      active !== true ||
+      !Number.isFinite(duration) ||
+      duration < 8000 ||
+      !Number.isInteger(rank) ||
+      rank < 1
+    )
+      return 0;
+    return 20 + (rank === 1 ? 30 : rank === 2 ? 15 : rank === 3 ? 5 : 0);
+  }
   const defaults = {
     kind: 0,
     skin: 0,
@@ -195,7 +229,10 @@
       !id ||
       !!p?.owner ||
       p?.owned?.includes(id) ||
-      !!p?.achievements?.includes(id)
+      !!p?.achievements?.includes(id) ||
+      !!p?.achievements?.includes(
+        items.find((item) => item.id === id)?.achievement,
+      )
     );
   }
   function gate(k, v) {
@@ -223,6 +260,82 @@
       b.revision = Number(p.avatarFile) || 1;
     }
     return b;
+  }
+  // Joint poses are shared by the browser stylesheet and deterministic previews.
+  const avatarPivots = {
+    character: [16, 30],
+    upper: [16, 26],
+    head: [16, 18],
+    eyes: [16, 13],
+    mouth: [16, 18],
+    "arm-left": [6, 20],
+    "arm-right": [26, 20],
+    "forearm-left": [6, 24],
+    "forearm-right": [26, 24],
+    "leg-left": [12, 26],
+    "leg-right": [20, 26],
+  };
+  // Keep the SVG viewBox at (0, 0); all joint pivots and pixels share this offset.
+  for (const pivot of Object.values(avatarPivots)) {
+    pivot[0] += 3;
+    pivot[1] += 4;
+  }
+  const idleBounce = [0, 0, -1, -1, -1, 0, 0, 0, -1, -1, 0, 0];
+  const leftSwing = [10, 4, -4, -12, -18, -12, -4, 4, 12, 16, 14, 10];
+  const rightSwing = [-10, -14, -18, -8, 4, 12, 16, 8, -2, -10, -14, -10];
+  const avatarMotion = {
+    idle: Array.from({ length: 12 }, (_, i) => ({
+      character: [0, 0, 0],
+      upper: [0, idleBounce[i], 0],
+      head: [
+        [0, 0, 0, 1, 1, 1, 0, 0, -1, -1, 0, 0][i],
+        0,
+        [0, -3, -5, -3, 0, 4, 5, 3, 0, -3, -3, 0][i],
+      ],
+      eyes: [0, 0, 0, 1, i === 3 || i === 10 ? 0.14 : 1],
+      mouth: [0, 0, 0],
+      "arm-left": [0, 0, leftSwing[i]],
+      "arm-right": [0, 0, rightSwing[i]],
+      "forearm-left": [0, 0, [0, 5, 10, 18, 25, 18, 10, 4, 0, 0, 0, 0][i]],
+      "forearm-right": [
+        0,
+        0,
+        [0, -8, -15, -22, -12, -4, 0, 0, -8, -16, -8, 0][i],
+      ],
+      "leg-left": [0, i === 3 || i === 4 ? -1 : 0, i > 1 && i < 5 ? -4 : 0],
+      "leg-right": [0, i === 8 || i === 9 ? -1 : 0, i > 6 && i < 10 ? 4 : 0],
+    })),
+    cheer: Array.from({ length: 12 }, (_, i) => ({
+      character: [0, [0, -1, -2, -3, -2, -1, 0, 0, -2, -3, -2, 0][i], 0],
+      upper: [0, 0, 0],
+      head: [0, 0, [-5, -3, 0, 4, 5, 3, 0, -4, -5, -2, 2, 0][i]],
+      eyes: [0, 0, 0, 1, i === 6 ? 0.14 : 1],
+      mouth: [0, 0, 0, 1.25, 1.2],
+      "arm-left": [
+        0,
+        0,
+        [115, 130, 145, 155, 145, 135, 120, 135, 150, 160, 145, 125][i],
+      ],
+      "arm-right": [
+        0,
+        0,
+        [
+          -125, -145, -155, -145, -130, -115, -130, -150, -160, -150, -135,
+          -120,
+        ][i],
+      ],
+      "forearm-left": [0, 0, (i % 3) * 12],
+      "forearm-right": [0, 0, -(i % 3) * 12],
+      "leg-left": [0, 0, [0, -3, -6, -8, -6, -3, 0, 0, -5, -8, -5, 0][i]],
+      "leg-right": [0, 0, [0, 3, 6, 8, 6, 3, 0, 0, 5, 8, 5, 0][i]],
+    })),
+  };
+  function jointTransform(part, pose, css = false) {
+    const [x = 0, y = 0, angle = 0, sx = 1, sy = 1] = pose || [];
+    const [px, py] = avatarPivots[part];
+    return css
+      ? `translate(${x}px, ${y}px) translate(${px}px, ${py}px) rotate(${angle}deg) scale(${sx}, ${sy}) translate(${-px}px, ${-py}px)`
+      : `translate(${x} ${y}) translate(${px} ${py}) rotate(${angle}) scale(${sx} ${sy}) translate(${-px} ${-py})`;
   }
   const skins = [
       "#edbf96",
@@ -254,23 +367,42 @@
       "#df8650",
       "#9466bb",
     ];
-  function svg(a = {}) {
+  function svg(a = {}, pose = null) {
     if (a.custom && /^[\w-]{1,128}$/.test(a.custom))
       return `<img src="/api/media/avatar/${a.custom}?v=${Number(a.revision) || 1}" alt="Eigenes Pixelbild" class="pixel-image"/>`;
     a = { ...defaults, ...a };
     let s = "";
+    const frame = pose
+      ? avatarMotion[pose.mode === "cheer" ? "cheer" : "idle"][
+          Math.abs(Math.floor(pose.frame || 0)) % 12
+        ]
+      : null;
+    const group = (part) => {
+      const transform =
+        frame && avatarPivots[part]
+          ? ` transform="${jointTransform(part, frame[part])}"`
+          : "";
+      s += `<g class="avatar-${part}"${transform}>`;
+    };
+    const end = () => {
+      s += "</g>";
+    };
     const r = (x, y, w, h, c) => {
-      s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
+      const alpha = /^#[0-9a-f]{8}$/i.test(c)
+        ? ` fill-opacity="${parseInt(c.slice(7), 16) / 255}"`
+        : "";
+      const fill = alpha ? c.slice(0, 7) : c;
+      s += `<rect x="${x + 3}" y="${y + 4}" width="${w}" height="${h}" fill="${fill}"${alpha}/>`;
     };
     const skin = skins[a.skin] || skins[0],
       c = colors[a.color] || colors[0],
       hair = hairs[a.hairColor] || hairs[0],
       dark = "#242232";
     r(
-      0,
-      0,
-      32,
-      32,
+      -3,
+      -4,
+      38,
+      38,
       [
         "#202637",
         "#5b3e45",
@@ -284,15 +416,46 @@
     );
     for (let i = 0; i < 5; i++)
       r((i * 7 + 3) % 32, (i * 11 + 2) % 30, 1, 1, "#ffffff20");
-    s += '<g class="avatar-character">';
-    // Full-body, hand-layered 32×32 pixel character. Every layer remains combinable.
+    group("character");
+    group("leg-left");
     r(9, 24, 6, 6, dark);
-    r(17, 24, 6, 6, dark);
     r(8, 29, 7, 2, "#111523");
+    end();
+    group("leg-right");
+    r(17, 24, 6, 6, dark);
     r(17, 29, 8, 2, "#111523");
+    end();
+    group("upper");
+    const hand =
+      a.kind === 2
+        ? "#a7bdc8"
+        : a.kind === 3
+          ? "#8eb68c"
+          : a.kind === 4
+            ? "#81bb83"
+            : a.kind === 5
+              ? "#e8e4cf"
+              : skin;
+    const sleeve =
+      [c, c, dark, "#dbe4e9", "#8298ac", "#e99db3", "#6fba80", "#d69d57"][
+        a.outfit
+      ] || c;
+    group("arm-left");
+    r(4, 20, 4, 4, sleeve);
+    group("forearm-left");
+    r(4, 23, 4, 4, hand);
+    r(3, 26, 2, 1, hand);
+    end();
+    end();
+    group("arm-right");
+    r(24, 20, 4, 4, sleeve);
+    group("forearm-right");
+    r(24, 23, 4, 4, hand);
+    r(27, 26, 2, 1, hand);
+    end();
+    end();
+    group("torso");
     r(7, 19, 18, 8, c);
-    r(4, 20, 4, 7, skin);
-    r(24, 20, 4, 7, skin);
     r(12, 18, 8, 3, skin);
     if (a.outfit === 1) {
       r(10, 19, 2, 8, "#4c6e9b");
@@ -329,6 +492,8 @@
       r(11, 19, 10, 8, "#a24e45");
       r(15, 19, 2, 8, "#f3d958");
     }
+    end(); // torso
+    group("head");
     r(8, 7, 16, 12, skin);
     r(6, 11, 2, 5, skin);
     r(24, 11, 2, 5, skin);
@@ -388,6 +553,7 @@
         r(21, 5, 5, 4, hair);
       }
     }
+    group(a.eyes === 4 ? "eyewear" : "eyes");
     const eye = a.eyes;
     if (eye === 4) {
       r(8, 11, 7, 4, dark);
@@ -418,8 +584,11 @@
         r(19, 13, 3, 2, "#e16c98");
       }
     }
+    end(); // eyes
+    group("mouth");
     r(13, 17, 6, 1, dark);
     r(14, 18, 4, 1, "#fff2d4");
+    end(); // mouth
     switch (a.hat) {
       case 1:
         r(7, 5, 18, 3, c);
@@ -474,7 +643,11 @@
         r(23, 2, 3, 2, "#f18d46");
         r(20, 1, 1, 1, dark);
     }
-    return `<svg class="avatar-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges" role="img" aria-label="Pixelart-Avatar">${s}</g></svg>`;
+    end(); // head
+    end(); // upper body
+    end(); // character
+    const delay = ((a.kind * 7 + a.outfit * 3 + a.hat) % 9) * 0.13;
+    return `<svg class="avatar-art" style="--avatar-delay:-${delay}s" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38 38" shape-rendering="crispEdges" role="img" aria-label="Animierter Pixelart-Avatar">${s}</svg>`;
   }
   return {
     items,
@@ -485,8 +658,12 @@
     gate,
     svg,
     colors,
+    avatarMotion,
+    avatarPivots,
+    jointTransform,
+    rewardCoins,
     siteThemes,
     soundEmojis,
-    version: 5,
+    version: 6,
   };
 });

@@ -132,7 +132,7 @@ test("Registration reserves the initial username privately, gates unverified use
   const ready = await api("/api/me", "GET", undefined, "unverified");
   assert.equal(ready.status, 200);
   assert.equal(ready.data.profile.username, "FirstName");
-  assert.equal(ready.data.profile.coins, 0);
+  assert.equal(ready.data.profile.coins, 50);
   assert.deepEqual(store.data.get("gigNames/firstname"), { uid: "unverified" });
   await api("/api/me", "GET", undefined, "unverified");
   assert.equal(store.data.get("gigPlayers/unverified").username, "FirstName");
@@ -249,7 +249,7 @@ test("Account registration: verified emails, unique case-insensitive names, priv
   assert.equal(saved.data.profile.theme, "default");
   assert.equal(saved.data.profile.owner, false);
 });
-test("Owner entitlements are server configured and do not invent currency or achievements", async (t) => {
+test("Owner entitlements preserve legitimate welcome currency without inventing achievements", async (t) => {
   const before = process.env.OWNER_UIDS;
   process.env.OWNER_UIDS = "owner";
   t.after(() => {
@@ -259,7 +259,7 @@ test("Owner entitlements are server configured and do not invent currency or ach
   const { api } = await setup(t);
   const r = await api("/api/register", "POST", { username: "Jonas" }, "owner");
   assert.equal(r.data.profile.owner, true);
-  assert.equal(r.data.profile.coins, 0);
+  assert.equal(r.data.profile.coins, 50);
   assert.ok(G.owns(r.data.profile, "sound-6"));
   assert.equal(r.data.profile.stats.wins, 0);
   const save = await api(
@@ -549,4 +549,277 @@ test("Socket round awards authenticated active players only, then returns to lob
   arcade.step(now);
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(room.phase, "lobby");
+});
+
+test("Welcome bonus is verified, atomic, once per account, and does not fabricate play progress", async (t) => {
+  const { api, store } = await setup(t);
+  const p = fresh("bob", "Bob");
+  p.coins = 17;
+  store.data.set("gigPlayers/bob", p);
+  const reads = await Promise.all(
+    Array.from({ length: 8 }, () => api("/api/me", "GET", undefined, "bob")),
+  );
+  assert.equal(
+    reads.reduce((sum, r) => sum + r.data.welcome, 0),
+    50,
+  );
+  const saved = store.data.get("gigPlayers/bob");
+  assert.equal(saved.coins, 67);
+  assert.equal(saved.earned, 0);
+  assert.equal(saved.stats.rounds, 0);
+  assert.deepEqual(saved.achievements, []);
+  assert.equal((await api("/api/me", "GET", undefined, "bob")).data.welcome, 0);
+  assert.equal(
+    (await api("/api/me", "GET", undefined, "unverified")).status,
+    403,
+  );
+  await api(
+    "/api/profile",
+    "POST",
+    { welcomeBonusAt: 0, coins: 999999 },
+    "bob",
+  );
+  assert.equal(
+    (await api("/api/me", "GET", undefined, "bob")).data.profile.coins,
+    67,
+  );
+});
+test("Guest avatar carries through initial registration, with paid options still gated", async (t) => {
+  const { api, verified } = await setup(t);
+  const avatar = {
+    skin: 5,
+    hair: 2,
+    hairColor: 6,
+    outfit: 2,
+    background: 3,
+    color: 4,
+    kind: 4,
+    hat: 9,
+    custom: "other",
+  };
+  await api(
+    "/api/register/start",
+    "POST",
+    { username: "PixelFriend", avatar, coins: 9999 },
+    "unverified",
+  );
+  verified.add("unverified");
+  const r = await api("/api/me", "GET", undefined, "unverified");
+  assert.equal(r.data.profile.avatar.hair, 2);
+  assert.equal(r.data.profile.avatar.skin, 5);
+  assert.equal(r.data.profile.avatar.background, 3);
+  assert.equal(r.data.profile.avatar.kind, 0);
+  assert.equal(r.data.profile.avatar.hat, 0);
+  assert.equal(r.data.profile.avatar.custom, undefined);
+  assert.equal(r.data.profile.coins, 50);
+});
+test("Personal multiplayer records keep the best result and achievement titles cannot be bought", async (t) => {
+  const { api, store } = await setup(t);
+  const express = require("express"),
+    { createAccounts } = require("../accounts");
+  const p = fresh("alice", "Alice");
+  p.stats.rounds = 24;
+  p.stats.wins = 4;
+  p.coins = 1000;
+  store.data.set("gigPlayers/alice", p);
+  const a = createAccounts(express(), { testStore: store });
+  const args = {
+    game: "draw",
+    rank: 1,
+    active: true,
+    practice: false,
+    participants: 2,
+    duration: 12000,
+    detail: "100 Zeichenpunkte",
+    raw: 100,
+  };
+  const r = await a.reward("alice", { ...args, roundId: "record1" });
+  assert.equal(r.profile.records.draw.raw, 100);
+  assert.equal(G.owns(r.profile, "title-champion"), true);
+  assert.equal(G.owns(r.profile, "title-regular"), true);
+  assert.equal(G.owns(r.profile, "title-artist"), true);
+  await a.reward("alice", {
+    ...args,
+    roundId: "record2",
+    raw: 80,
+    detail: "80 Zeichenpunkte",
+  });
+  assert.equal((await a.get("alice")).records.draw.raw, 100);
+  await a.reward("alice", {
+    ...args,
+    roundId: "record3",
+    raw: 120,
+    detail: "120 Zeichenpunkte",
+  });
+  assert.equal((await a.get("alice")).records.draw.raw, 120);
+  assert.equal(
+    await a.reward("alice", {
+      ...args,
+      roundId: "solo",
+      practice: true,
+      raw: 9999,
+    }),
+    null,
+  );
+  assert.equal(
+    (await api("/api/buy", "POST", { id: "title-trailmaster" })).status,
+    400,
+  );
+  const changed = await api("/api/profile", "POST", { title: "champion" });
+  assert.equal(changed.data.profile.title, "champion");
+  const publicProfile = (await api("/api/profiles/alice")).data.profile;
+  assert.equal(publicProfile.records.draw.detail, "120 Zeichenpunkte");
+  assert.equal(publicProfile.welcomeBonusAt, undefined);
+});
+test("Joint animation has independent limbs, blink and head poses; uploaded pictures stay flat", () => {
+  for (const mode of ["idle", "cheer"]) {
+    const frames = G.avatarMotion[mode];
+    assert.equal(frames.length, 12);
+    for (let kind = 0; kind < 6; kind++)
+      for (let i = 0; i < frames.length; i++) {
+        const svg = G.svg(
+          { kind, hat: i % 10, outfit: i % 8, hair: i % 8 },
+          { mode, frame: i },
+        );
+        for (const part of [
+          "head",
+          "upper",
+          "arm-left",
+          "arm-right",
+          "forearm-left",
+          "forearm-right",
+          "leg-left",
+          "leg-right",
+        ])
+          assert.match(
+            svg,
+            new RegExp('class="avatar-' + part + '" transform="'),
+          );
+        assert.ok(!svg.includes("NaN"));
+        assert.equal(
+          (svg.match(/<g /g) || []).length,
+          (svg.match(/<\/g>/g) || []).length,
+        );
+      }
+    assert.ok(new Set(frames.map((f) => f["arm-left"][2])).size > 4);
+  }
+  assert.ok(G.avatarMotion.idle.some((f) => f.eyes[4] < 1));
+  assert.ok(G.avatarMotion.cheer.some((f) => f["arm-left"][2] > 130));
+  const custom = G.svg(
+    { custom: "alice", revision: 1 },
+    { mode: "cheer", frame: 3 },
+  );
+  assert.ok(custom.startsWith("<img"));
+  assert.ok(!custom.includes("<g"));
+  const css = require("fs").readFileSync(
+    __dirname + "/../public/avatar-motion.css",
+    "utf8",
+  );
+  assert.match(
+    css,
+    /\.pixel-image \{ animation: none !important; transform: none !important;/,
+  );
+  assert.ok(
+    css.includes(G.jointTransform("head", G.avatarMotion.idle[3].head, true)),
+  );
+  assert.match(css, /prefers-reduced-motion/);
+});
+test("Guest coin opportunity matches actual round eligibility and never creates persistent currency", async (t) => {
+  let now = 100000;
+  const { base, arcade, store } = await setup(t, {
+    manual: true,
+    clock: () => now,
+  });
+  const a = await client(base, t),
+    b = await client(base, t);
+  let room, guestOffer, inactiveOffer;
+  a.on("room", (r) => (room = r));
+  a.on("account:opportunity", (r) => (guestOffer = r));
+  b.on("account:opportunity", (r) => (inactiveOffer = r));
+  await rpc(a, "lobby", { action: "create", name: "Active" });
+  await new Promise((r) => setTimeout(r, 20));
+  await rpc(b, "lobby", { action: "join", name: "Idle", code: room.code });
+  await rpc(a, "wish", { game: "click" });
+  await rpc(a, "ready", { ready: true });
+  await rpc(b, "ready", { ready: true });
+  await rpc(a, "start", { game: "click" });
+  await new Promise((r) => setTimeout(r, 20));
+  const id = room.round.id;
+  now += 3001;
+  arcade.step(now);
+  await rpc(a, "input", { roundId: id, action: "hit" });
+  now += 100;
+  await rpc(a, "input", { roundId: id, action: "hit" });
+  now += 10000;
+  arcade.step(now);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(guestOffer, { roundId: id, coins: 50 });
+  assert.equal(inactiveOffer, undefined);
+  assert.equal(room.lastResult.roundId, id);
+  assert.equal(store.data.size, 0);
+  assert.equal(
+    G.rewardCoins({
+      rank: 1,
+      participants: 1,
+      active: true,
+      practice: true,
+      duration: 99999,
+    }),
+    0,
+  );
+  assert.equal(
+    G.rewardCoins({
+      rank: 1,
+      participants: 2,
+      active: true,
+      practice: false,
+      duration: 7000,
+    }),
+    0,
+  );
+});
+test("Crew progress is lobby-scoped and public; guest linking is verified, between rounds, and cannot duplicate a UID", async (t) => {
+  const { base, store } = await setup(t);
+  const p = fresh("alice", "Alice"),
+    q = fresh("bob", "Bob");
+  p.stats.wins = 5;
+  q.stats.wins = 2;
+  store.data.set("gigPlayers/alice", p);
+  store.data.set("gigPlayers/bob", q);
+  store.data.set("gigPlayers/owner", fresh("owner", "Owner"));
+  const a = await client(base, t),
+    b = await client(base, t),
+    c = await client(base, t);
+  let room;
+  a.on("room", (r) => (room = r));
+  await rpc(a, "account:login", { token: "alice" });
+  await rpc(a, "lobby", { action: "create", name: "ignored" });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(
+    (await rpc(c, "crew:progress", { uids: ["alice", "bob"] })).ok,
+    false,
+  );
+  let crew = await rpc(a, "crew:progress", { uids: ["bob"] });
+  assert.deepEqual(
+    crew.profiles.map((p) => p.uid),
+    ["alice"],
+  );
+  assert.ok(!JSON.stringify(crew).includes("coins"));
+  assert.ok(!JSON.stringify(crew).includes("private.test"));
+  await rpc(b, "lobby", { action: "join", name: "Guest", code: room.code });
+  assert.equal(
+    (await rpc(b, "account:refresh", { token: "unverified" })).ok,
+    false,
+  );
+  assert.equal((await rpc(b, "account:refresh", { token: "alice" })).ok, false);
+  assert.equal((await rpc(b, "account:refresh", { token: "bob" })).ok, true);
+  crew = await rpc(a, "crew:progress", {});
+  assert.deepEqual(crew.profiles.map((p) => p.uid).sort(), ["alice", "bob"]);
+  await rpc(c, "lobby", { action: "join", name: "Third", code: room.code });
+  await rpc(a, "wish", { game: "click" });
+  await rpc(a, "ready", { ready: true });
+  await rpc(b, "ready", { ready: true });
+  await rpc(c, "ready", { ready: true });
+  await rpc(a, "start", { game: "click" });
+  assert.equal((await rpc(c, "account:refresh", { token: "owner" })).ok, false);
 });

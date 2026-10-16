@@ -14,6 +14,7 @@
     <title>MultiplayerGames-GiG</title>
     <link rel="stylesheet" href="/style.css" />
     <link rel="stylesheet" href="/accounts.css" />
+    <link rel="stylesheet" href="/avatar-motion.css" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
   <body>
@@ -168,6 +169,11 @@
                   stummschalten</label
                 >
               </div>
+              <div
+                id="crewProgress"
+                class="panel crew-progress"
+                aria-label="Fortschritt eurer Crew"
+              ></div>
               <div id="lastRound" class="panel last-round" hidden></div>
               <details id="advanced" class="advanced">
                 <summary>Erweitert</summary>
@@ -456,6 +462,7 @@
               <tbody id="resultRows"></tbody>
             </table>
           </div>
+          <div id="guestAccountHint" class="guest-account-hint" hidden></div>
           <div id="partyStandings" class="panel" hidden></div>
           <p id="backCounter" class="back-counter"></p>
           <div class="return-track"><div id="returnFill"></div></div>
@@ -510,6 +517,9 @@
       <div id="avatarPreview" class="avatar-preview"></div>
       <div id="avatarOptions"></div>
       <button id="saveAvatar" class="primary">Look übernehmen →</button>
+      <button id="saveGuestAvatarAccount" class="quiet" hidden>
+        Mit Konto deinen Look speichern →
+      </button>
     </dialog>
     <dialog id="accountDialog" class="account-dialog"></dialog>
     <dialog id="profileDialog" class="account-dialog"></dialog>
@@ -523,8 +533,9 @@
       ><span class="eyebrow">DEIN PLATZ IN DER ARCADE</span>
       <h2>Aus Mitspielen<br />wird dein Profil.</h2>
       <p>
-        Sammle GiG-Coins in Multiplayer-Runden. Bau deinen Pixel-Charakter,
-        deine Garage und dein eigenes Soundboard auf.
+        Starte mit 50 GiG-Coins nach deiner E-Mail-Bestätigung. Sammle weitere
+        Coins in Multiplayer-Runden. Bau deinen Pixel-Charakter, deine Garage
+        und dein eigenes Soundboard auf.
       </p>
       <button id="welcomeRegister" class="primary">
         Kostenloses Konto erstellen →</button

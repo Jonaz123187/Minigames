@@ -49,6 +49,7 @@ const expose = (p) =>
         showcase: p.showcase,
         achievements: p.achievements,
         stats: p.stats,
+        records: p.records || {},
         joinedAt: p.joinedAt,
         level: 1 + Math.floor((p.earned || 0) / 150),
         owner: ownerOf(p.uid),
@@ -79,6 +80,8 @@ const fresh = (uid, username) => ({
   upgrades: { power: 0, grip: 0, weight: 0 },
   sounds: {},
   receipts: [],
+  records: {},
+  welcomeBonusAt: 0,
   joinedAt: Date.now(),
 });
 function createAccounts(
@@ -248,8 +251,8 @@ function createAccounts(
     "/api/me",
     api(async (req, res) => {
       const t = await user(req);
-      await completeRegistration(t.uid);
-      res.json({ ok: true, profile: await get(t.uid) });
+      const welcome = await completeRegistration(t.uid);
+      res.json({ ok: true, profile: await get(t.uid), welcome });
     }),
   );
   function validName(value) {
@@ -259,15 +262,27 @@ function createAccounts(
     return name;
   }
   const registration = (uid) => db.collection("gigRegistrations").doc(uid);
+  function welcomeBonus(profile) {
+    if (profile.welcomeBonusAt) return 0;
+    profile.coins += 50;
+    profile.welcomeBonusAt = Date.now();
+    return 50;
+  }
   async function completeRegistration(uid) {
-    await db.runTransaction(async (t) => {
+    return db.runTransaction(async (t) => {
       const ref = doc(uid),
         pendingRef = registration(uid);
       const [profile, pending] = await Promise.all([
         t.get(ref),
         t.get(pendingRef),
       ]);
-      if (profile.exists || !pending.exists || pending.data().completed) return;
+      if (profile.exists) {
+        const p = profile.data(),
+          granted = welcomeBonus(p);
+        if (granted) t.set(ref, p);
+        return granted;
+      }
+      if (!pending.exists || pending.data().completed) return 0;
       const data = pending.data(),
         handle = db.collection("gigNames").doc(data.key);
       const h = await t.get(handle);
@@ -275,9 +290,13 @@ function createAccounts(
         throw fail(
           "Der Benutzername ist nicht mehr reserviert. Bitte wähle einen anderen Namen.",
         );
+      const p = fresh(uid, data.username);
+      p.avatar = G.avatar(data.avatar, { ...p, owner: ownerOf(uid) });
+      const granted = welcomeBonus(p);
       t.set(handle, { uid });
-      t.set(ref, fresh(uid, data.username));
+      t.set(ref, p);
       t.set(pendingRef, { completed: true });
+      return granted;
     });
   }
   app.get(
@@ -325,7 +344,11 @@ function createAccounts(
           throw fail("Dieser Benutzername ist bereits vergeben.");
         const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
         t.set(handle, { uid: u.uid, expiresAt });
-        t.set(pendingRef, { username: name, key, expiresAt });
+        const avatar = G.avatar(req.body?.avatar, {
+          ...fresh(u.uid, name),
+          owner: ownerOf(u.uid),
+        });
+        t.set(pendingRef, { username: name, key, expiresAt, avatar });
       });
       res.json({ ok: true });
     }),
@@ -349,9 +372,12 @@ function createAccounts(
         )
           throw fail("Dieser Benutzername ist bereits vergeben.");
         t.set(handle, { uid: u.uid });
-        t.set(ref, fresh(u.uid, name));
+        const p = fresh(u.uid, name);
+        p.avatar = G.avatar(req.body?.avatar, { ...p, owner: ownerOf(u.uid) });
+        t.set(ref, p);
       });
-      res.json({ ok: true, profile: await get(u.uid) });
+      const welcome = await completeRegistration(u.uid);
+      res.json({ ok: true, profile: await get(u.uid), welcome });
     }),
   );
   app.get(
@@ -425,6 +451,10 @@ function createAccounts(
       const profile = await mutate(u.uid, (p) => {
         const item = G.items.find((i) => i.id === id);
         if (!item) throw fail("Unbekannter Artikel.");
+        if (item.achievement)
+          throw fail(
+            "Diesen Titel kannst du nur erspielen: " + item.description + ".",
+          );
         if (G.owns(p, id)) return;
         if (
           /^sound-[2-6]$/.test(id) &&
@@ -602,13 +632,28 @@ function createAccounts(
   );
   async function reward(
     uid,
-    { roundId, game, rank, active, practice, participants, duration },
+    {
+      roundId,
+      game,
+      rank,
+      active,
+      practice,
+      participants,
+      duration,
+      raw,
+      detail,
+    },
   ) {
-    if (practice || participants < 2 || !active || duration < 8000) return null;
+    const coins = G.rewardCoins({
+      practice,
+      participants,
+      active,
+      duration,
+      rank,
+    });
+    if (!coins) return null;
     return mutate(uid, (p) => {
       if (p.receipts.includes(roundId)) return null;
-      const coins =
-        20 + (rank === 1 ? 30 : rank === 2 ? 15 : rank === 3 ? 5 : 0);
       p.receipts.push(roundId);
       p.receipts = p.receipts.slice(-100);
       p.coins += coins;
@@ -616,6 +661,12 @@ function createAccounts(
       p.stats.rounds++;
       if (rank === 1) p.stats.wins++;
       p.stats.games[game] = (p.stats.games[game] || 0) + 1;
+      p.records ||= {};
+      if (
+        Number.isFinite(raw) &&
+        (!p.records[game] || raw > p.records[game].raw)
+      )
+        p.records[game] = { raw, detail: clean(detail, 100), at: Date.now() };
       const badges = [
         "first-round",
         ...(p.stats.wins >= 5 ? ["five-wins"] : []),
