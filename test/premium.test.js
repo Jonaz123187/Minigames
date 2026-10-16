@@ -319,6 +319,11 @@ test(
     await call(a, "lobby", { action: "create", name: "Jonas" });
     await until(() => a.room);
     assert.equal(a.catalog.length, 26);
+    assert.deepEqual(
+      a.catalog.slice(0, 4).map((g) => g.id),
+      ["dub", "draw", "race", "monster"],
+    );
+    assert.equal(new Set(a.catalog.map((g) => g.id)).size, 26);
     assert.equal((await call(a, "start", { game: "click" })).ok, false);
     assert.equal(
       (await call(a, "start", { game: "draw", practice: true })).ok,

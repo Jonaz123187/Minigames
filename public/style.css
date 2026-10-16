@@ -480,9 +480,10 @@ main {
   gap: 40px;
   align-items: start;
 }
+/* The crew column can exceed the viewport (8 players, records, soundboard, decor).
+   Keep it in normal page flow so its lower panels remain reachable while scrolling. */
 .lobby-sidebar {
-  position: sticky;
-  top: 20px;
+  position: static;
   display: grid;
   gap: 16px;
 }
