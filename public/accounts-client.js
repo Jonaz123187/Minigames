@@ -448,7 +448,7 @@
     banner.classList.add("banner-" + (p.banner || "pixels"));
     avatar.classList.add("profile-avatar", "frame-" + (p.frame || "default"));
     hero.append(avatar);
-    const names = el("div");
+    const names = el("div", "profile-identity");
     names.append(
       el(
         "span",
@@ -465,17 +465,30 @@
           "Am Start seit " + new Date(p.joinedAt).toLocaleDateString("de-DE"),
       ),
     );
+    if (p.status)
+      names.append(
+        el("p", "profile-status", (p.statusEmoji || "✨") + " " + p.status),
+      );
     hero.append(names);
     if (p.pet && p.pet !== "none") hero.append(petNode(p.pet));
-    card.append(
-      banner,
-      hero,
+    if (p.bannerFile) {
+      const img = el("img", "profile-banner-image");
+      img.alt = "";
+      img.src =
+        "/api/media/banner/" + encodeURIComponent(p.uid) + "?v=" + p.bannerFile;
+      img.style.objectPosition = "50% " + (p.bannerPosition ?? 50) + "%";
+      banner.append(img);
+    }
+    const about = el("section", "profile-about");
+    about.append(
+      el("h3", "eyebrow", "ÜBER MICH"),
       el(
         "p",
         "profile-bio",
         p.bio || "Noch keine Beschreibung. Dafür bereit für die nächste Runde.",
       ),
     );
+    card.append(banner, hero, about);
     const links = el("div", "profile-links");
     for (const link of p.links || []) {
       try {
@@ -488,7 +501,7 @@
         links.append(a);
       } catch {}
     }
-    card.append(links);
+    if (links.childElementCount) about.append(links);
     const stats = el("div", "profile-stats");
     for (const [n, v] of [
       ["Runden", p.stats?.rounds || 0],
@@ -540,6 +553,14 @@
           "Deine ersten Abzeichen warten in der nächsten Multiplayer-Runde.",
         ),
       );
+    if (p.featuredBadge && (p.achievements || []).includes(p.featuredBadge)) {
+      const featured = el("div", "featured-badge");
+      featured.append(
+        el("span", "eyebrow", "MEIN HIGHLIGHT"),
+        badgeNode(p.featuredBadge),
+      );
+      card.append(featured);
+    }
     card.append(badges);
     if (p.gallery?.length) {
       const shelf = el("div", "profile-gallery");
@@ -598,11 +619,28 @@
     profileDetails();
   }
   function profileDetails() {
-    profileCard(A.profile, panel);
+    const live = el("div", "profile-live-preview");
+    profileCard(A.profile, live);
+    panel.append(live);
     const fields = el("div", "profile-editor"),
       bio = field("Über dich · maximal 180 Zeichen", "textarea", A.profile.bio);
     bio.input.maxLength = 180;
-    fields.append(bio.wrap);
+    const status = field(
+        "Dein Status · maximal 60 Zeichen",
+        "text",
+        A.profile.status || "",
+      ),
+      emoji = el("select"),
+      emojiLabel = el("label", "account-field", "Status-Emoji");
+    status.input.maxLength = 60;
+    for (const value of GiG.statusEmojis) {
+      const o = el("option", "", value);
+      o.value = value;
+      emoji.append(o);
+    }
+    emoji.value = A.profile.statusEmoji || "✨";
+    emojiLabel.append(emoji);
+    fields.append(bio.wrap, status.wrap, emojiLabel);
     const selectors = {};
     const linkFields = [];
     for (let n = 0; n < 3; n++) {
@@ -633,6 +671,23 @@
     const label = el("label", "account-field", "Lieblingsspiel");
     label.append(favorite);
     fields.append(label);
+    const featured = el("select"),
+      featuredLabel = el("label", "account-field", "Abzeichen hervorheben");
+    const noBadge = el("option", "", "Kein Highlight");
+    noBadge.value = "";
+    featured.append(noBadge);
+    for (const id of A.profile.achievements) {
+      const o = el(
+        "option",
+        "",
+        GiG.badges.find((b) => b.id === id)?.name || id,
+      );
+      o.value = id;
+      featured.append(o);
+    }
+    featured.value = A.profile.featuredBadge || "";
+    featuredLabel.append(featured);
+    fields.append(featuredLabel);
     const shelf = el("div", "showcase-editor");
     for (const id of A.profile.achievements) {
       const lab = el("label", "small"),
@@ -655,25 +710,32 @@
       ),
       shelf,
     );
+    const collect = () => ({
+      bio: bio.input.value,
+      status: status.input.value,
+      statusEmoji: emoji.value,
+      links: linkFields
+        .filter((l) => l.url.input.value)
+        .map((l) => ({ label: l.label.input.value, url: l.url.input.value })),
+      favorite: favorite.value,
+      featuredBadge: featured.value,
+      showcase: [...shelf.querySelectorAll("input:checked")].map(
+        (c) => c.value,
+      ),
+    });
+    const preview = () => {
+      live.replaceChildren();
+      profileCard({ ...A.profile, ...collect() }, live);
+    };
+    fields.addEventListener("input", preview);
+    fields.addEventListener("change", preview);
     panel.append(
       fields,
       button(
         "Profil speichern",
         () =>
           attempt(async () => {
-            const changes = {
-              bio: bio.input.value,
-              links: linkFields
-                .filter((l) => l.url.input.value)
-                .map((l) => ({
-                  label: l.label.input.value,
-                  url: l.url.input.value,
-                })),
-              favorite: favorite.value,
-              showcase: [...shelf.querySelectorAll("input:checked")].map(
-                (c) => c.value,
-              ),
-            };
+            const changes = collect();
             for (const [k, v] of Object.entries(selectors))
               changes[k] = v.sel.value;
             await A.save(changes);
@@ -803,19 +865,78 @@
       "Deine Garage.",
       "Im Solo-Modus nutzt du deine eigenen Upgrades. Online fahren alle mit dem Leistungsstand des Spielers mit den wenigsten Upgrades. Skins bleiben individuell.",
     );
-    const car = itemSelect(A.profile, "car", "Fahrzeugmodell", "car", "truck");
+    let chosenCar = A.profile.car || "truck",
+      chosenTrail = A.profile.trail || "none";
+    const preview = el("div", "garage-preview"),
+      gridCars = el("div", "vehicle-grid");
+    const cards = [];
+    const trail = itemSelect(
+      A.profile,
+      "trail",
+      "Deine Fahrzeugspur",
+      "trail",
+      "none",
+    );
+    function refreshGarage() {
+      preview.innerHTML = GiGVehicles.svg(chosenCar, chosenTrail);
+      preview.append(el("strong", "", GiGVehicles.names[chosenCar]));
+      for (const { b, id } of cards)
+        b.setAttribute("aria-pressed", String(chosenCar === id));
+    }
+    for (const [id, name] of Object.entries(GiGVehicles.names)) {
+      const unlocked = id === "truck" || GiG.owns(A.profile, "car-" + id);
+      const b = button(
+        "",
+        () => {
+          chosenCar = id;
+          refreshGarage();
+        },
+        "vehicle-card",
+      );
+      const art = el("span", "vehicle-art");
+      art.innerHTML = GiGVehicles.svg(id);
+      b.append(
+        art,
+        el("strong", "", name),
+        el(
+          "small",
+          "muted",
+          unlocked ? "Auswählbar" : "Im GiG-Shop freischalten",
+        ),
+      );
+      b.disabled = !unlocked;
+      b.setAttribute(
+        "aria-label",
+        name + (unlocked ? " auswählen" : " · gesperrt"),
+      );
+      cards.push({ b, id });
+      gridCars.append(b);
+    }
+    trail.sel.onchange = () => {
+      chosenTrail = trail.sel.value;
+      refreshGarage();
+    };
     panel.append(
-      car.wrap,
+      preview,
+      el("h3", "", "Dein Fahrzeug"),
+      gridCars,
+      trail.wrap,
+      el(
+        "p",
+        "small muted",
+        "Alle Modelle haben dieselbe Hitbox und dieselben Fahreigenschaften bei gleichem Upgrade-Stand. Spuren sind rein optisch.",
+      ),
       button(
-        "Fahrzeug auswählen",
+        "Fahrzeug & Spur speichern",
         () =>
           attempt(async () => {
-            await A.save({ car: car.sel.value });
-            toast("Fahrzeug gewählt.");
+            await A.save({ car: chosenCar, trail: chosenTrail });
+            toast("Fahrzeug und Spur gespeichert.");
           }),
         "primary",
       ),
     );
+    refreshGarage();
     const grid = el("div", "upgrade-grid");
     for (const [key, name] of [
       ["power", "Motorleistung"],
@@ -1008,6 +1129,131 @@
     });
     return c;
   }
+  function bannerEditor(refresh, changes) {
+    const section = el("section", "banner-editor");
+    section.append(
+      el("h3", "", "Dein eigener Profilbanner"),
+      el(
+        "p",
+        "muted small",
+        "Das gespeicherte Banner ist auf deinem öffentlichen Profil sichtbar. Wähle ein Bild und stelle den Ausschnitt ein.",
+      ),
+    );
+    const file = field("Bild auswählen · PNG, JPEG oder WebP", "file"),
+      range = field(
+        "Bildausschnitt · oben / unten",
+        "range",
+        A.profile.bannerPosition ?? 50,
+      );
+    file.input.accept = "image/png,image/jpeg,image/webp";
+    file.input.disabled = !A.config?.uploads;
+    range.input.min = 0;
+    range.input.max = 100;
+    range.input.step = 1;
+    let selected = null;
+    const crop = el("canvas", "banner-crop-preview");
+    crop.width = 960;
+    crop.height = 260;
+    crop.hidden = true;
+    const save = button(
+      "Banner hochladen",
+      () =>
+        attempt(async () => {
+          if (!selected) throw new Error("Wähle zuerst ein Bild.");
+          const canvas = el("canvas");
+          canvas.width = 960;
+          canvas.height = 480;
+          const scale = Math.max(960 / selected.width, 480 / selected.height),
+            w = selected.width * scale,
+            h = selected.height * scale;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#151b26";
+          ctx.fillRect(0, 0, 960, 480);
+          ctx.drawImage(selected, (960 - w) / 2, (480 - h) / 2, w, h);
+          const blob = await new Promise((resolve) =>
+            canvas.toBlob(resolve, "image/png"),
+          );
+          if (!blob || blob.size > 480000)
+            throw new Error(
+              "Das Bild ist zu detailreich. Bitte ein einfacheres Motiv wählen.",
+            );
+          const r = await api("/api/profile/banner", "PUT", blob);
+          await adopt(r.profile);
+          await A.save({ bannerPosition: +range.input.value });
+          toast("Banner gespeichert.");
+          A.profileSection = "appearance";
+          A.open("profile");
+        }),
+      "primary",
+    );
+    save.disabled = true;
+    function updateCrop() {
+      if (!selected) return;
+      const ctx = crop.getContext("2d"),
+        baseScale = Math.max(960 / selected.width, 480 / selected.height),
+        bw = selected.width * baseScale,
+        bh = selected.height * baseScale;
+      // Preview the exact normalized 960x480 upload, cropped like object-fit:cover in the profile.
+      ctx.fillStyle = "#151b26";
+      ctx.fillRect(0, 0, 960, 260);
+      ctx.drawImage(
+        selected,
+        (960 - bw) / 2,
+        (480 - bh) / 2 - (480 - 260) * (+range.input.value / 100),
+        bw,
+        bh,
+      );
+    }
+    file.input.onchange = () =>
+      attempt(async () => {
+        const f = file.input.files?.[0];
+        if (!f) return;
+        if (!/^image\/(png|jpeg|webp)$/.test(f.type) || f.size > 8000000)
+          throw new Error("Bitte PNG, JPEG oder WebP bis 8 MB auswählen.");
+        const url = URL.createObjectURL(f),
+          img = new Image();
+        try {
+          img.src = url;
+          await img.decode();
+          if (img.width * img.height > 24000000)
+            throw new Error("Bitte ein kleineres Bild verwenden.");
+          selected = img;
+          crop.hidden = false;
+          save.disabled = false;
+          updateCrop();
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      });
+    range.input.oninput = () => {
+      changes.bannerPosition = +range.input.value;
+      refresh();
+      updateCrop();
+    };
+    section.append(file.wrap, range.wrap, crop, save);
+    if (!A.config?.uploads)
+      section.append(
+        el(
+          "p",
+          "muted small",
+          "Bild-Uploads sind derzeit nicht verfügbar. Die eingebauten Banner bleiben auswählbar.",
+        ),
+      );
+    if (A.profile.bannerFile)
+      section.append(
+        button(
+          "Eigenes Banner entfernen",
+          () =>
+            attempt(async () => {
+              await A.save({ removeBanner: true });
+              toast("Eingebauter Banner ausgewählt.");
+              A.open("profile");
+            }),
+          "quiet",
+        ),
+      );
+    panel.append(section);
+  }
   function appearance() {
     const preview = el("div");
     panel.append(preview);
@@ -1079,6 +1325,7 @@
       ),
     );
     refresh();
+    bannerEditor(refresh, changes);
     websiteThemes();
     panel.append(
       el("h3", "", "Gespeicherte Looks"),
@@ -1739,12 +1986,12 @@
       ),
       button("Abmelden", logout, "primary"),
     );
-    const label = el("label", "account-field", "Soundboards stummschalten"),
+    const label = el("label", "checkbox-label mute-setting"),
       c = el("input");
     c.type = "checkbox";
     c.checked = A.muteBoards;
     c.onchange = () => setMute(c.checked);
-    label.append(c);
+    label.append(c, el("span", "", "Soundboards stummschalten"));
     panel.append(label);
   }
   async function logout() {

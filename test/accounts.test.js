@@ -165,6 +165,121 @@ test("Website themes require purchased entitlements and validate custom color va
   const publicProfile = (await api("/api/profiles/alice")).data.profile;
   assert.equal(publicProfile.siteColor, undefined);
 });
+test("Garage selections and profile highlights honor entitlements and expose only chosen public fields", async (t) => {
+  const { api, store } = await setup(t);
+  await api("/api/register", "POST", { username: "Alice" });
+  let r = await api("/api/profile", "POST", {
+    car: "duck",
+    trail: "gold",
+    featuredBadge: "gig-origin",
+    status: "<Hallo>" + "x".repeat(90),
+    statusEmoji: "🏁",
+    bannerPosition: 500,
+  });
+  assert.equal(r.data.profile.car, "truck");
+  assert.equal(r.data.profile.trail, "none");
+  assert.equal(r.data.profile.featuredBadge, "");
+  assert.equal(r.data.profile.status.length, 60);
+  assert.ok(!r.data.profile.status.includes("<"));
+  assert.equal(r.data.profile.bannerPosition, 100);
+  const p = store.data.get("gigPlayers/alice");
+  p.owned = ["car-jeep", "trail-mint"];
+  p.achievements = ["first-round"];
+  store.data.set("gigPlayers/alice", p);
+  r = await api("/api/profile", "POST", {
+    car: "jeep",
+    trail: "mint",
+    featuredBadge: "first-round",
+    status: "Bereit für die Crew",
+    statusEmoji: "🦆",
+    bannerPosition: 25,
+    bannerFile: 99,
+    coins: 999999,
+  });
+  assert.equal(r.data.profile.car, "jeep");
+  assert.equal(r.data.profile.trail, "mint");
+  const view = (await api("/api/profiles/alice")).data.profile;
+  assert.equal(view.status, "Bereit für die Crew");
+  assert.equal(view.statusEmoji, "🦆");
+  assert.equal(view.featuredBadge, "first-round");
+  assert.equal(view.bannerPosition, 25);
+  assert.equal(view.bannerFile, 0);
+  assert.equal(view.coins, undefined);
+  r = await api("/api/profile", "POST", {
+    statusEmoji: "<script>",
+    featuredBadge: "gig-origin",
+    trail: "pink",
+  });
+  assert.equal(r.data.profile.statusEmoji, "🦆");
+  assert.equal(r.data.profile.featuredBadge, "first-round");
+  assert.equal(r.data.profile.trail, "mint");
+});
+test("Profile banners validate and normalize PNGs, belong to the authenticated account and can be removed", async (t) => {
+  const { api, base, media, store } = await setup(t),
+    { PNG } = require("pngjs");
+  const png = new PNG({ width: 960, height: 480 });
+  png.data.fill(170);
+  const bytes = PNG.sync.write(png);
+  assert.equal(
+    (await api("/api/profile/banner", "PUT", bytes, "unverified", "image/png"))
+      .status,
+    403,
+  );
+  await api("/api/register", "POST", { username: "Alice" });
+  assert.equal((await api("/api/media/banner/alice")).status, 404);
+  assert.equal(
+    (
+      await api(
+        "/api/profile/banner",
+        "PUT",
+        Buffer.from("not a PNG"),
+        "alice",
+        "image/png",
+      )
+    ).status,
+    400,
+  );
+  const wrong = PNG.sync.write(new PNG({ width: 32, height: 32 }));
+  assert.equal(
+    (await api("/api/profile/banner", "PUT", wrong, "alice", "image/png"))
+      .status,
+    400,
+  );
+  const corrupt = Buffer.from(bytes);
+  corrupt[corrupt.length - 1] ^= 255;
+  assert.equal(
+    (await api("/api/profile/banner", "PUT", corrupt, "alice", "image/png"))
+      .status,
+    400,
+  );
+  const upload = await api(
+    "/api/profile/banner",
+    "PUT",
+    bytes,
+    "alice",
+    "image/png",
+  );
+  assert.equal(upload.status, 200);
+  assert.ok(upload.data.profile.bannerFile > 0);
+  const stored = media.get("alice/profile-banner.png");
+  assert.equal(stored.type.contentType, "image/png");
+  assert.equal(PNG.sync.read(stored.b).width, 960);
+  assert.ok(!media.has("bob/profile-banner.png"));
+  const response = await fetch(base + "/api/media/banner/alice", {
+    redirect: "manual",
+  });
+  assert.equal(response.status, 302);
+  assert.equal(
+    response.headers.get("location"),
+    "https://example.test/alice/profile-banner.png",
+  );
+  const view = (await api("/api/profiles/alice")).data.profile;
+  assert.ok(view.bannerFile);
+  assert.equal(view.email, undefined);
+  await api("/api/profile", "POST", { removeBanner: true });
+  assert.equal(store.data.get("gigPlayers/alice").bannerFile, 0);
+  assert.equal((await api("/api/media/banner/alice")).status, 404);
+});
 test("Sound slots require coins, preserve emoji metadata, and reject unauthorized metadata edits", async (t) => {
   const { api, store } = await setup(t);
   await api("/api/register", "POST", { username: "Alice" });
