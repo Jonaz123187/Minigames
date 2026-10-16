@@ -131,6 +131,7 @@ $("soundToggle").onclick = () => {
   Sound.fx("select");
 };
 
+let favoriteSaving = false;
 let category = "Alle",
   panelRound = null,
   currentRoundToken = null,
@@ -320,12 +321,14 @@ function renderPremiumLobby() {
       (p.id === room.hostId ? "HOST" : "BEREIT") +
       (wish ? " · " + wish.title : "");
   });
-  const options = ["Alle", "Skill", "Party", "Denken", "Arcade"];
+  const options = ["Alle", "★ Favoriten", "Skill", "Party", "Denken", "Arcade"];
   $("filters").replaceChildren(
     ...options.map((c) =>
       makeButton(
         c,
         () => {
+          if (c === "★ Favoriten" && !window.Account?.profile)
+            return Account.open("register");
           category = c;
           renderPremiumLobby();
         },
@@ -336,7 +339,10 @@ function renderPremiumLobby() {
   const query = $("gameSearch").value.toLocaleLowerCase("de").trim();
   const shown = catalog.filter(
     (g) =>
-      (category === "Alle" || g.category === category) &&
+      (category === "Alle" ||
+        g.category === category ||
+        (category === "★ Favoriten" &&
+          window.Account?.profile?.favorites?.includes(g.id))) &&
       (!query ||
         (g.title + " " + g.description)
           .toLocaleLowerCase("de")
@@ -396,7 +402,41 @@ function renderPremiumLobby() {
         const r = await rpc("wish", { game: g.id });
         if (!r.ok) toast("Spielwunsch gerade nicht möglich.", true);
       };
-      return b;
+      const tile = el("div", "game-tile"),
+        star = makeButton(
+          window.Account?.profile?.favorites?.includes(g.id) ? "★" : "☆",
+          async () => {
+            if (!window.Account?.profile) return Account.open("register");
+            if (favoriteSaving) return;
+            favoriteSaving = true;
+            star.disabled = true;
+            try {
+              const current = Account.profile.favorites || [];
+              await Account.save({
+                favorites: current.includes(g.id)
+                  ? current.filter((id) => id !== g.id)
+                  : [...current, g.id],
+              });
+              renderPremiumLobby();
+            } catch (e) {
+              toast(e.message, true);
+            } finally {
+              favoriteSaving = false;
+              star.disabled = false;
+            }
+          },
+          "favorite-toggle",
+        );
+      star.type = "button";
+      star.disabled = favoriteSaving;
+      star.setAttribute("aria-label", g.title + " als Favorit umschalten");
+      star.setAttribute(
+        "aria-pressed",
+        String(!!window.Account?.profile?.favorites?.includes(g.id)),
+      );
+      star.title = "Privater Favorit";
+      tile.append(b, star);
+      return tile;
     }),
   );
 }

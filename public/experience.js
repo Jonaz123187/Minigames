@@ -355,7 +355,14 @@ renderPremiumLobby = function () {
     ? "✓ Du bist bereit"
     : "Jetzt bereit machen";
   $("readyButton").setAttribute("aria-pressed", String(!!me?.ready));
-  $("readyButton").disabled = practice;
+  $("readyButton").disabled = solo || practice;
+  if (solo)
+    $("readyButton").textContent = practice
+      ? "Solo-Training · Direkt starten"
+      : "Warte auf Mitspieler";
+  $("readyButton").title = solo
+    ? "Für Multiplayer braucht ihr mindestens zwei Personen."
+    : "Bereitschaft umschalten";
   const available = (room.clips || []).filter(
       (c) => c.enabled && !c.used,
     ).length,

@@ -270,6 +270,10 @@ test("Socket v3: ready gate, settings reset, sanitized avatars, room-only reacti
     avatar: { shape: "<script>", color: 999 },
   });
   await until(() => a.room);
+  const soloReady = await call(a, "ready", { ready: true });
+  assert.equal(soloReady.ok, false);
+  assert.match(soloReady.error, /mindestens zwei/);
+  assert.equal(a.room.players[0].ready, false);
   await call(b, "lobby", { action: "join", name: "B", code: a.room.code });
   await call(other, "lobby", { action: "create", name: "C" });
   await until(() => a.room.players.length === 2);

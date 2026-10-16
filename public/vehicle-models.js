@@ -95,7 +95,7 @@
     if (["gold", "mint", "pink"].includes(trail)) {
       const c = { gold: "#eed786", mint: "#8ed6b7", pink: "#e29ec1" }[trail];
       for (let i = 0; i < 7; i++)
-        content += `<rect x="${5 + i * 6}" y="${100 - (i % 2) * 5}" width="4" height="4" fill="${c}" opacity="${0.25 + i * 0.09}"/>`;
+        content += `<rect class="vehicle-trail" style="--trail-delay:${i * -0.13}s" x="${5 + i * 6}" y="${100 - (i % 2) * 5}" width="4" height="4" fill="${c}" opacity="${0.25 + i * 0.09}"/>`;
     }
     for (const p of parts(id).sort((a, b) => a.z - b.z)) {
       const x = 108 + p.x * 1.45 - p.w * 0.725,

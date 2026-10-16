@@ -756,6 +756,25 @@ function createArcade({
           game: round.game,
           raw: row.raw,
           detail: row.detail,
+          margin:
+            eligibility.rank === 1 &&
+            rows.filter((x) => x.connected && x.raw === row.raw).length === 1
+              ? row.raw -
+                Math.max(
+                  ...rows
+                    .filter((x) => x.connected && x.id !== row.id)
+                    .map((x) => x.raw),
+                )
+              : null,
+          marginUnit:
+            {
+              click: "Klicks",
+              typing: "Wörter",
+              quiz: "Punkte",
+              estimate: "Punkte",
+              onebutton: "Punkte",
+              detective: "Punkte",
+            }[round.game] || "",
         })
         .then((result) => {
           if (!result?.profile) return;
@@ -1388,6 +1407,12 @@ function createArcade({
         typeof payload?.ready !== "boolean"
       )
         return reply(ack, { ok: false });
+      if (payload.ready && room.players.size < 2)
+        return reply(ack, {
+          ok: false,
+          error:
+            "Für Multiplayer braucht ihr mindestens zwei Personen. Nutze allein das Solo-Training.",
+        });
       room.players.get(socket.id).ready = payload.ready;
       broadcastRoom(room);
       reply(ack, { ok: true });
