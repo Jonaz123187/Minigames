@@ -25,8 +25,18 @@ const keys = new Set(),
   touchKeys = new Set(),
   poses = new Map();
 const game = () => catalog.find((g) => g.id === room?.round?.game);
-const active = () => room?.phase === "playing";
-const serverNow = () => Date.now() + offset;
+const active = () =>
+  room?.phase === "playing" &&
+  room.round?.pause?.at == null &&
+  !room.players.find((p) => p.id === myId)?.sittingOut &&
+  room.round?.roster.some((p) => p.id === myId);
+const serverNow = () => {
+  const wall = Date.now() + offset,
+    p = room?.round?.pause;
+  return p && ["countdown", "playing", "ending"].includes(room.phase)
+    ? wall - p.total - (p.at != null ? wall - p.at : 0)
+    : wall;
+};
 const roster = () => room?.round?.roster || [];
 const playerName = (p) => p.name + (p.id === myId ? " (du)" : "");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -151,11 +161,8 @@ socket.on("connect", () => {
 });
 socket.on("disconnect", () => {
   network(false);
-  resetLocal();
-  toast(
-    "Verbindung getrennt. Nach dem Verbinden erneut mit dem Code beitreten.",
-    true,
-  );
+  releaseKeys();
+  toast("Verbindung unterbrochen. Wiederverbindung läuft …", true);
 });
 socket.on("connect_error", () => network(false));
 socket.on("catalog", (items) => {
@@ -166,7 +173,7 @@ socket.on("notice", (message) => toast(message));
 socket.on("room", (next) => renderRoom(next));
 socket.on("state", (packet) => {
   if (packet.roundId !== room?.round?.id) return;
-  if (!clockSynced) offset = packet.serverNow - Date.now();
+  if (!clockSynced) offset = (packet.wallNow || packet.serverNow) - Date.now();
   state = packet.data;
   if (typeof receiveSnapshot === "function") receiveSnapshot(packet);
   if (room.round.game === "typing") {
@@ -277,7 +284,7 @@ function renderRoom(next) {
   if (!g) return;
   $("gameTitle").textContent = g.title;
   $("gameNumber").textContent = "/" + g.icon;
-  $("instructions").textContent = g.controls;
+  $("instructions").textContent = "";
   $("roundPhase").textContent =
     next.phase === "countdown"
       ? "Bereitmachen"

@@ -9,11 +9,12 @@
     <meta name="theme-color" content="#111316" />
     <meta
       name="description"
-      content="MultiplayerGames-GiG: euer Spieleabend mit Meme Dub Studio, Sketch & Guess, 3D-Rennen und 17 weiteren Spielen."
+      content="MultiplayerGames-GiG: euer Spieleabend mit Meme Dub Studio, Sketch & Guess, 3D-Rennen und 23 weiteren Spielen."
     />
     <title>MultiplayerGames-GiG</title>
     <link rel="stylesheet" href="/style.css" />
     <link rel="stylesheet" href="/accounts.css" />
+    <link rel="stylesheet" href="/crew-update.css" />
     <link rel="stylesheet" href="/avatar-motion.css" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
@@ -54,7 +55,7 @@
                 Geschichten entstehen zwischen zwei Runden.
               </p>
               <div class="intro-tags">
-                <span>20 Spiele</span><span>Bis zu 8 Freunde</span
+                <span>26 Spiele</span><span>Bis zu 8 Freunde</span
                 ><span>Euer eigener Raum</span>
               </div>
               <div class="hero-collage">
@@ -151,7 +152,7 @@
                 <div id="players"></div>
                 <div class="crew-actions">
                   <button id="readyButton" class="primary">
-                    Ich bin bereit</button
+                    Jetzt bereit machen</button
                   ><button id="editAvatar" class="quiet" title="Avatar ändern">
                     Dein Look ↗
                   </button>
@@ -191,11 +192,11 @@
               <div class="session-controls">
                 <div>
                   <span class="eyebrow">ABENDPLAN</span>
-                  <h3>Eine Runde oder gleich fünf?</h3>
+                  <h3>Eine Runde oder ein ganzer Spieleabend?</h3>
                 </div>
                 <div id="sessionModes" class="segmented">
                   <button data-mode="single">Einzelspiel</button
-                  ><button data-mode="party">Party-Playlist · 5</button>
+                  ><button data-mode="party">Party-Playlist</button>
                 </div>
               </div>
               <p id="partyHint" class="muted small" hidden>
@@ -365,19 +366,22 @@
             <span id="gameNumber" class="eyebrow"></span>
             <h2 id="gameTitle"></h2>
             <span id="roundPhase" class="pill">Bereitmachen</span
-            ><span id="timer" class="timer" role="timer">00:00</span
-            ><button
-              id="abort"
+            ><span id="timer" class="timer" role="timer">00:00</span>
+            <button
+              id="fullscreenGame"
               class="quiet compact"
-              hidden
-              title="Runde ohne Wertung beenden"
+              title="Spiel im Vollbild"
             >
-              ✕
+              ⛶ Vollbild
+            </button>
+            <button id="openGameMenu" class="quiet compact">
+              ☰ Menü <kbd>Esc</kbd>
             </button>
           </div>
           <div id="timeTrack" class="time-track"><div id="timeFill"></div></div>
           <div id="phaseHelp" class="phase-help"></div>
           <div id="liveScores" class="live-scores"></div>
+          <div id="partyGame" class="party-game" hidden></div>
           <div id="playStage" class="play-stage">
             <div class="stage-main">
               <div class="canvas-wrap">
@@ -463,6 +467,11 @@
             </table>
           </div>
           <div id="guestAccountHint" class="guest-account-hint" hidden></div>
+          <button id="rematch" class="primary" hidden>
+            Revanche vorbereiten ↻
+          </button>
+          <div id="roundGallery" class="panel" hidden></div>
+          <div id="teamResults" class="panel" hidden></div>
           <div id="partyStandings" class="panel" hidden></div>
           <p id="backCounter" class="back-counter"></p>
           <div class="return-track"><div id="returnFill"></div></div>
@@ -473,7 +482,7 @@
             Platz 1/2/3 gibt 10/7/5 Session-Punkte, weitere Plätze 2.
             Gleichstände teilen den Platz. Training zählt nicht. Nach einer
             Runde geht es automatisch zurück in die Lobby; eine Party-Playlist
-            spielt fünf verschiedene Spiele nacheinander. Vor dem ersten Start
+            spielt eure ausgewählten Spiele nacheinander. Vor dem ersten Start
             müssen alle bereit sein. Änderungen an Spiel oder Einstellungen
             setzen den Bereitschaftsstatus zurück.
           </p>
@@ -481,9 +490,10 @@
             Die Sitzung und der Clip-Pool bleiben im Arbeitsspeicher. Verlassen
             und Server-Neustart setzen Session-Punkte zurück. Gespeicherte
             Konten, GiG-Coins und Freischaltungen bleiben erhalten. Nach
-            Verbindungsabbruch bitte erneut beitreten, sobald die Lobby frei
-            ist. Bleibt in einer normalen Runde nur eine Person, endet sie ohne
-            Wertung. Der Host wechselt automatisch.
+            Verbindungsabbruch verbindet sich der Browser erneut. Ein späterer
+            Beitritt ist während einer Runde als Zuschauer möglich. Bleibt in
+            einer normalen Runde nur eine Person, endet sie ohne Wertung. Der
+            Host wechselt automatisch.
           </p>
           <p>
             Dub Studio vergleicht Rhythmus, Lautstärkeverlauf und relative
@@ -508,6 +518,48 @@
         ><span>Entwickelt von <strong>Jonas N.</strong></span>
       </footer>
     </div>
+    <dialog id="gameMenu" class="game-menu">
+      <h2>Spielmenü</h2>
+      <p id="pauseStatus" role="status"></p>
+      <button id="resumeGame" class="primary">Weiterspielen</button>
+      <details>
+        <summary>Wie spielt man das?</summary>
+        <h3 id="helpTitle"></h3>
+        <p id="helpDescription"></p>
+        <p id="helpControls"></p>
+        <p>
+          Platz 1 / 2 / 3: 10 / 7 / 5 Session-Punkte. Weitere Plätze: 2.
+          Gleichstände teilen den Platz. Training zählt nicht.
+        </p>
+      </details>
+      <label class="account-field"
+        >Spiellautstärke<input
+          id="gameVolume"
+          type="range"
+          min="0"
+          max="100"
+          value="80"
+      /></label>
+      <label class="account-field"
+        >Soundboard-Lautstärke<input
+          id="boardVolume"
+          type="range"
+          min="0"
+          max="100"
+          value="80"
+      /></label>
+      <div id="playerVolumes"></div>
+      <button id="menuFullscreen">⛶ Vollbild umschalten</button>
+      <button id="requestWithdraw" class="quiet">Zurück zur Lobby …</button>
+      <button id="requestAbort" class="quiet" hidden>
+        Runde für alle beenden …
+      </button>
+      <div id="leaveConfirmation" class="leave-confirmation" hidden>
+        <p id="leaveQuestion"></p>
+        <button id="cancelWithdraw">Weiterspielen</button
+        ><button id="confirmWithdraw" class="danger">Runde verlassen</button>
+      </div>
+    </dialog>
     <dialog id="avatarDialog">
       <form method="dialog">
         <button class="dialog-close quiet" aria-label="Schließen">✕</button>
@@ -555,6 +607,7 @@
     <script src="/experience.js"></script>
     <script src="/vendor/firebase-auth.js"></script>
     <script src="/accounts-client.js"></script>
+    <script src="/crew-update.js"></script>
     <script type="module" src="/race-3d.js"></script>
     <script type="module" src="/monster-3d.js"></script>
   </body>

@@ -12,6 +12,37 @@ module.exports = function highlights(game, g, roster) {
     }
   };
   switch (game) {
+    case "estimate":
+    case "detective":
+    case "onebutton":
+      best(
+        "Treffsicher",
+        (p) => p.correct,
+        (v) => v + " starke Treffer",
+      );
+      break;
+    case "faker":
+      best(
+        "Spürnase",
+        (p) => p.correct,
+        (v) => v + " richtige Verdächtigungen",
+      );
+      break;
+    case "coop":
+      if (g.completed)
+        result.push({
+          label: "Gemeinsam geschafft",
+          name: "Eure Crew",
+          value: g.completed + " Schlösser geöffnet",
+        });
+      break;
+    case "telephone":
+      best(
+        "Kreativ im Einsatz",
+        (p) => p.score,
+        (v) => v + " Kreativpunkte",
+      );
+      break;
     case "monster":
       best(
         "Längster Flug",

@@ -392,11 +392,17 @@ const GAMES = {
   },
 };
 
-Object.assign(GAMES, require("./games"), {
+Object.assign(GAMES, require("./games"), require("./party-games"), {
   quiz: require("./quiz"),
   monster: require("./monster"),
 });
 const ORDER = [
+  "telephone",
+  "faker",
+  "estimate",
+  "onebutton",
+  "detective",
+  "coop",
   "dub",
   "draw",
   "monster",
@@ -421,6 +427,10 @@ const ORDER = [
 const DEFAULT_SETTINGS = {
   monster: { track: "meadow" },
   mode: "single",
+  playlist: [],
+  teams: false,
+  assignments: {},
+  decoration: "default",
   race: { track: "coast", laps: 3, collisions: true },
   dub: { rounds: 1, listen: 8, record: 25 },
 };
@@ -471,6 +481,10 @@ function createArcade({
   const server = http.createServer(app);
   const io = new Server(server, {
     maxHttpBufferSize: 128 * 1024,
+    connectionStateRecovery: {
+      maxDisconnectionDuration: 60000,
+      skipMiddlewares: false,
+    },
     // Allow this host, and optionally explicitly configured frontend origins.
     allowRequest(req, callback) {
       const origin = req.headers.origin;
@@ -522,7 +536,8 @@ function createArcade({
     const raw = socket.handshake.headers.cookie?.match(
       /(?:^|; )gig_device=([^;]+)/,
     )?.[1];
-    socket.data.device = device(raw) || crypto.randomBytes(16).toString("hex");
+    socket.data.device ||=
+      device(raw) || crypto.randomBytes(16).toString("hex");
     next();
   });
   app.use(express.static(path.join(__dirname, "public")));
@@ -532,6 +547,48 @@ function createArcade({
   app.get("/health", (req, res) => res.json({ ok: true }));
   const rooms = new Map();
 
+  const gameNow = (r, now) =>
+    now -
+    (r?.pause?.total || 0) -
+    (r?.pause?.at != null ? now - r.pause.at : 0);
+  const eligiblePause = (room) =>
+    room.round
+      ? [...room.round.connected].filter((id) => {
+          const p = room.round.state.players[id];
+          return (
+            room.players.has(id) &&
+            !room.players.get(id).sittingOut &&
+            p &&
+            p.alive !== false &&
+            p.out !== true &&
+            p.finished !== true &&
+            !(room.round.game === "memory" && p.lives <= 0)
+          );
+        })
+      : [];
+  function updatePause(room, now) {
+    const r = room.round;
+    if (!r || !["countdown", "playing"].includes(room.phase)) return;
+    const before = JSON.stringify(r.pause);
+    const ids = eligiblePause(room),
+      everybody = ids.length > 0 && ids.every((id) => r.menu.has(id));
+    if (everybody) {
+      if (r.pause.at == null) {
+        r.pause.at = now;
+        r.controls = Object.fromEntries(
+          r.roster.map((p) => [p.id, freshControls()]),
+        );
+      }
+      r.pause.resumeAt = null;
+    } else if (r.pause.at != null && r.pause.resumeAt == null)
+      r.pause.resumeAt = now + 3000;
+    if (!everybody && r.pause.resumeAt != null && now >= r.pause.resumeAt) {
+      r.pause.total += now - r.pause.at;
+      r.pause.at = null;
+      r.pause.resumeAt = null;
+    }
+    if (before !== JSON.stringify(r.pause)) broadcastRoom(room);
+  }
   function roomState(room) {
     return {
       code: room.code,
@@ -561,6 +618,9 @@ function createArcade({
             practice: room.round.practice,
             roster: room.round.roster.map(({ identity, ...p }) => p),
             meta: room.round.meta,
+            menu: [...room.round.menu],
+            pause: { ...room.round.pause },
+            pauseEligible: eligiblePause(room),
           }
         : null,
       returnAt: room.returnAt,
@@ -577,16 +637,23 @@ function createArcade({
     GAMES[room.round.game].dispose?.(room.round.state);
     room.round = null;
   }
-  function leave(socket) {
+  function leave(socket, recover = false) {
     const room = rooms.get(socket.data.roomCode);
     socket.data.roomCode = null;
     if (!room) return;
     socket.leave(room.code);
+    if (recover && room.players.has(socket.id))
+      socket.data.resume = {
+        code: room.code,
+        player: { ...room.players.get(socket.id), ready: false },
+        until: clock() + 60000,
+      };
     room.players.delete(socket.id);
     if (room.hostId === socket.id)
       for (const [key, request] of room.pending || []) room.pending.delete(key);
     if (room.phase === "lobby") clearReady(room);
     room.round?.connected.delete(socket.id);
+    room.round?.menu.delete(socket.id);
     if (!room.players.size) {
       disposeRound(room);
       rooms.delete(room.code);
@@ -625,7 +692,30 @@ function createArcade({
         "Playlist beendet: Ein Mitspieler fehlt. Bereits erspielte Punkte bleiben erhalten.",
       );
     }
+    updatePause(room, clock());
     broadcastRoom(room);
+  }
+  function rankedComeback(round, rows) {
+    if (!round.midRanks) return null;
+    const p = rows
+      .filter(
+        (p) => p.connected && (round.midRanks[p.id] || p.rank) - p.rank > 0,
+      )
+      .sort(
+        (a, b) =>
+          round.midRanks[b.id] - b.rank - (round.midRanks[a.id] - a.rank),
+      )[0];
+    return p
+      ? {
+          label: "Stärkstes Comeback",
+          name: p.name,
+          id: p.id,
+          value:
+            round.midRanks[p.id] -
+            p.rank +
+            " Plätze seit der Rundenmitte gutgemacht",
+        }
+      : null;
   }
   function finishRound(room, now) {
     if (room.phase !== "playing") return;
@@ -717,9 +807,52 @@ function createArcade({
       title: game.title,
       rows,
       practice: round.practice,
-      endedAt: now,
+      endedAt: clock(),
+      gallery:
+        game.archive?.(round.state) ||
+        (round.game === "telephone" ? round.state.chains : null),
       highlights: highlights(round.game, round.state, round.roster),
     };
+    const closeLimits = {
+      click: [3, "Klicks"],
+      typing: [2, "Wörter"],
+      quiz: [150, "Punkte"],
+      estimate: [20, "Punkte"],
+      onebutton: [20, "Punkte"],
+      detective: [20, "Punkte"],
+    };
+    const limit = closeLimits[round.game],
+      top = rows.filter((p) => p.connected);
+    if (
+      !round.practice &&
+      limit &&
+      top.length > 1 &&
+      top[0].raw > top[1].raw &&
+      top[0].raw - top[1].raw <= limit[0]
+    )
+      room.lastResult.highlights.push({
+        label: "Knappster Sieg",
+        name: top[0].name,
+        id: top[0].id,
+        value:
+          "Nur " + (top[0].raw - top[1].raw) + " " + limit[1] + " Vorsprung",
+      });
+    if (rankedComeback(round, rows))
+      room.lastResult.highlights.push(rankedComeback(round, rows));
+    if (room.settings.teams) {
+      const teams = [0, 1].map((team) => ({
+        team,
+        name: team === 0 ? "Team Mint" : "Team Lila",
+        points: rows
+          .filter((p) => room.settings.assignments[p.id] === team)
+          .reduce((sum, p) => sum + p.points, 0),
+      }));
+      room.lastResult.teams = teams;
+      if (room.party) {
+        room.party.teamTotals ||= [0, 0];
+        teams.forEach((t) => (room.party.teamTotals[t.team] += t.points));
+      }
+    }
     if (room.party) {
       room.party.results.push({
         game: round.game,
@@ -736,8 +869,8 @@ function createArcade({
       }
     }
     room.phase = "results";
-    room.returnAt = now + RESULTS_MS;
-    broadcastSnapshot(room, now);
+    room.returnAt = clock() + RESULTS_MS;
+    broadcastSnapshot(room, clock());
     broadcastRoom(room);
   }
   function broadcastSnapshot(room, now) {
@@ -745,18 +878,23 @@ function createArcade({
     const r = room.round;
     const packet = (id) => ({
       roundId: r.id,
-      serverNow: now,
+      serverNow: gameNow(r, now),
+      wallNow: now,
       phase: room.phase,
-      data: GAMES[r.game].view(r.state, now, id),
+      data: GAMES[r.game].view(r.state, gameNow(r, now), id),
     });
     if (GAMES[r.game].private) {
-      for (const id of r.connected)
-        io.to(id).volatile.emit("state", packet(id));
+      for (const id of room.players.keys())
+        io.to(id).volatile.emit(
+          "state",
+          packet(r.connected.has(id) ? id : null),
+        );
     } else io.to(room.code).volatile.emit("state", packet(null));
   }
 
   function start(room, gameId, now, practice) {
     const game = GAMES[gameId];
+    for (const p of room.players.values()) p.sittingOut = false;
     const roster = [...room.players.values()].map(
       ({
         id,
@@ -819,6 +957,8 @@ function createArcade({
       endsAt: startsAt + (game.duration?.(state) || game.seconds) * 1000,
       roster,
       activity: {},
+      menu: new Set(),
+      pause: { total: 0, at: null, resumeAt: null },
       connected: new Set(roster.map((p) => p.id)),
       state,
       meta: game.meta?.(state) || {},
@@ -845,10 +985,36 @@ function createArcade({
           category: g.category || THEMES[id]?.[0] || "Arcade",
           difficulty: g.difficulty || THEMES[id]?.[1] || "Mittel",
           minPlayers: g.minPlayers || 1,
-          preview: "/previews/" + id + ".png",
+          preview: Object.hasOwn(require("./party-games"), id)
+            ? "/previews/" + id + ".svg"
+            : "/previews/" + id + ".png",
         };
       }),
     );
+    const resume = socket.data.resume;
+    if (socket.recovered && resume && resume.until > clock()) {
+      const room = rooms.get(resume.code);
+      if (
+        room &&
+        room.players.size < MAX_PLAYERS &&
+        !room.kicked.has(resume.player.identity)
+      ) {
+        socket.data.roomCode = room.code;
+        room.players.set(socket.id, resume.player);
+        if (room.round?.roster.some((p) => p.id === socket.id))
+          room.round.connected.add(socket.id);
+        socket.join(room.code);
+        broadcastRoom(room);
+        broadcastSnapshot(room, clock());
+      } else {
+        socket.leave(resume.code);
+        socket.data.roomCode = null;
+        socket.emit("resume:failed", {
+          error: "Die vorherige Lobby ist inzwischen geschlossen oder voll.",
+        });
+      }
+    }
+    delete socket.data.resume;
     let bucketAt = clock(),
       packets = 0,
       lobbyAt = 0;
@@ -1150,11 +1316,6 @@ function createArcade({
             error: "Der Host entscheidet über deinen erneuten Beitritt.",
           });
         }
-        if (room.phase !== "lobby")
-          return reply(ack, {
-            ok: false,
-            error: "Die Runde laeuft noch. Gleich erneut beitreten.",
-          });
         if (room.players.size >= MAX_PLAYERS)
           return reply(ack, {
             ok: false,
@@ -1181,6 +1342,7 @@ function createArcade({
         score: 0,
         wish: null,
         ready: false,
+        sittingOut: room.phase !== "lobby",
         avatar: avatarOf(
           socket.data.account?.avatar || payload.avatar,
           socket.data.account,
@@ -1265,6 +1427,38 @@ function createArcade({
         current.race.laps = integer(x.laps, 1, 5, current.race.laps);
         if (typeof x.collisions === "boolean")
           current.race.collisions = x.collisions;
+      }
+      if (
+        Array.isArray(payload?.playlist) &&
+        payload.playlist.length <= 10 &&
+        payload.playlist.every(
+          (id) => typeof id === "string" && ORDER.includes(id),
+        )
+      )
+        current.playlist = [...new Set(payload.playlist)];
+      if (typeof payload?.teams === "boolean") current.teams = payload.teams;
+      if (payload?.assignments && typeof payload.assignments === "object") {
+        for (const id of room.players.keys())
+          if ([0, 1].includes(payload.assignments[id]))
+            current.assignments[id] = payload.assignments[id];
+      }
+      if (payload?.shuffleTeams === true)
+        shuffled([...room.players.keys()]).forEach(
+          (id, i) => (current.assignments[id] = i % 2),
+        );
+      if (
+        ["default", "arcade", "space", "garden"].includes(payload?.decoration)
+      ) {
+        const id = payload.decoration;
+        if (
+          id !== "default" &&
+          !Economy.owns(socket.data.account, "decor-" + id)
+        )
+          return reply(ack, {
+            ok: false,
+            error: "Diese Lobby-Deko ist noch nicht freigeschaltet.",
+          });
+        current.decoration = id;
       }
       if (payload?.dub) {
         const x = payload.dub;
@@ -1446,7 +1640,10 @@ function createArcade({
       )
         return reply(ack, {
           ok: false,
-          error: "Dieses Partyspiel benötigt mindestens zwei Spieler.",
+          error:
+            "Dieses Partyspiel benötigt mindestens " +
+            (GAMES[payload.game].minPlayers || 1) +
+            " Spieler.",
         });
       if (payload.game !== room.selected)
         return reply(ack, {
@@ -1458,6 +1655,21 @@ function createArcade({
           ok: false,
           error: "Alle Spieler müssen zuerst Bereit drücken.",
         });
+      if (room.settings.teams) {
+        const ids = [...room.players.keys()];
+        ids.forEach((id, i) => {
+          if (![0, 1].includes(room.settings.assignments[id]))
+            room.settings.assignments[id] = i % 2;
+        });
+        const counts = [0, 1].map(
+          (t) => ids.filter((id) => room.settings.assignments[id] === t).length,
+        );
+        if (counts.includes(0) || Math.abs(counts[0] - counts[1]) > 1)
+          return reply(ack, {
+            ok: false,
+            error: "Teams müssen besetzt und möglichst gleich groß sein.",
+          });
+      }
       const available = room.clips.filter(
         (c) => c.enabled && !room.usedClips.has(c.id),
       );
@@ -1467,7 +1679,16 @@ function createArcade({
             room.players.size >= (GAMES[id].minPlayers || 1) &&
             (id !== "dub" || available.length),
         );
-        const order = shuffled(pool).slice(0, 5);
+        const requested = room.settings.playlist || [];
+        if (requested.some((id) => !pool.includes(id)))
+          return reply(ack, {
+            ok: false,
+            error:
+              "Für ein Playlist-Spiel fehlen Spieler oder ungespielte Clips.",
+          });
+        const order = requested.length
+          ? [...requested]
+          : shuffled(pool).slice(0, 5);
         room.party = {
           order,
           index: 0,
@@ -1496,7 +1717,7 @@ function createArcade({
     socket.on("input", (input, ack) => {
       if (!rateLimit()) return reply(ack, { ok: false });
       const room = getRoom(),
-        now = clock();
+        now = room?.round ? gameNow(room.round, clock()) : clock();
       if (
         !room ||
         room.phase !== "playing" ||
@@ -1508,6 +1729,9 @@ function createArcade({
       if (
         input.roundId !== r.id ||
         !r.connected.has(socket.id) ||
+        (r.menu.has(socket.id) &&
+          !(r.game === "dub" && input.action === "record")) ||
+        r.pause.at != null ||
         now < r.startsAt ||
         now >= r.endsAt
       )
@@ -1541,10 +1765,78 @@ function createArcade({
           r.game === "typing" ? r.state.players[socket.id].index : undefined,
       });
     });
+    socket.on("round:menu", (payload, ack) => {
+      const room = getRoom(),
+        r = room?.round;
+      if (
+        !rateLimit() ||
+        !r ||
+        !["playing", "countdown"].includes(room.phase) ||
+        payload?.roundId !== r.id ||
+        typeof payload.open !== "boolean"
+      )
+        return reply(ack, { ok: false });
+      if (payload.open) r.menu.add(socket.id);
+      else r.menu.delete(socket.id);
+      if (r.controls[socket.id]) r.controls[socket.id] = freshControls();
+      updatePause(room, clock());
+      broadcastRoom(room);
+      reply(ack, { ok: true });
+    });
+    socket.on("round:withdraw", (payload, ack) => {
+      const room = getRoom(),
+        r = room?.round;
+      if (
+        !rateLimit() ||
+        !r ||
+        payload?.roundId !== r.id ||
+        payload?.confirm !== true ||
+        !["playing", "countdown"].includes(room.phase)
+      )
+        return reply(ack, { ok: false });
+      r.connected.delete(socket.id);
+      r.menu.delete(socket.id);
+      room.players.get(socket.id).sittingOut = true;
+      r.controls[socket.id] = freshControls();
+      if (r.state.players[socket.id]) {
+        const p = r.state.players[socket.id];
+        if ("alive" in p) p.alive = false;
+        if ("out" in p) p.out = true;
+      }
+      updatePause(room, clock());
+      broadcastRoom(room);
+      reply(ack, { ok: true });
+    });
+    socket.on("rematch", (_, ack) => {
+      const room = getRoom();
+      if (
+        !rateLimit() ||
+        !room ||
+        room.hostId !== socket.id ||
+        !["lobby", "results"].includes(room.phase) ||
+        !room.lastResult ||
+        (room.party && !room.party.complete)
+      )
+        return reply(ack, { ok: false });
+      const id = room.lastResult.game;
+      disposeRound(room);
+      room.phase = "lobby";
+      room.party = null;
+      room.returnAt = null;
+      room.selected = id;
+      clearReady(room);
+      broadcastRoom(room);
+      reply(ack, { ok: true });
+    });
     socket.on("clock", (_, ack) => {
       if (rateLimit()) reply(ack, { now: clock() });
     });
-    socket.on("disconnect", () => leave(socket));
+    socket.on("disconnect", (reason) =>
+      leave(
+        socket,
+        ["transport close", "transport error", "ping timeout"].includes(reason),
+      ),
+    );
   });
 
   let previousTime = performance.now(),
@@ -1574,22 +1866,37 @@ function createArcade({
       }
       const r = room.round;
       if (!r) continue;
-      if (room.phase === "countdown" && now >= r.startsAt) {
+      updatePause(room, now);
+      if (r.pause.at != null) continue;
+      const logical = gameNow(r, now);
+      if (room.phase === "countdown" && logical >= r.startsAt) {
         room.phase = "playing";
         broadcastRoom(room);
       }
       if (room.phase !== "playing") continue;
-      if (now >= r.endsAt) {
-        finishRound(room, now);
+      if (!r.midRanks && logical - r.startsAt >= (r.endsAt - r.startsAt) / 2) {
+        const scores = r.roster.map((p) => ({
+          id: p.id,
+          raw: GAMES[r.game].score(r.state, p.id),
+        }));
+        r.midRanks = Object.fromEntries(
+          scores.map((p) => [
+            p.id,
+            scores.filter((x) => x.raw > p.raw).length + 1,
+          ]),
+        );
+      }
+      if (logical >= r.endsAt) {
+        finishRound(room, logical);
         continue;
       }
       Object.entries(r.controls).forEach(([id, c]) => {
-        if (now - c.at > 450) r.controls[id] = freshControls();
+        if (logical - c.at > 450) r.controls[id] = freshControls();
       });
-      const ended = GAMES[r.game].tick?.(r.state, dt, now, r);
+      const ended = GAMES[r.game].tick?.(r.state, dt, logical, r);
       if (r.game === "dub" && r.state.clip.id)
         room.usedClips.add(r.state.clip.id);
-      if (ended) finishRound(room, now);
+      if (ended) finishRound(room, logical);
     }
   }
   const timer = manual

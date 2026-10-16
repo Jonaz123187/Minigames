@@ -352,8 +352,8 @@ renderPremiumLobby = function () {
     }),
   );
   $("readyButton").textContent = me?.ready
-    ? "✓ Bereit — zurücknehmen"
-    : "Ich bin bereit";
+    ? "✓ Du bist bereit"
+    : "Jetzt bereit machen";
   $("readyButton").setAttribute("aria-pressed", String(!!me?.ready));
   $("readyButton").disabled = practice;
   const available = (room.clips || []).filter(
@@ -366,7 +366,7 @@ renderPremiumLobby = function () {
     : solo && !practice
       ? "Ein Mitspieler fehlt. Teile euren Raumcode."
       : room.players.length < minimum
-        ? "Dieses Spiel braucht mindestens zwei Personen."
+        ? "Dieses Spiel braucht mindestens " + minimum + " Personen."
         : clipMissing
           ? `${settings.dub.rounds} Runden gewählt, aber nur ${available} ungespielte Clips verfügbar.`
           : !practice && waiting.length
@@ -390,7 +390,9 @@ renderPremiumLobby = function () {
             : practice
               ? "Training starten →"
               : "Runde starten →";
-  $("launchTitle").textContent = party ? "Party-Playlist · 5 Spiele" : g.title;
+  $("launchTitle").textContent = party
+    ? "Party-Playlist · " + (settings.playlist?.length || 5) + " Spiele"
+    : g.title;
   $("launchHint").textContent =
     reason ||
     (party
@@ -420,7 +422,7 @@ renderPremiumLobby = function () {
         : practice
           ? "Training aktiv. Du spielst ohne Session-Punkte."
           : waiting.length
-            ? "Drückt „Ich bin bereit“, sobald ihr loslegen könnt."
+            ? "Drückt „Jetzt bereit machen“, sobald ihr loslegen könnt."
             : "Der Host kann den Countdown starten.",
     ),
   );
@@ -741,7 +743,7 @@ renderRoom = function (next) {
       $("spectator").hidden = true;
       $("countdown").classList.remove("go");
       $("countdownCaption").textContent = next.party
-        ? "PARTY · " + (next.party.index + 1) + " / 5"
+        ? "PARTY · " + (next.party.index + 1) + " / " + next.party.order.length
         : "BEREITMACHEN";
       $("countdownFoot").textContent = "Alle spielen dieselbe Runde.";
     }
@@ -790,6 +792,7 @@ function isEliminated(id) {
 }
 function leadMetric(id) {
   const p = state.players[id];
+  if (!p) return 0;
   return (
     p.progress ??
     p.score ??
@@ -875,10 +878,22 @@ function receiveSnapshot(packet) {
     if (!spectatingId || isEliminated(spectatingId))
       spectatingId = spectatorCandidates()[0]?.id || null;
   } else spectatingId = null;
-  $("spectator").hidden = !spectatingId;
+  $("spectator").hidden = !eliminated;
+  if (eliminated && !spectatingId)
+    $("spectatorName").textContent =
+      "Du bist ausgeschieden · Warte auf das Rundenergebnis";
+  $("nextSpectator").hidden = !spectatingId;
   if (spectatingId) {
     const p = roster().find((p) => p.id === spectatingId);
-    $("spectatorName").textContent = "LIVE-KAMERA · " + p.name;
+    $("spectatorName").replaceChildren(
+      avatarNode(p.avatar),
+      el("strong", "", "Du schaust gerade " + p.name + " zu"),
+      el(
+        "small",
+        "",
+        "Du bist ausgeschieden · Nächste Runde spielst du wieder mit",
+      ),
+    );
   }
 }
 let snapshotHistory = [],
@@ -1163,7 +1178,8 @@ function renderPodium(result) {
         ...p,
         rank: final.filter((x) => x.points > p.points).length + 1,
         detail:
-          "5 Spiele · " +
+          (room.party?.order.length || 5) +
+          " Spiele · " +
           (room.party?.results.filter((r) =>
             r.rows.some((x) => x.id === p.id && x.points === 10),
           ).length || 0) +
@@ -1221,7 +1237,10 @@ function decorateResults() {
   $("resultEyebrow").textContent = final
     ? "PARTY-FINALE"
     : room.party
-      ? "PARTY · RUNDE " + (room.party.index + 1) + " / 5"
+      ? "PARTY · RUNDE " +
+        (room.party.index + 1) +
+        " / " +
+        room.party.order.length
       : r.practice
         ? "TRAINING"
         : "RUNDE GESPIELT";
@@ -1402,7 +1421,12 @@ function experienceFrame(now) {
       $("timeFill").style.width = clamp((seconds / total) * 100, 0, 100) + "%";
       $("phaseHelp").textContent =
         label +
-        (room.party ? " · Party " + (room.party.index + 1) + " / 5" : "") +
+        (room.party
+          ? " · Party " +
+            (room.party.index + 1) +
+            " / " +
+            room.party.order.length
+          : "") +
         (urgent && n ? " · Noch " + n + " Sekunden" : "");
       const key = label + ":" + n;
       if (n <= 5 && n > 0 && key !== lastTimeSound) {
@@ -1420,8 +1444,7 @@ function experienceFrame(now) {
     } else if (room.phase === "countdown") {
       $("timeFill").style.width = "100%";
       $("timer").classList.remove("warning", "urgent");
-      $("phaseHelp").textContent =
-        "Steuerung ansehen. Gleich startet die Runde.";
+      $("phaseHelp").textContent = "Gleich startet die Runde.";
     }
   }
   if (room?.phase === "results") {

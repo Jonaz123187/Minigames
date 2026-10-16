@@ -16,7 +16,8 @@ const Sound = {
         this.engineOsc.connect(this.engineGain).connect(this.ctx.destination);
         this.engineOsc.start();
       }
-      if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
+      if (this.ctx.state === "suspended" && room?.round?.pause?.at == null)
+        this.ctx.resume().catch(() => {});
     } catch {}
   },
   tone(freq, duration = 0.1, volume = 0.045, type = "sine", delay = 0) {
@@ -27,7 +28,7 @@ const Sound = {
     o.type = type;
     o.frequency.setValueAtTime(freq, at);
     g.gain.setValueAtTime(0, at);
-    g.gain.linearRampToValueAtTime(volume, at + 0.008);
+    g.gain.linearRampToValueAtTime(volume * (this.volume ?? 1), at + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, at + duration);
     o.connect(g).connect(this.ctx.destination);
     o.start(at);
@@ -71,10 +72,11 @@ const Sound = {
     const source = this.ctx.createBufferSource(),
       gain = this.ctx.createGain();
     source.buffer = b;
-    gain.gain.value = 0.8;
+    gain.gain.value = this.enabled ? 0.8 * (this.volume ?? 1) : 0;
     source.connect(gain).connect(this.ctx.destination);
     source.start(this.ctx.currentTime + Math.max(0, delay));
     this.voice = source;
+    this.voiceGain = gain;
   },
   stopVoice() {
     try {
@@ -85,7 +87,7 @@ const Sound = {
   engine(value) {
     if (!this.ctx || !this.engineGain) return;
     this.engineGain.gain.setTargetAtTime(
-      this.enabled ? value * 0.012 : 0,
+      this.enabled ? value * 0.012 * (this.volume ?? 1) : 0,
       this.ctx.currentTime,
       0.08,
     );
@@ -273,7 +275,8 @@ function renderPremiumLobby() {
       "p",
       "",
       practice
-        ? "17 Spiele kannst du allein ausprobieren. Training zählt nicht zur Rangliste."
+        ? catalog.filter((g) => (g.minPlayers || 1) === 1).length +
+            " Spiele kannst du allein ausprobieren. Training zählt nicht zur Rangliste."
         : solo
           ? "Die normale Runde braucht mindestens 2 Spieler. Teile den Code oben – sobald jemand beitritt, wird der Start freigeschaltet."
           : "Alle dürfen Spielwünsche markieren. Der Host startet den gemeinsamen Countdown.",
@@ -296,7 +299,7 @@ function renderPremiumLobby() {
       [
         g.difficulty,
         durationLabel(g),
-        g.minPlayers === 2 ? "2–8 Spieler" : "1–8 Spieler",
+        (g.minPlayers || 1) + "–8 Spieler",
       ].forEach((v) => tags.append(el("span", "tag", v)));
       box.append(tags);
       return box;
@@ -414,10 +417,6 @@ $("invite").onclick = async () => {
     toast("Kopieren nicht möglich. Nutze den Anzeigen-Button.", true);
   }
 };
-$("abort").onclick = async () => {
-  const r = await rpc("abort", {});
-  if (!r.ok) toast("Nur der Host kann die Runde beenden.", true);
-};
 
 function premiumPhaseChanged(previous) {
   if (currentRoundToken !== room?.round?.id) {
@@ -436,7 +435,7 @@ function premiumPhaseChanged(previous) {
     lastStats = {};
     lastCounter = null;
   }
-  $("abort").hidden = !room?.round || room.hostId !== myId;
+
   if (previous !== room?.phase && room?.phase === "results") {
     Sound.engine(0);
     stopCapture(false);
@@ -808,12 +807,18 @@ async function beginCapture(onFinish) {
       chunks: [],
       size: 0,
       start: performance.now(),
+      logicalStart: serverNow(),
       rate: Sound.ctx.sampleRate,
       onFinish,
       vu: 0,
     };
     node.port.onmessage = (event) => {
-      if (!capture || capture.serial !== serial) return;
+      if (
+        !capture ||
+        capture.serial !== serial ||
+        room?.round?.pause?.at != null
+      )
+        return;
       const chunk = new Float32Array(event.data);
       if (capture.size > capture.rate * 6.2) return;
       capture.chunks.push(chunk);
@@ -824,7 +829,10 @@ async function beginCapture(onFinish) {
     };
     source.connect(node);
     node.connect(gain).connect(Sound.ctx.destination);
-    capture.timeout = setTimeout(() => stopCapture(true), 6000);
+    capture.timeout = setInterval(() => {
+      if (capture && serverNow() - capture.logicalStart >= 6000)
+        stopCapture(true);
+    }, 100);
   } catch (e) {
     stream?.getTracks().forEach((t) => t.stop());
     throw e;
@@ -837,7 +845,7 @@ function stopCapture(submit) {
   const c = capture;
   capture = null;
   if (!c) return;
-  clearTimeout(c.timeout);
+  clearInterval(c.timeout);
   c.stream.getTracks().forEach((t) => t.stop());
   try {
     c.source.disconnect();
