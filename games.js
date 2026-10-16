@@ -689,6 +689,8 @@ const memory = {
       level: g.level,
       lit,
       length: g.sequence.length,
+      showAt: g.showAt,
+      inputAt: g.inputAt,
       until: g.until,
       players: g.players,
     };

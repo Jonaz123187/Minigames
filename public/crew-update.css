@@ -769,3 +769,30 @@ body[data-lobby-decor="garden"] .lobby-grid {
   font-weight: 800;
   z-index: 4;
 }
+.suspect-sketch {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 9 / 5;
+  background: #f5f0df;
+  border: 1px solid #66788c;
+  border-radius: 10px;
+  margin: 14px 0;
+}
+.suspect-editor {
+  cursor: crosshair;
+  max-width: 900px;
+  touch-action: none;
+}
+.drawing-gallery {
+  align-items: start;
+}
+.drawing-gallery .suspect-sketch {
+  min-width: 0;
+}
+.submission-count {
+  padding: 12px 16px;
+  border-left: 3px solid #b5f36a;
+  background: #b5f36a0b;
+  line-height: 1.6;
+}

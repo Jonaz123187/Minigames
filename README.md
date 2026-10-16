@@ -20,3 +20,8 @@ Garage mit Fahrzeug-Vorschauen und Spuren, neue Karosserien, mehr Platz und Anpa
 ## Update v7.3
 
 Lobby- und Profilkorrekturen, sichere Overlay-Bedienung, zuverlässiger Banner-Upload, goldenes Erstellerprofil sowie private Favoriten, Spieleabende und Rückblicke: [Details und Validierung](UPDATE-v7.3.md).
+
+
+## Update v7.4
+
+Freies Zeichnen und gemeinsame Galerie in Sketch Suspect, stabile Zeitsteuerung, erreichbare One-Tap-Ziele und Mehrspieler-/Zuschauerprüfungen für alle 26 Spiele: [Details und Validierung](UPDATE-v7.4.md).

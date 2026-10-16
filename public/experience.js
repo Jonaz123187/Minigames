@@ -759,7 +759,9 @@ renderRoom = function (next) {
       next.round.id === newRoundKey &&
       serverNow() - next.round.startsAt < 700
     ) {
-      $("countdown").hidden = false;
+      $("countdown").hidden = ["onebutton", "reaction"].includes(
+        next.round.game,
+      );
       $("countdown").classList.add("go");
       $("countdownNumber").textContent = "LOS";
       $("countdownCaption").textContent = "";
@@ -1399,7 +1401,60 @@ function phaseClock() {
     total = 15;
     label = "Ziel offen · letzte Sekunden";
   }
-  const seconds = Math.max(0, (deadline - now) / 1000);
+  if (
+    state &&
+    [
+      "telephone",
+      "faker",
+      "estimate",
+      "onebutton",
+      "detective",
+      "coop",
+      "memory",
+    ].includes(id) &&
+    Number.isFinite(state.until)
+  ) {
+    deadline =
+      id === "memory" && state.phase === "show" ? state.inputAt : state.until;
+    const durations = {
+      telephone: { create: 35, gallery: 30 },
+      faker: { draw: 35, discuss: 18, vote: 12, reveal: 6.5 },
+      estimate: { answer: 12, reveal: 3.5 },
+      onebutton: { play: 5.5, reveal: 1.8 },
+      detective: { memorize: 6, cover: 1, search: 12, reveal: 3 },
+      coop: { solve: 18, reveal: 3 },
+      memory: { show: (state.inputAt - (state.showAt - 600)) / 1000, input: 8 },
+    };
+    total =
+      durations[id]?.[state.phase] ||
+      Math.max(1, (state.until - (state.at || room.round.startsAt)) / 1000);
+    label =
+      {
+        create: "Kreativrunde",
+        gallery: "Eure Geschichten",
+        draw: "Zeichnen",
+        discuss: "Gemeinsam diskutieren",
+        vote: "Abstimmen",
+        reveal: "Auflösung",
+        answer: "Schätzen",
+        play: "Timing-Aufgabe",
+        memorize: "Einprägen",
+        cover: "Kurz merken",
+        search: "Veränderung finden",
+        solve: "Gemeinsam lösen",
+        show: "Muster merken",
+        input: "Muster nachspielen",
+      }[state.phase] || "Aufgabe";
+    if (id === "onebutton" && now < state.at) {
+      deadline = state.at;
+      total = 1.2;
+      label = "Bereitmachen";
+    }
+  }
+  const seconds = Math.max(
+    0,
+    (deadline - Math.max(now, room.round.startsAt)) / 1000,
+  );
   return { seconds, total, label };
 }
 function experienceFrame(now) {
@@ -1449,13 +1504,14 @@ function experienceFrame(now) {
       }
       if (room.round.game === "quiz" && state) updateQuiz();
     } else if (room.phase === "countdown") {
+      $("timer").textContent = "--:--";
       $("timeFill").style.width = "100%";
       $("timer").classList.remove("warning", "urgent");
       $("phaseHelp").textContent = "Gleich startet die Runde.";
     }
   }
   if (room?.phase === "results") {
-    const s = Math.max(0, Math.ceil((room.returnAt - serverNow()) / 1000));
+    const s = Math.max(0, Math.ceil((room.returnAt - serverWallNow()) / 1000));
     $("backCounter").textContent =
       room.party && !room.party.complete
         ? "Nächstes Spiel: " +
@@ -1466,7 +1522,7 @@ function experienceFrame(now) {
           " s"
         : "Zurück zur Lobby in " + s + " s";
     $("returnFill").style.transform =
-      "scaleX(" + clamp((room.returnAt - serverNow()) / 9500, 0, 1) + ")";
+      "scaleX(" + clamp((room.returnAt - serverWallNow()) / 9500, 0, 1) + ")";
   }
   const c = $("celebration");
   if (confetti.length) {

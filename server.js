@@ -664,7 +664,10 @@ function createArcade({
       room.hostId = room.players.keys().next().value;
     if (
       (room.phase === "playing" || room.phase === "countdown") &&
-      room.players.size < (room.round?.practice ? 1 : 2)
+      room.players.size <
+        (room.round?.practice
+          ? 1
+          : Math.max(2, GAMES[room.round?.game]?.minPlayers || 1))
     ) {
       disposeRound(room);
       room.phase = "lobby";
@@ -673,7 +676,7 @@ function createArcade({
       clearReady(room);
       io.to(room.code).emit(
         "notice",
-        "Runde abgebrochen: Es werden mindestens zwei Spieler gebraucht.",
+        "Runde abgebrochen: Für dieses Spiel sind nicht mehr genug Spieler verbunden.",
       );
     }
     if (
