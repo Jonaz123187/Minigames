@@ -7,13 +7,15 @@
     config: null,
     tab: "profile",
     pending: true,
+    registering: false,
     muteBoards: false,
   });
   let mode = "login",
     busy = false,
     currentBoard = null,
     profileVersion = 0;
-  const dialog = $("accountDialog"),
+  let panel = $("accountDialog");
+  const dialog = panel,
     badgeNames = {
       "first-round": "Erste Runde",
       "five-wins": "Fünf Siege",
@@ -36,11 +38,11 @@
     return { wrap, input };
   };
   const heading = (title, desc) => {
-    dialog.append(
+    panel.append(
       el("span", "eyebrow", "GiG / DEIN KONTO"),
       el("h2", "", title),
     );
-    if (desc) dialog.append(el("p", "muted", desc));
+    if (desc) panel.append(el("p", "muted", desc));
   };
   function errorText(e) {
     const code = e?.code || "";
@@ -72,9 +74,9 @@
       dialog.removeAttribute("aria-busy");
     }
   }
-  async function api(path, method = "GET", body) {
+  async function api(path, method = "GET", body, retried = false) {
     if (!A.user) throw new Error("Bitte zuerst einloggen.");
-    const token = await GiGFirebase.getIdToken(A.user);
+    const token = await GiGFirebase.getIdToken(A.user, retried);
     const opts = { method, headers: { Authorization: "Bearer " + token } };
     if (body !== undefined) {
       opts.headers["Content-Type"] =
@@ -88,6 +90,10 @@
     } catch {
       throw new Error("Der Server konnte die Anfrage nicht verarbeiten.");
     }
+    if (res.status === 403 && data.code === "EMAIL_UNVERIFIED" && !retried) {
+      await GiGFirebase.reload(A.user);
+      if (A.user.emailVerified) return api(path, method, body, true);
+    }
     if (!res.ok || data.ok === false)
       throw new Error(data.error || "Speichern fehlgeschlagen.");
     return data;
@@ -95,6 +101,7 @@
   A.api = api;
   async function adopt(p) {
     A.profile = p;
+    applySiteTheme(p);
     if (p) {
       avatarChoice = { ...p.avatar };
       $("homeAvatarPreview").innerHTML = avatarSVG(avatarChoice);
@@ -151,12 +158,18 @@
       ["garage", "Garage"],
       ["sounds", "Soundboard"],
       ["settings", "Einstellungen"],
-    ])
-      nav.append(button(label, () => A.open(id), A.tab === id ? "active" : ""));
+    ]) {
+      const tab = button(label, () => A.open(id), A.tab === id ? "active" : "");
+      tab.setAttribute("aria-current", A.tab === id ? "page" : "false");
+      nav.append(tab);
+    }
+    nav.setAttribute("aria-label", "Kontobereiche");
     dialog.append(nav);
   }
   function top() {
     dialog.replaceChildren();
+    panel = dialog;
+    dialog.dataset.view = "auth";
     dialog.append(button("✕", () => dialog.close(), "dialog-close quiet"));
   }
   A.open = (tab) => {
@@ -170,7 +183,7 @@
         "Konten werden eingerichtet.",
         "Der Server benötigt noch die Firebase-Zugangsdaten. Bis dahin kannst du als Gast spielen.",
       );
-      dialog.append(
+      panel.append(
         button("Als Gast weiterspielen", () => dialog.close(), "primary"),
       );
     } else if (!A.user) {
@@ -180,7 +193,10 @@
     } else if (!A.profile) {
       usernameForm();
     } else {
+      dialog.dataset.view = "account";
       tabs();
+      panel = el("div", "account-content");
+      dialog.append(panel);
       if (tab === "shop") shop();
       else if (tab === "garage") garage();
       else if (tab === "sounds") sounds();
@@ -189,6 +205,7 @@
       else profileEditor();
     }
     if (!dialog.open) dialog.showModal();
+    panel.scrollTop = 0;
   };
   function authForm(which) {
     mode = which;
@@ -198,15 +215,24 @@
         : "Willkommen zurück.",
       "E-Mail bleibt privat. Dein Benutzername ist später öffentlich sichtbar.",
     );
+    accountBenefits();
     const form = el("form", "account-form"),
       email = field("E-Mail", "email"),
-      pass = field("Passwort", "password");
+      pass = field("Passwort", "password"),
+      username = field("Benutzername", "text");
+    username.input.autocomplete = "username";
+    username.input.required = which === "register";
+    username.input.pattern = "[A-Za-z0-9_]{3,20}";
+    username.input.minLength = 3;
+    username.input.maxLength = 20;
+    username.input.placeholder = "3–20 Zeichen · Buchstaben, Zahlen, _";
     email.input.autocomplete = "email";
     pass.input.autocomplete =
       which === "register" ? "new-password" : "current-password";
     pass.input.minLength = 8;
     email.input.required = pass.input.required = true;
     form.append(email.wrap, pass.wrap);
+    if (which === "register") form.append(username.wrap);
     const submit = el(
       "button",
       "primary",
@@ -218,28 +244,54 @@
       e.preventDefault();
       attempt(async () => {
         if (which === "register") {
-          const r = await GiGFirebase.createUserWithEmailAndPassword(
-            A.auth,
-            email.input.value,
-            pass.input.value,
-          );
-          A.user = r.user;
-          await GiGFirebase.sendEmailVerification(r.user, {
-            url: location.origin,
-          });
-          toast(
-            "Bestätigungs-E-Mail verschickt. Schau auch im Spamordner nach.",
-          );
-        } else
+          A.registering = true;
+          try {
+            const check = await (
+              await fetch(
+                "/api/username?name=" +
+                  encodeURIComponent(username.input.value),
+              )
+            ).json();
+            if (!check.ok)
+              throw new Error(
+                check.error || "Benutzername konnte nicht geprüft werden.",
+              );
+            if (!check.available && !A.user)
+              throw new Error("Dieser Benutzername ist bereits vergeben.");
+            let user = A.user;
+            if (!user) {
+              const r = await GiGFirebase.createUserWithEmailAndPassword(
+                A.auth,
+                email.input.value,
+                pass.input.value,
+              );
+              user = A.user = r.user;
+            }
+            await api("/api/register/start", "POST", {
+              username: username.input.value,
+            });
+            A.open("register");
+            await GiGFirebase.sendEmailVerification(user, {
+              url: location.origin,
+            });
+            toast(
+              "Bestätigungs-E-Mail verschickt. Bitte auch Spam/Junk prüfen.",
+            );
+          } finally {
+            A.registering = false;
+          }
+        } else {
           await GiGFirebase.signInWithEmailAndPassword(
             A.auth,
             email.input.value,
             pass.input.value,
           );
+          await refreshAccount();
+        }
         A.open(A.tab);
       });
     };
-    dialog.append(
+    panel.append(
       form,
       button(
         which === "register"
@@ -259,7 +311,7 @@
               { url: location.origin },
             );
             toast(
-              "Falls ein Konto existiert, erhältst du eine E-Mail zum Zurücksetzen.",
+              "Falls ein Konto existiert, erhältst du eine E-Mail zum Zurücksetzen. Bitte auch Spam/Junk prüfen.",
             );
           }),
         "quiet",
@@ -269,9 +321,9 @@
   function verification() {
     heading(
       "Ein Klick fehlt noch.",
-      "Bestätige deine E-Mail-Adresse über den Link in deinem Postfach. Danach werden Profil, Coins und Käufe freigeschaltet.",
+      "Bestätige deine E-Mail-Adresse über den Link in deinem Postfach. Bitte auch im Spam-/Junkordner nachsehen. Danach werden Profil, Coins und Käufe freigeschaltet.",
     );
-    dialog.append(
+    panel.append(
       el("p", "account-private", A.user.email || ""),
       button(
         "Ich habe meine E-Mail bestätigt →",
@@ -295,7 +347,7 @@
             await GiGFirebase.sendEmailVerification(A.user, {
               url: location.origin,
             });
-            toast("E-Mail erneut verschickt.");
+            toast("E-Mail erneut verschickt. Bitte auch Spam/Junk prüfen.");
           }),
         "quiet",
       ),
@@ -326,7 +378,7 @@
         A.open("profile");
       });
     };
-    dialog.append(form);
+    panel.append(form);
   }
   function itemSelect(p, key, label, category, base) {
     const w = el("label", "account-field", label),
@@ -428,7 +480,7 @@
   }
   function profileEditor() {
     heading("Dein Profil. Dein Stil.");
-    profileCard(A.profile, dialog);
+    profileCard(A.profile, panel);
     const fields = el("div", "profile-editor"),
       bio = field("Über dich · maximal 180 Zeichen", "textarea", A.profile.bio);
     bio.input.maxLength = 180;
@@ -475,7 +527,7 @@
       ),
       shelf,
     );
-    dialog.append(
+    panel.append(
       fields,
       button(
         "Profil speichern",
@@ -529,7 +581,7 @@
       "Gute Runden. Guter Geschmack.",
       "Coins gibt es nur in Multiplayer-Runden mit mindestens zwei verschiedenen Spielern. Aktive Teilnahme: 20 Coins, dazu 30 / 15 / 5 für Platz 1 / 2 / 3. Mindestens acht Sekunden Spielzeit; Training bringt keine Coins.",
     );
-    dialog.append(
+    panel.append(
       el(
         "div",
         "wallet",
@@ -542,7 +594,7 @@
       ),
     );
     for (const cat of [...new Set(GiG.items.map((i) => i.category))]) {
-      dialog.append(el("h3", "shop-category", cat));
+      panel.append(el("h3", "shop-category", cat));
       const grid = el("div", "shop-grid");
       for (const item of GiG.items.filter((i) => i.category === cat)) {
         const owned = GiG.owns(A.profile, item.id),
@@ -554,7 +606,11 @@
             hat: GiG.items.indexOf(item) % 10,
             kind: GiG.items.indexOf(item) % 6,
           });
-        else
+        else if (item.id.startsWith("site-")) {
+          glyph.classList.add("theme-swatch");
+          glyph.style.background = GiG.siteThemes[item.id.slice(5)].color;
+          glyph.textContent = item.id === "site-custom" ? "🎨" : "";
+        } else
           glyph.textContent = item.id.startsWith("sound-")
             ? "♫"
             : item.id.startsWith("car-")
@@ -575,11 +631,19 @@
         );
         buy.disabled = owned || A.profile.coins < item.price;
         card.append(buy);
+        if (owned && item.id.startsWith("site-"))
+          card.append(
+            button(
+              "In Einstellungen auswählen →",
+              () => A.open("settings"),
+              "quiet",
+            ),
+          );
         grid.append(card);
       }
-      dialog.append(grid);
+      panel.append(grid);
     }
-    dialog.append(
+    panel.append(
       el(
         "p",
         "muted small",
@@ -593,7 +657,7 @@
       "Im Solo-Modus nutzt du deine eigenen Upgrades. Online fahren alle mit dem Leistungsstand des Spielers mit den wenigsten Upgrades. Skins bleiben individuell.",
     );
     const car = itemSelect(A.profile, "car", "Fahrzeugmodell", "car", "truck");
-    dialog.append(
+    panel.append(
       car.wrap,
       button(
         "Fahrzeug auswählen",
@@ -631,7 +695,7 @@
       card.append(b);
       grid.append(card);
     }
-    dialog.append(
+    panel.append(
       grid,
       button(
         "Weitere Fahrzeuge & Spuren im Shop →",
@@ -646,7 +710,7 @@
       "MP3 · maximal fünf Sekunden · maximal 500 KB · sechs Slots. Bereits gekaufte Slots kannst du kostenlos neu belegen.",
     );
     if (!A.config.uploads)
-      dialog.append(
+      panel.append(
         el(
           "p",
           "account-warning",
@@ -667,6 +731,16 @@
         ),
       );
       if (owned) {
+        const emojiLabel = el("label", "account-field", "Button-Emoji"),
+          emoji = el("select");
+        for (const value of GiG.soundEmojis) {
+          const option = el("option", "", value);
+          option.value = value;
+          emoji.append(option);
+        }
+        emoji.value = A.profile.sounds[slot]?.emoji || "🎵";
+        emojiLabel.append(emoji);
+        card.append(emojiLabel);
         const upload = el("input");
         upload.type = "file";
         upload.accept = ".mp3,audio/mpeg";
@@ -692,7 +766,9 @@
               "/api/sounds/" +
                 slot +
                 "?name=" +
-                encodeURIComponent(f.name.replace(/\.mp3$/i, "")),
+                encodeURIComponent(f.name.replace(/\.mp3$/i, "")) +
+                "&emoji=" +
+                encodeURIComponent(emoji.value),
               "PUT",
               new Blob([f], { type: "audio/mpeg" }),
             );
@@ -701,17 +777,32 @@
             toast("Sound gespeichert.");
           });
         card.append(upload);
-        if (A.profile.sounds[slot])
+        if (A.profile.sounds[slot]) {
+          card.append(
+            button(
+              "Emoji speichern",
+              () =>
+                attempt(async () => {
+                  const r = await api("/api/sounds/" + slot, "PATCH", {
+                    emoji: emoji.value,
+                  });
+                  await adopt(r.profile);
+                  toast("Sound-Emoji gespeichert.");
+                }),
+              "quiet",
+            ),
+          );
           card.append(
             button("In der Lobby abspielen", () => playSlot(slot), "quiet"),
           );
+        }
       } else
         card.append(
           button("Im Shop freischalten →", () => A.open("shop"), "quiet"),
         );
       grid.append(card);
     }
-    dialog.append(grid);
+    panel.append(grid);
   }
   async function playSlot(slot) {
     Sound.unlock();
@@ -721,10 +812,28 @@
   function paintCustomSounds() {
     const box = $("customSounds");
     box.replaceChildren();
-    if (!A.profile) return;
-    for (let i = 1; i <= 6; i++)
-      if (A.profile.sounds[i])
-        box.append(button("♫ " + A.profile.sounds[i].name, () => playSlot(i)));
+    let count = 0;
+    if (A.profile)
+      for (let i = 1; i <= 6; i++) {
+        const sound = A.profile.sounds[i];
+        if (!sound || !GiG.owns(A.profile, "sound-" + i)) continue;
+        const b = button(sound.emoji || "🎵", () => playSlot(i), "sound-emoji");
+        b.title = sound.name;
+        b.setAttribute("aria-label", sound.name);
+        b.dataset.tooltip = sound.name;
+        box.append(b);
+        count++;
+      }
+    if (!count)
+      box.append(
+        el(
+          "p",
+          "small muted sound-empty",
+          A.profile
+            ? "Sound-Slots mit GiG-Coins freischalten und eigene MP3s hochladen."
+            : "Mit Konto kannst du Sound-Slots im GiG-Shop freischalten.",
+        ),
+      );
   }
   function atelier() {
     heading(
@@ -732,7 +841,7 @@
       "Male deinen eigenen 32 × 32 Avatar oder lade ein quadratisches Pixelbild hoch.",
     );
     if (!GiG.owns(A.profile, "custom-avatar")) {
-      dialog.append(
+      panel.append(
         el(
           "p",
           "muted",
@@ -810,7 +919,7 @@
         toast("Eigenes Pixelbild gespeichert.");
         A.open("profile");
       });
-    dialog.append(
+    panel.append(
       tools,
       paint,
       button(
@@ -835,12 +944,87 @@
       upload,
     );
   }
+  function accountBenefits() {
+    const benefits = el("ul", "account-benefits");
+    for (const text of [
+      "GiG-Coins im Multiplayer",
+      "Pixelprofil & eigene Sounds",
+      "Fortschritt dauerhaft speichern",
+    ])
+      benefits.append(el("li", "", text));
+    panel.append(benefits);
+  }
+  function applySiteTheme(p) {
+    const theme = GiG.siteThemes[p?.siteTheme] || GiG.siteThemes.default;
+    let color = p?.siteTheme === "custom" ? p.siteColor : theme.color;
+    if (!/^#[0-9a-f]{6}$/i.test(color || "")) color = "#202637";
+    if (p?.siteTheme === "custom") {
+      const rgb = [1, 3, 5].map((i) =>
+        Math.round(parseInt(color.slice(i, i + 2), 16) * 0.28 + 12 * 0.72),
+      );
+      color = "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
+    }
+    document.documentElement.style.setProperty("--bg", color);
+    document.documentElement.dataset.siteTheme = p?.siteTheme || "default";
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", color);
+  }
+  function websiteThemes() {
+    panel.append(el("h3", "", "Dein Website-Hintergrund"));
+    const select = itemSelect(
+        A.profile,
+        "siteTheme",
+        "Website-Theme",
+        "site",
+        "default",
+      ),
+      color = field("Eigene Farbe", "color", A.profile.siteColor || "#202637");
+    const preview = el("div", "site-theme-preview");
+    preview.append(
+      el("strong", "", "Deine GiG-Atmosphäre"),
+      el("span", "", "Gilt für deine eigene Ansicht auf allen Geräten."),
+    );
+    const updatePreview = () => {
+      const theme = GiG.siteThemes[select.sel.value];
+      const custom = select.sel.value === "custom";
+      color.wrap.hidden = !custom;
+      preview.style.background = custom
+        ? "color-mix(in srgb, " + color.input.value + " 28%, #0c0c0c)"
+        : theme?.color || "#111316";
+    };
+    select.sel.onchange = updatePreview;
+    color.input.oninput = updatePreview;
+    updatePreview();
+    panel.append(
+      select.wrap,
+      color.wrap,
+      preview,
+      el(
+        "p",
+        "small muted",
+        "Weitere Themes und freie Farbwahl gibt es im GiG-Shop. Eigene Farben werden für gute Lesbarkeit abgedunkelt.",
+      ),
+      button(
+        "Hintergrund speichern",
+        () =>
+          attempt(async () => {
+            await A.save({
+              siteTheme: select.sel.value,
+              siteColor: color.input.value,
+            });
+            toast("Website-Hintergrund gespeichert.");
+          }),
+        "primary",
+      ),
+    );
+  }
   function settings() {
     heading(
       "Dein Konto.",
       "Diese Angaben siehst nur du. Deine E-Mail steht niemals auf deinem öffentlichen Profil.",
     );
-    dialog.append(
+    panel.append(
       el("p", "account-private", A.user.email || ""),
       el(
         "p",
@@ -863,7 +1047,9 @@
             await GiGFirebase.sendPasswordResetEmail(A.auth, A.user.email, {
               url: location.origin,
             });
-            toast("E-Mail zum Zurücksetzen verschickt.");
+            toast(
+              "E-Mail zum Zurücksetzen verschickt. Bitte auch Spam/Junk prüfen.",
+            );
           }),
         "quiet",
       ),
@@ -875,7 +1061,8 @@
     c.checked = A.muteBoards;
     c.onchange = () => setMute(c.checked);
     label.append(c);
-    dialog.append(label);
+    panel.append(label);
+    websiteThemes();
   }
   async function logout() {
     await attempt(async () => {
@@ -885,10 +1072,19 @@
       A.user = null;
       A.profile = null;
       $("name").value = "";
+      applySiteTheme(null);
       paintBar();
       paintCustomSounds();
       A.open("login");
     });
+  }
+  async function refreshAccount() {
+    const user = A.auth?.currentUser || A.user;
+    if (!user) return;
+    await GiGFirebase.reload(user);
+    A.user = A.auth?.currentUser || user;
+    await GiGFirebase.getIdToken(A.user, true);
+    await loadProfile();
   }
   async function loadProfile() {
     if (A.user?.emailVerified) {
@@ -1070,6 +1266,21 @@
   };
   $("loginButton").onclick = () => A.open("login");
   $("registerButton").onclick = () => A.open("register");
+  document.addEventListener("visibilitychange", () => {
+    if (
+      document.visibilityState !== "visible" ||
+      !A.user ||
+      A.user.emailVerified ||
+      busy ||
+      A.registering
+    )
+      return;
+    refreshAccount()
+      .then(() => {
+        if (dialog.open) A.open(A.tab);
+      })
+      .catch(() => {});
+  });
   A.ready = (async () => {
     try {
       A.config = await (await fetch("/api/config")).json();
@@ -1086,7 +1297,8 @@
           GiGFirebase.onAuthStateChanged(A.auth, async (user) => {
             A.user = user;
             try {
-              if (user) await loadProfile();
+              if (A.registering) return;
+              if (user) await refreshAccount();
               else {
                 A.profile = null;
                 paintBar();

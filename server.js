@@ -961,6 +961,7 @@ function createArcade({
           id: socket.id,
           url,
           name: fresh.sounds[slot].name,
+          emoji: fresh.sounds[slot].emoji || "🎵",
         });
         reply(ack, { ok: true });
       } catch (e) {
@@ -1213,20 +1214,7 @@ function createArcade({
     socket.on("reaction", (payload, ack) => {
       const room = getRoom(),
         now = clock(),
-        allowed = [
-          "gg",
-          "bruh",
-          "wow",
-          "cheer",
-          "oops",
-          "heart",
-          "buzzer",
-          "victory",
-          "fail",
-          "drum",
-          "coin",
-          "clap",
-        ];
+        allowed = ["gg", "bruh", "wow", "cheer", "oops", "heart"];
       if (
         !rateLimit() ||
         !room ||
@@ -1236,7 +1224,7 @@ function createArcade({
       )
         return reply(ack, {
           ok: false,
-          error: "Kurz durchatmen: alle 2,2 Sekunden ein Sound.",
+          error: "Kurz durchatmen: alle 2,2 Sekunden eine Reaktion.",
         });
       if (room.round?.game === "dub" && room.phase === "playing")
         return reply(ack, {

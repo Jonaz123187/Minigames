@@ -600,91 +600,12 @@ const REACTIONS = {
   cheer: ["🙌", "Jubel"],
   oops: ["💀", "Uff"],
   heart: ["❤️", "Liebe"],
-  buzzer: ["⊘", "Buzzer"],
-  victory: ["♛", "Fanfare"],
-  fail: ["↘", "Fail"],
-  drum: ["◌", "Trommel"],
-  coin: ["✦", "Coin"],
-  clap: ["👏", "Applaus"],
 };
-async function boardSound(key) {
-  if (window.Account?.muteBoards) return;
-  Sound.unlock();
-  try {
-    if (Sound.ctx?.state !== "running") await Sound.ctx?.resume();
-  } catch {}
-  const tones = {
-    buzzer: [
-      [120, 0.3, 0],
-      [95, 0.25, 0.25],
-    ],
-    victory: [
-      [392, 0.2, 0],
-      [523, 0.2, 0.15],
-      [659, 0.4, 0.3],
-    ],
-    fail: [
-      [330, 0.2, 0],
-      [277, 0.2, 0.17],
-      [220, 0.5, 0.34],
-    ],
-    drum: [
-      [80, 0.06, 0],
-      [85, 0.06, 0.09],
-      [90, 0.06, 0.18],
-      [150, 0.18, 0.3],
-    ],
-    coin: [
-      [880, 0.1, 0],
-      [1320, 0.2, 0.08],
-    ],
-    clap: [
-      [1500, 0.035, 0],
-      [1300, 0.035, 0.08],
-      [1700, 0.035, 0.16],
-    ],
-    bruh: [
-      [180, 0.16, 0],
-      [120, 0.35, 0.12],
-    ],
-    cheer: [
-      [523, 0.15, 0],
-      [659, 0.15, 0.1],
-      [784, 0.25, 0.2],
-    ],
-    oops: [
-      [260, 0.15, 0],
-      [130, 0.3, 0.12],
-    ],
-    wow: [
-      [440, 0.1, 0],
-      [660, 0.2, 0.12],
-    ],
-    gg: [
-      [440, 0.12, 0],
-      [550, 0.2, 0.1],
-    ],
-    heart: [
-      [659, 0.15, 0],
-      [784, 0.25, 0.13],
-    ],
-  };
-  for (const [f, d, t] of tones[key] || tones.gg)
-    Sound.tone(f, d, 0.035, key === "drum" ? "triangle" : "sine", t);
-}
 async function react(key) {
   const r = await rpc("reaction", { key });
   if (!r.ok) toast(r.error || "Reaktion gerade nicht möglich.");
   $("quickMenu").hidden = true;
   $("quickToggle").setAttribute("aria-expanded", "false");
-}
-for (const key of ["buzzer", "victory", "fail", "drum", "coin", "clap"]) {
-  const b = makeButton("", () => react(key));
-  b.append(
-    el("span", "", REACTIONS[key][0]),
-    el("small", "", REACTIONS[key][1]),
-  );
-  $("soundboard").append(b);
 }
 for (const key of ["gg", "bruh", "wow", "cheer", "oops", "heart"]) {
   const b = makeButton("", () => react(key));
@@ -721,7 +642,6 @@ socket.on("reaction", (p) => {
   const person = room?.players.find((x) => x.id === p.id),
     definition = REACTIONS[p.key];
   if (!person || !definition) return;
-  boardSound(p.key);
   const b = el("div", "reaction-bubble");
   b.append(
     el("b", "", definition[0]),
@@ -1222,6 +1142,63 @@ renderers.dub = function () {
 let celebrated = null,
   confetti = [],
   effectStarted = 0;
+function renderPodium(result) {
+  const box = $("podium");
+  box.replaceChildren();
+  box.hidden = !!result.practice;
+  if (result.practice) return;
+  const final = result.partyFinal;
+  const ranked = final
+    ? final.map((p, i) => ({
+        ...p,
+        rank: final.filter((x) => x.points > p.points).length + 1,
+        detail:
+          "5 Spiele · " +
+          (room.party?.results.filter((r) =>
+            r.rows.some((x) => x.id === p.id && x.points === 10),
+          ).length || 0) +
+          " Rundensiege",
+      }))
+    : result.rows;
+  box.setAttribute(
+    "aria-label",
+    final ? "Podium der Party-Gesamtwertung" : "Podium der Runde",
+  );
+  ranked.slice(0, 3).forEach((p, i) => {
+    const card = el(
+      "article",
+      "podium-card podium-position-" +
+        (i + 1) +
+        (p.rank === 1 ? " podium-winner" : ""),
+    );
+    card.setAttribute("aria-label", "Platz " + p.rank + ": " + p.name);
+    const avatar = avatarNode(p.avatar);
+    avatar.classList.add("podium-avatar", "frame-" + (p.frame || "default"));
+    const crown = el("span", "podium-crown", p.rank === 1 ? "♛" : "");
+    crown.setAttribute("aria-hidden", "true");
+    const base = el("div", "podium-base");
+    base.dataset.rank = String(Math.min(3, p.rank));
+    const name = el("strong", "podium-name", p.name);
+    name.title = p.name;
+    base.append(
+      el("span", "podium-rank", "PLATZ " + p.rank),
+      name,
+      el(
+        "b",
+        "podium-points",
+        (final ? "" : "+") + p.points + (final ? " Party-Punkte" : " Punkte"),
+      ),
+      el("span", "podium-detail", p.detail || ""),
+    );
+    if (!final) {
+      const total = room.players.find((x) => x.id === p.id)?.score;
+      if (total !== undefined)
+        base.append(el("small", "muted", "Lobby gesamt: " + total));
+    }
+    card.append(crown, avatar, base);
+    box.append(card);
+  });
+}
 function decorateResults() {
   const r = room.lastResult;
   if (!r) return;
@@ -1230,7 +1207,7 @@ function decorateResults() {
       ? final.filter((p) => p.points === final[0].points)
       : r.rows.filter((p) => p.rank === 1),
     first = winners[0];
-  $("winnerAvatar").innerHTML = r.practice ? "" : avatarSVG(first?.avatar);
+  renderPodium(r);
   $("resultEyebrow").textContent = final
     ? "PARTY-FINALE"
     : room.party

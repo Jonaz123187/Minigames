@@ -113,6 +113,34 @@
     ["ice", "Polar Station", 160],
   ])
     add("theme-" + id, name, "Profil", price);
+  const siteThemes = {
+    default: { name: "GiG Nacht", color: "#111316" },
+    midnight: { name: "Mitternacht", color: "#111b30", price: 160 },
+    forest: { name: "Waldlicht", color: "#122820", price: 160 },
+    plum: { name: "Pflaumenclub", color: "#2c1936", price: 180 },
+    ember: { name: "Abendrot", color: "#351e1c", price: 180 },
+    custom: { name: "Eigene Hintergrundfarbe", color: "#202637", price: 260 },
+  };
+  for (const [id, theme] of Object.entries(siteThemes))
+    if (theme.price) add("site-" + id, theme.name, "Website", theme.price);
+  const soundEmojis = [
+    "🎵",
+    "😂",
+    "💀",
+    "🗿",
+    "🔥",
+    "👏",
+    "🤡",
+    "🦆",
+    "🚀",
+    "💥",
+    "👀",
+    "🎺",
+    "🐸",
+    "😎",
+    "❤️",
+    "🍞",
+  ];
   for (const [id, name] of [
     ["gold", "Goldkante"],
     ["pixel", "Pixelrahmen"],
@@ -256,6 +284,7 @@
     );
     for (let i = 0; i < 5; i++)
       r((i * 7 + 3) % 32, (i * 11 + 2) % 30, 1, 1, "#ffffff20");
+    s += '<g class="avatar-character">';
     // Full-body, hand-layered 32×32 pixel character. Every layer remains combinable.
     r(9, 24, 6, 6, dark);
     r(17, 24, 6, 6, dark);
@@ -445,7 +474,7 @@
         r(23, 2, 3, 2, "#f18d46");
         r(20, 1, 1, 1, dark);
     }
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges" role="img" aria-label="Pixelart-Avatar">${s}</svg>`;
+    return `<svg class="avatar-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges" role="img" aria-label="Pixelart-Avatar">${s}</g></svg>`;
   }
   return {
     items,
@@ -456,6 +485,8 @@
     gate,
     svg,
     colors,
-    version: 4,
+    siteThemes,
+    soundEmojis,
+    version: 5,
   };
 });
