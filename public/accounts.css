@@ -14,6 +14,18 @@
 .account-chip .avatar {
   width: 40px;
   height: 40px;
+  flex: 0 0 40px;
+  aspect-ratio: 1;
+  border-radius: 8px;
+}
+.account-chip {
+  min-width: 0;
+}
+.account-chip > span:not(.avatar) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .coin-button,
 .wallet {
@@ -1018,4 +1030,69 @@
   height: 100%;
   touch-action: none;
   z-index: 0;
+}
+/* Earned rarities and the server-scoped creator award share the pixel profile style. */
+.achievement {
+  gap: 7px;
+  align-items: center;
+}
+.badge-mark {
+  font-size: 18px;
+  line-height: 1;
+}
+.rarity-rare {
+  --award: #8fc9ff;
+}
+.rarity-epic {
+  --award: #c4a2ff;
+}
+.rarity-legendary {
+  --award: #f4cd75;
+}
+.rarity-mythic {
+  --award: #ff99cb;
+}
+.rarity-unique {
+  --award: #adf8df;
+}
+.achievement[class*="rarity-"] {
+  color: var(--award, #c8d3e2);
+  border-color: color-mix(in srgb, var(--award, #c8d3e2) 40%, transparent);
+  background: color-mix(in srgb, var(--award, #c8d3e2) 8%, #18202a);
+}
+.achievement.rarity-unique {
+  background: linear-gradient(120deg, #aef4d91c, #a998ff24, #f4cd751c);
+  border-color: #adf8df99;
+  box-shadow: 0 0 16px #adf8df12;
+}
+.award-collection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  margin: 18px 0 28px;
+}
+.award-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  background: #ffffff04;
+  border: 1px solid color-mix(in srgb, var(--award, #8c9cad) 30%, transparent);
+  border-radius: 12px;
+}
+.award-card .achievement {
+  align-self: flex-start;
+}
+.rarity-label {
+  color: var(--award, #8c9cad);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+.badge-locked {
+  opacity: 0.55;
+}
+.award-card .checkbox-label {
+  margin-top: auto;
+  font-size: 12px;
 }

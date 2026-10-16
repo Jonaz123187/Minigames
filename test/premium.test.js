@@ -337,6 +337,22 @@ test(
     await until(() => a.room.phase === "results");
     assert.equal(a.room.lastResult.rows[0].points, 0);
     assert.equal(a.room.players[0].score, 0);
+    const refreshed = {
+      telephone: "Pixel Relay",
+      faker: "Sketch Suspect",
+      estimate: "Guesswork",
+      onebutton: "One Tap",
+      detective: "Pixel Shift",
+      coop: "Code Crew",
+    };
+    for (const [id, title] of Object.entries(refreshed))
+      assert.equal(a.catalog.find((g) => g.id === id).title, title);
+    for (const id of [...Object.keys(refreshed), "race", "monster"])
+      assert.equal(
+        a.catalog.find((g) => g.id === id).preview,
+        "/previews/covers/" + id + ".webp",
+      );
+
     step(9501);
     await until(() => a.room.phase === "lobby");
     const b = await connect();
@@ -407,6 +423,12 @@ test(
       );
       assert.equal(response.status, 200, id + " preview");
       assert.ok(Number(response.headers.get("content-length")) > 300);
+      if (a.catalog.find((g) => g.id === id).preview.endsWith(".webp")) {
+        assert.match(response.headers.get("content-type"), /image\/webp/);
+        const bytes = Buffer.from(await response.arrayBuffer());
+        assert.equal(bytes.toString("ascii", 0, 4), "RIFF");
+        assert.equal(bytes.toString("ascii", 8, 12), "WEBP");
+      }
     }
     assert.equal((await fetch(url + "/recorder-worklet.js")).status, 200);
   },

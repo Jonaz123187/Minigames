@@ -205,6 +205,101 @@
       achievement,
       description,
     });
+  const badges = [
+    {
+      id: "first-round",
+      name: "Erste Runde",
+      rarity: "common",
+      description: "Eine aktive Multiplayer-Runde abschließen",
+      test: (p) => (p.stats?.rounds || 0) >= 1,
+    },
+    {
+      id: "five-wins",
+      name: "Fünf Siege",
+      rarity: "rare",
+      description: "Fünf Multiplayer-Siege erreichen",
+      test: (p) => (p.stats?.wins || 0) >= 5,
+    },
+    {
+      id: "regular",
+      name: "Stammgast",
+      rarity: "rare",
+      description: "25 Multiplayer-Runden spielen",
+      test: (p) => (p.stats?.rounds || 0) >= 25,
+    },
+    {
+      id: "sketch-star",
+      name: "Zeichen-Star",
+      rarity: "rare",
+      description: "Sketch & Guess gewinnen",
+    },
+    {
+      id: "trail-star",
+      name: "Trail-Champion",
+      rarity: "rare",
+      description: "Monster Trails gewinnen",
+    },
+    {
+      id: "century-club",
+      name: "Hundertfach dabei",
+      rarity: "epic",
+      description: "100 Multiplayer-Runden spielen",
+      test: (p) => (p.stats?.rounds || 0) >= 100,
+    },
+    {
+      id: "arcade-legend",
+      name: "Arcade-Legende",
+      rarity: "legendary",
+      description: "100 Multiplayer-Siege erreichen",
+      test: (p) => (p.stats?.wins || 0) >= 100,
+    },
+    {
+      id: "crew-myth",
+      name: "Mythos der Crew",
+      rarity: "mythic",
+      description: "1.000 Multiplayer-Runden spielen",
+      test: (p) => (p.stats?.rounds || 0) >= 1000,
+    },
+    {
+      id: "gig-origin",
+      name: "GiG-Ursprung",
+      rarity: "unique",
+      description: "Exklusive Auszeichnung für den Ersteller von GiG",
+      ownerOnly: true,
+    },
+  ];
+  function badgesFor(p) {
+    p ||= {};
+    return badges
+      .filter((b) =>
+        b.ownerOnly
+          ? !!p?.owner
+          : !!p?.owner || !!p?.achievements?.includes(b.id) || !!b.test?.(p),
+      )
+      .map((b) => b.id);
+  }
+  for (const [id, name, achievement, description] of [
+    [
+      "legend",
+      "Arcade-Legende",
+      "arcade-legend",
+      "100 Multiplayer-Siege erreichen",
+    ],
+    [
+      "mythic",
+      "Mythos der Crew",
+      "crew-myth",
+      "1.000 Multiplayer-Runden spielen",
+    ],
+  ])
+    add("title-" + id, name, "Erspielbare Titel", null, {
+      achievement,
+      description,
+    });
+  add("title-origin", "GiG-Ursprung", "Ersteller", null, {
+    ownerOnly: true,
+    description: "Exklusiv für das hinterlegte Erstellerkonto",
+  });
   function rewardCoins({ practice, participants, active, duration, rank }) {
     if (
       practice ||
@@ -231,14 +326,17 @@
     background: 0,
   };
   function owns(p, id) {
+    if (
+      items.find((item) => item.id === id)?.ownerOnly ||
+      badges.find((b) => b.id === id)?.ownerOnly
+    )
+      return !!p?.owner;
     return (
       !id ||
       !!p?.owner ||
       p?.owned?.includes(id) ||
-      !!p?.achievements?.includes(id) ||
-      !!p?.achievements?.includes(
-        items.find((item) => item.id === id)?.achievement,
-      )
+      badgesFor(p).includes(id) ||
+      badgesFor(p).includes(items.find((item) => item.id === id)?.achievement)
     );
   }
   function gate(k, v) {
@@ -692,6 +790,8 @@
     rewardCoins,
     siteThemes,
     soundEmojis,
+    badges,
+    badgesFor,
     version: 7,
   };
 });
