@@ -1,6 +1,7 @@
 "use strict";
 // All tasks, secrets, deadlines and scores belong to the server.
 const crypto = require("node:crypto");
+const Sketch = require("./public/sketch-shared");
 const pick = (a) => a[crypto.randomInt(a.length)];
 const shuffle = (a) => {
   a = [...a];
@@ -196,8 +197,8 @@ const faker = {
   input(g, id, v) {
     if (!g.players[id]) return false;
     if (g.phase === "draw" && v.action === "submit" && !g.drawings[id]) {
-      const p = pixels(v.pixels);
-      if (!p || !p.some(Boolean)) return false;
+      const p = v.drawing ? Sketch.validate(v.drawing) : pixels(v.pixels);
+      if (!p || (Array.isArray(p) && !p.some(Boolean))) return false;
       g.drawings[id] = p;
       g.players[id].submitted = true;
       return true;
@@ -231,6 +232,7 @@ const faker = {
       return false;
     if (g.phase === "draw") {
       g.phase = "discuss";
+      g.at = now;
       g.until = now + 18000;
     } else if (g.phase === "discuss") {
       g.phase = "vote";
@@ -262,7 +264,11 @@ const faker = {
           owner: author,
           entries: [
             { kind: "text", author, value: g.topic.word },
-            { kind: "drawing", author, value },
+            {
+              kind: "drawing",
+              author,
+              value: Array.isArray(value) ? value : Sketch.thumbnail(value),
+            },
           ],
         })),
       );
@@ -275,8 +281,15 @@ const faker = {
   view: (g, now, id) => ({
     phase: g.phase,
     turn: g.turn,
+    at: g.at,
     until: g.until,
     players: publicPlayers(g),
+    drawingRevision: Object.entries(g.drawings)
+      .map(
+        ([id, p]) =>
+          id + ":" + (Array.isArray(p) ? p.length : p.strokes.length),
+      )
+      .join("|"),
     category: g.topic.category,
     word:
       g.phase === "reveal" || (g.players[id] && id !== g.faker)
@@ -284,6 +297,7 @@ const faker = {
         : null,
     role: g.players[id] ? (id === g.faker ? "faker" : "artist") : "spectator",
     drawings: g.phase === "draw" ? {} : g.drawings,
+    ownDrawing: g.phase === "draw" ? g.drawings[id] || null : null,
     voted: !!g.votes[id],
     faker: g.phase === "reveal" ? g.faker : null,
     caught: g.phase === "reveal" ? g.caught : null,
@@ -484,9 +498,9 @@ const detective = {
 function buttonTrial(g, now) {
   g.mode = pick(["stop", "wait", "land"]);
   g.target = crypto.randomInt(650, 1351);
-  g.readyAt = now + crypto.randomInt(1200, 3001);
-  g.at = now;
-  g.until = now + 5500;
+  g.at = now + 1200;
+  g.readyAt = g.at + crypto.randomInt(1200, 3001);
+  g.until = g.at + 5500;
   g.phase = "play";
   g.results = {};
   Object.values(g.players).forEach((p) => (p.submitted = false));
@@ -510,6 +524,8 @@ const onebutton = {
     if (
       !g.players[id] ||
       g.phase !== "play" ||
+      now < g.at ||
+      now >= g.until ||
       g.players[id].submitted ||
       v.action !== "hit"
     )

@@ -30,13 +30,17 @@ const active = () =>
   room.round?.pause?.at == null &&
   !room.players.find((p) => p.id === myId)?.sittingOut &&
   room.round?.roster.some((p) => p.id === myId);
-const serverNow = () => {
-  const wall = Date.now() + offset,
-    p = room?.round?.pause;
-  return p && ["countdown", "playing", "ending"].includes(room.phase)
-    ? wall - p.total - (p.at != null ? wall - p.at : 0)
-    : wall;
-};
+// Browser wall-clock changes must never skip a timing target.
+const gameClock = GiGClock.create({
+  monotonic: () => performance.now(),
+  wall: () => Date.now() + offset,
+});
+const serverWallNow = () => gameClock.now();
+function observeClock(wall, transit = 0) {
+  gameClock.observe(wall, transit);
+  offset = serverWallNow() - Date.now();
+}
+const serverNow = () => gameClock.logical(room?.round, room?.phase);
 const roster = () => room?.round?.roster || [];
 const playerName = (p) => p.name + (p.id === myId ? " (du)" : "");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -137,12 +141,12 @@ function network(online) {
 }
 function syncClock() {
   if (!socket.connected) return;
-  const sent = Date.now();
+  const sent = performance.now();
   socket.timeout(2500).emit("clock", {}, (err, value) => {
     if (!err && value) {
-      const received = Date.now(),
+      const received = performance.now(),
         rtt = received - sent,
-        sample = value.now - (sent + received) / 2;
+        sample = value.now - Date.now();
       if (typeof reportPing === "function") reportPing(rtt);
       clockSamples.push({ rtt, offset: sample });
       if (clockSamples.length > 6) clockSamples.shift();
@@ -150,6 +154,7 @@ function syncClock() {
       offset = clockSynced
         ? offset + clamp(best.offset - offset, -30, 30) * 0.4
         : sample;
+      observeClock(value.now, rtt / 2);
       clockSynced = true;
     }
   });
@@ -173,7 +178,10 @@ socket.on("notice", (message) => toast(message));
 socket.on("room", (next) => renderRoom(next));
 socket.on("state", (packet) => {
   if (packet.roundId !== room?.round?.id) return;
-  if (!clockSynced) offset = (packet.wallNow || packet.serverNow) - Date.now();
+  observeClock(
+    packet.wallNow ?? packet.serverNow,
+    clockSamples.length ? Math.min(...clockSamples.map((s) => s.rtt)) / 2 : 0,
+  );
   state = packet.data;
   if (typeof receiveSnapshot === "function") receiveSnapshot(packet);
   if (room.round.game === "typing") {
@@ -192,7 +200,7 @@ function renderRoom(next) {
   const previousPlayers = room?.players?.length || 0;
   room = next;
   if (next.selected) selected = next.selected;
-  if (!clockSynced) offset = next.serverNow - Date.now();
+  observeClock(next.serverNow);
   $("leave").hidden = false;
   if (next.round?.id !== previousRound) {
     state = null;
@@ -919,7 +927,7 @@ function frame(now) {
     if (room.phase === "results")
       $("backCounter").textContent =
         "Zurück in der Lobby in " +
-        Math.max(0, Math.ceil((room.returnAt - time) / 1000)) +
+        Math.max(0, Math.ceil((room.returnAt - serverWallNow()) / 1000)) +
         " Sekunden …";
     if (!$("play").hidden) {
       const viewport =

@@ -377,7 +377,11 @@ function renderPremiumLobby() {
         el("span", "", "·"),
         el("span", "", durationLabel(g)),
         el("span", "", "·"),
-        el("span", "", g.minPlayers === 2 ? "2–8 Spieler" : "Solo & Crew"),
+        el(
+          "span",
+          "",
+          g.minPlayers > 1 ? g.minPlayers + "–8 Spieler" : "Solo & Crew",
+        ),
       );
       copy.append(meta);
       const wishes = el("div", "card-wishes"),

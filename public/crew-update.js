@@ -120,10 +120,7 @@
     if (p.at != null)
       return p.resumeAt != null
         ? "Weiter in " +
-            Math.max(
-              1,
-              Math.ceil((p.resumeAt - (Date.now() + offset)) / 1000),
-            ) +
+            Math.max(1, Math.ceil((p.resumeAt - serverWallNow()) / 1000)) +
             " …"
         : "Spiel pausiert · Alle sind im Menü";
     return `Die Runde läuft weiter · ${n} von ${total} im Menü`;
@@ -331,7 +328,16 @@
   const previousSnapshot = receiveSnapshot;
   receiveSnapshot = function (packet) {
     previousSnapshot(packet);
-    if (newGames.has(room?.round?.game)) paintParty();
+    if (newGames.has(room?.round?.game)) {
+      paintParty();
+      const status = $("partySubmissionCount");
+      if (status)
+        status.textContent =
+          Object.values(state.players).filter((p) => p.submitted).length +
+          " / " +
+          Object.keys(state.players).length +
+          " Zeichnungen abgegeben · Danach seht ihr die Bilder gemeinsam.";
+    }
     if (
       room?.round &&
       (!room.round.roster.some((p) => p.id === myId) ||
@@ -391,21 +397,24 @@
       } else countdown?.remove();
     }
     if (state && newGames.has(room?.round?.game)) {
-      const n = Math.max(0, Math.ceil((state.until - serverNow()) / 1000));
-      $("phaseHelp").textContent =
-        room.round.pause.at != null
-          ? pauseText()
-          : phaseName(state.phase) + " · " + n + " Sekunden";
       const meter = $("timingMeter");
       if (meter) {
         const elapsed = Math.max(0, serverNow() - state.at);
         meter.value = Math.min(2000, elapsed);
+        const hit = $("oneHit");
+        if (hit)
+          hit.disabled =
+            !active() ||
+            serverNow() < state.at ||
+            !!state.players[myId]?.submitted;
         $("timingLabel").textContent =
-          state.mode === "wait"
-            ? state.green
-              ? "JETZT!"
-              : "WARTEN …"
-            : Math.round(elapsed) + " ms";
+          serverNow() < state.at
+            ? "Start in " + Math.ceil((state.at - serverNow()) / 1000) + " …"
+            : state.mode === "wait"
+              ? state.green
+                ? "JETZT!"
+                : "WARTEN …"
+              : Math.round(elapsed) + " ms";
         $("oneHit")?.classList.toggle(
           "signal-green",
           state.mode === "wait" && state.green,
@@ -495,10 +504,138 @@
         "Noch nicht möglich. Prüfe deine Eingabe und die Spielphase.",
         true,
       );
-    } else {
-      uiKey = "";
-      paintParty();
     }
+  }
+  function sketchBoard(drawing) {
+    const c = el("canvas", "suspect-sketch");
+    c.width = GiGSketch.width;
+    c.height = GiGSketch.height;
+    c.setAttribute("aria-label", "Freie Zeichnung");
+    GiGSketch.paint(c.getContext("2d"), drawing);
+    return c;
+  }
+  function freePaintTools(parent) {
+    const drawing = {
+        width: GiGSketch.width,
+        height: GiGSketch.height,
+        strokes: [],
+      },
+      c = sketchBoard(drawing),
+      tools = el("div", "pixel-tools"),
+      notice = el(
+        "p",
+        "small muted",
+        "Zeichne mit Maus oder Finger. Deine Zeichnung bleibt bis zur gemeinsamen Galerie verborgen.",
+      );
+    c.classList.add("suspect-editor");
+    c.setAttribute("aria-label", "Zeichenfläche für Sketch Suspect");
+    c.style.touchAction = "none";
+    let color = 0,
+      size = 8,
+      previous = null,
+      pointer = null;
+    const undo = [];
+    const refresh = () => GiGSketch.paint(c.getContext("2d"), drawing);
+    for (const [i, hex] of GiGSketch.colors.entries()) {
+      const b = makeButton(
+        i === 1 ? "⌫" : "",
+        () => {
+          color = i;
+        },
+        "paint-swatch",
+      );
+      b.style.background = hex;
+      b.title = i === 1 ? "Radierer" : "Farbe " + (i + 1);
+      b.setAttribute("aria-label", b.title);
+      tools.append(b);
+    }
+    const width = el("select");
+    width.setAttribute("aria-label", "Stiftbreite");
+    for (const [value, label] of [
+      [4, "Dünn"],
+      [8, "Mittel"],
+      [16, "Dick"],
+      [24, "Sehr dick"],
+    ]) {
+      const o = el("option", "", label);
+      o.value = value;
+      width.append(o);
+    }
+    width.value = size;
+    width.onchange = () => (size = +width.value);
+    tools.append(
+      width,
+      makeButton(
+        "Rückgängig",
+        () => {
+          const n = undo.pop();
+          if (n != null) {
+            drawing.strokes.length = n;
+            refresh();
+          }
+        },
+        "quiet",
+      ),
+      makeButton(
+        "Leeren",
+        () => {
+          drawing.strokes.length = 0;
+          undo.length = 0;
+          refresh();
+        },
+        "quiet",
+      ),
+    );
+    function point(e) {
+      const r = c.getBoundingClientRect();
+      return [
+        clamp(((e.clientX - r.left) / r.width) * 900, 0, 900),
+        clamp(((e.clientY - r.top) / r.height) * 500, 0, 500),
+      ].map(Math.round);
+    }
+    function line(p) {
+      if (drawing.strokes.length >= GiGSketch.limit) {
+        notice.textContent =
+          "Die Zeichnung ist sehr detailliert. Du kannst sie abgeben oder einen Schritt rückgängig machen.";
+        return;
+      }
+      drawing.strokes.push([...(previous || p), ...p, color, size]);
+      previous = p;
+      refresh();
+    }
+    c.onpointerdown = (e) => {
+      if (!active() || menu.open || pointer != null) return;
+      e.preventDefault();
+      pointer = e.pointerId;
+      c.setPointerCapture?.(pointer);
+      undo.push(drawing.strokes.length);
+      previous = point(e);
+      line(previous);
+    };
+    c.onpointermove = (e) => {
+      if (pointer !== e.pointerId || !active() || menu.open) return;
+      const p = point(e);
+      if (Math.hypot(p[0] - previous[0], p[1] - previous[1]) >= 2) line(p);
+    };
+    const release = (e) => {
+      if (pointer !== e.pointerId) return;
+      if (e.type === "pointerup" && active() && !menu.open) line(point(e));
+      pointer = null;
+      previous = null;
+    };
+    c.onpointerup = c.onpointercancel = c.onlostpointercapture = release;
+    const submit = makeButton(
+      "Zeichnung abgeben",
+      () => {
+        if (!drawing.strokes.length) {
+          notice.textContent = "Zeichne zuerst etwas auf die Fläche.";
+          return;
+        }
+        input({ action: "submit", drawing }, submit);
+      },
+      "primary",
+    );
+    parent.append(tools, c, notice, submit);
   }
   function paintTools(parent) {
     draft = Array(256).fill(0);
@@ -569,7 +706,9 @@
       me = state.players[myId],
       key = [
         room.round.id,
+        room.phase,
         state.phase,
+        state.phase === "draw" ? "" : state.drawingRevision,
         state.index,
         state.turn,
         state.step,
@@ -584,8 +723,11 @@
       el("span", "eyebrow", phaseName(state.phase)),
       el("h2", "", game().title),
     );
-    const can = !!me && !room.players.find((p) => p.id === myId)?.sittingOut;
-    if (!can)
+    const participant =
+      !!me && !room.players.find((p) => p.id === myId)?.sittingOut;
+    const can = participant && room.phase === "playing";
+    if (room.phase === "countdown") return;
+    if (!participant)
       box.append(
         el(
           "p",
@@ -631,13 +773,36 @@
               : "Kategorie: " + state.category,
         ),
       );
-      if (state.phase === "draw" && can && !me.submitted) paintTools(box);
-      else if (state.phase === "draw" && me?.submitted)
+      if (state.phase === "draw" && can && !me.submitted) freePaintTools(box);
+      else if (state.phase === "draw" && me?.submitted) {
         box.append(el("p", "submitted-note", "✓ Zeichnung abgegeben"));
+        if (state.ownDrawing)
+          box.append(
+            Array.isArray(state.ownDrawing)
+              ? board(state.ownDrawing)
+              : sketchBoard(state.ownDrawing),
+          );
+      }
+      if (state.phase === "draw") box.append(el("p", "muted small", ""));
+      if (state.phase === "draw") {
+        const status = el("p", "submission-count");
+        status.id = "partySubmissionCount";
+        box.append(status);
+      }
       const gallery = el("div", "drawing-gallery");
-      for (const [pid, p] of Object.entries(state.drawings || {})) {
+      for (const pid of state.phase === "draw"
+        ? []
+        : Object.keys(state.players)) {
+        const p = state.drawings?.[pid];
         const card = el("article");
-        card.append(el("strong", "", name(pid)), board(p));
+        card.append(
+          el("strong", "", name(pid)),
+          p
+            ? Array.isArray(p)
+              ? board(p)
+              : sketchBoard(p)
+            : el("p", "muted", "Keine Zeichnung abgegeben"),
+        );
         if (can && state.phase === "vote" && pid !== myId && !state.voted)
           card.append(
             makeButton(
