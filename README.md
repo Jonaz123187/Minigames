@@ -15,3 +15,8 @@ https://multiplayergames-gig.onrender.com/
 ## Update v7.2
 
 Garage mit Fahrzeug-Vorschauen und Spuren, neue Karosserien, mehr Platz und Anpassung im Profil, kompakter Teammodus sowie einheitliche Cover für alle 26 Spiele: [Details und Validierung](UPDATE-v7.2.md).
+
+
+## Update v7.3
+
+Lobby- und Profilkorrekturen, sichere Overlay-Bedienung, zuverlässiger Banner-Upload, goldenes Erstellerprofil sowie private Favoriten, Spieleabende und Rückblicke: [Details und Validierung](UPDATE-v7.3.md).

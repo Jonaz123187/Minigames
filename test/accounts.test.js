@@ -253,14 +253,39 @@ test("Profile banners validate and normalize PNGs, belong to the authenticated a
     400,
   );
   const upload = await api(
-    "/api/profile/banner",
+    "/api/profile/banner?position=27",
     "PUT",
     bytes,
     "alice",
     "image/png",
   );
+  assert.equal(upload.data.profile.bannerPosition, 27);
   assert.equal(upload.status, 200);
   assert.ok(upload.data.profile.bannerFile > 0);
+  const indexed = Buffer.from(
+    require("../public/banner-png").encode(
+      new Uint8Array(960 * 480 * 4).fill(190),
+    ),
+  );
+  assert.ok(indexed.length < 480000);
+  const paletteUpload = await api(
+    "/api/profile/banner?position=36",
+    "PUT",
+    indexed,
+    "alice",
+    "image/png",
+  );
+  assert.equal(paletteUpload.status, 200);
+  assert.equal(paletteUpload.data.profile.bannerPosition, 36);
+  assert.equal(
+    PNG.sync.read(media.get("alice/profile-banner.png").b).height,
+    480,
+  );
+  assert.throws(
+    () => require("../public/banner-png").encode(new Uint8Array(8)),
+    /Bannergröße/,
+  );
+
   const stored = media.get("alice/profile-banner.png");
   assert.equal(stored.type.contentType, "image/png");
   assert.equal(PNG.sync.read(stored.b).width, 960);
@@ -457,6 +482,86 @@ const rpc = (s, event, payload) =>
       .timeout(3000)
       .emit(event, payload, (e, r) => (e ? reject(e) : resolve(r))),
   );
+test("Creator maximum is derived only from OWNER_UIDS and favorites remain private", async (t) => {
+  const old = process.env.OWNER_UIDS;
+  process.env.OWNER_UIDS = "owner";
+  t.after(() => {
+    if (old === undefined) delete process.env.OWNER_UIDS;
+    else process.env.OWNER_UIDS = old;
+  });
+  const { api, store } = await setup(t);
+  await api("/api/register", "POST", { username: "Alice" });
+  await api("/api/register", "POST", { username: "Creator" }, "owner");
+  const owner = (await api("/api/me", "GET", undefined, "owner")).data.profile;
+  assert.equal(owner.level, Number.MAX_SAFE_INTEGER);
+  assert.equal(
+    (await api("/api/profiles/owner")).data.profile.level,
+    Number.MAX_SAFE_INTEGER,
+  );
+  assert.equal(store.data.get("gigPlayers/owner").level, undefined);
+  const r = await api("/api/profile", "POST", {
+    owner: true,
+    level: Number.MAX_SAFE_INTEGER,
+    favorites: ["dub", "draw", "dub", "not-a-game"],
+    recap: { improvement: { percent: 9999 } },
+  });
+  assert.equal(r.data.profile.owner, false);
+  assert.equal(r.data.profile.level, 1);
+  assert.deepEqual(r.data.profile.favorites, ["dub", "draw"]);
+  assert.equal(r.data.profile.recap.improvement, null);
+  const view = (await api("/api/profiles/alice")).data.profile;
+  assert.equal(view.favorites, undefined);
+  assert.equal(view.recap, undefined);
+  process.env.OWNER_UIDS = "";
+  assert.equal((await api("/api/profiles/owner")).data.profile.level, 1);
+});
+test("Personal recaps use eligible server rewards, retain each game's closest win and ignore duplicate receipts", async () => {
+  const { createAccounts } = require("../accounts"),
+    store = new Store(),
+    a = createAccounts(require("express")(), { testStore: store });
+  store.data.set("gigPlayers/alice", fresh("alice", "Alice"));
+  const base = {
+    game: "click",
+    rank: 1,
+    active: true,
+    practice: false,
+    participants: 2,
+    duration: 15000,
+    raw: 20,
+    detail: "20 Klicks",
+    margin: 3,
+    marginUnit: "Klicks",
+  };
+  await a.reward("alice", { ...base, roundId: "r1" });
+  await a.reward("alice", {
+    ...base,
+    roundId: "r2",
+    raw: 30,
+    detail: "30 Klicks",
+    margin: 1,
+  });
+  let p = await a.get("alice");
+  assert.equal(p.recap.closeWins.click.margin, 1);
+  assert.equal(p.recap.improvement.percent, 50);
+  assert.equal(p.recap.improvement.after, "30 Klicks");
+  assert.equal(
+    await a.reward("alice", { ...base, roundId: "r2", raw: 9999, margin: 0.1 }),
+    null,
+  );
+  assert.equal(
+    await a.reward("alice", {
+      ...base,
+      roundId: "r3",
+      practice: true,
+      raw: 9999,
+    }),
+    null,
+  );
+  p = await a.get("alice");
+  assert.equal(p.stats.rounds, 2);
+  assert.equal(p.recap.improvement.percent, 50);
+  assert.equal(a.public(p).recap, undefined);
+});
 async function client(base, t, cookie) {
   const s = io(base, {
     transports: ["websocket"],

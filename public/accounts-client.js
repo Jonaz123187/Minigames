@@ -60,10 +60,15 @@
   async function attempt(fn) {
     if (busy) return;
     busy = true;
+    dialog.querySelector(".account-inline-message")?.remove();
     dialog.setAttribute("aria-busy", "true");
     try {
       await fn();
     } catch (e) {
+      const message = el("p", "account-inline-message", errorText(e));
+      message.setAttribute("role", "alert");
+      (panel.isConnected ? panel : dialog).prepend(message);
+      message.scrollIntoView?.({ block: "nearest" });
       toast(errorText(e), true);
     } finally {
       busy = false;
@@ -440,7 +445,12 @@
     return badge;
   }
   function profileCard(p, parent) {
-    const card = el("article", "gig-profile theme-" + (p.theme || "default")),
+    const card = el(
+        "article",
+        "gig-profile theme-" +
+          (p.theme || "default") +
+          (p.owner ? " creator-profile" : ""),
+      ),
       banner = el("div", "profile-banner"),
       hero = el("div", "profile-hero"),
       avatar = avatarNode(p.avatar);
@@ -453,9 +463,9 @@
       el(
         "span",
         "eyebrow",
-        "LEVEL " +
-          (p.level || 1 + Math.floor((p.earned || 0) / 150)) +
-          (p.owner ? " · ERSTELLER" : ""),
+        p.owner
+          ? "♛ LEVEL MAX · ∞"
+          : "LEVEL " + (p.level || 1 + Math.floor((p.earned || 0) / 150)),
       ),
       el("h2", "", p.username),
       el(
@@ -465,6 +475,10 @@
           "Am Start seit " + new Date(p.joinedAt).toLocaleDateString("de-DE"),
       ),
     );
+    if (p.owner)
+      names.append(
+        el("span", "creator-plaque", "GiG Original · Ersteller der Arcade"),
+      );
     if (p.status)
       names.append(
         el("p", "profile-status", (p.statusEmoji || "✨") + " " + p.status),
@@ -562,6 +576,19 @@
       card.append(featured);
     }
     card.append(badges);
+    if (p.owner) {
+      const founder = el("section", "founder-vitrine");
+      founder.append(
+        el("span", "eyebrow", "DIE GRÜNDERVITRINE"),
+        el("h3", "", "♛ Ursprung der Arcade"),
+        el(
+          "p",
+          "small",
+          "GiG-Ursprung · Gründer-Siegel · Schlüssel zur Arcade",
+        ),
+      );
+      card.append(founder);
+    }
     if (p.gallery?.length) {
       const shelf = el("div", "profile-gallery");
       shelf.append(el("h3", "", "Meine Zeichnungen & Geschichten"));
@@ -595,6 +622,236 @@
     }[id];
     return p;
   }
+  function arcadeLibrary() {
+    const p = A.profile,
+      titleFor = (id) => catalog.find((g) => g.id === id)?.title || id;
+    heading(
+      "Deine Arcade.",
+      "Private Favoriten, gespeicherte Spieleabende und dein persönlicher Rückblick.",
+    );
+    const favoriteBox = el("section", "arcade-section");
+    favoriteBox.append(el("h3", "", "Deine Favoriten"));
+    for (const id of p.favorites || [])
+      favoriteBox.append(
+        button(
+          "★ " + titleFor(id),
+          () =>
+            attempt(async () => {
+              await A.save({
+                favorites: (A.profile.favorites || []).filter((x) => x !== id),
+              });
+              A.open("profile");
+            }),
+          "quiet",
+        ),
+      );
+    favoriteBox.append(
+      el(
+        "p",
+        "muted small",
+        "Markiere Spiele mit dem Stern im Spielekatalog. Ein Klick hier entfernt sie aus deiner privaten Liste.",
+      ),
+    );
+    panel.append(favoriteBox);
+    const recap = el("section", "arcade-section");
+    recap.append(el("h3", "", "Dein Rückblick"));
+    const most = Object.entries(p.stats?.games || {}).sort(
+      (a, b) => b[1] - a[1],
+    )[0];
+    recap.append(
+      el(
+        "p",
+        "",
+        most
+          ? "Am häufigsten gespielt: " +
+              titleFor(most[0]) +
+              " · " +
+              most[1] +
+              " Runden"
+          : "Dein Rückblick beginnt mit deiner ersten Multiplayer-Runde.",
+      ),
+    );
+    const best = p.recap?.improvement;
+    recap.append(
+      el(
+        "p",
+        "",
+        best
+          ? "Stärkste persönliche Steigerung: " +
+              titleFor(best.game) +
+              " · " +
+              best.before +
+              " → " +
+              best.after +
+              " (+" +
+              best.percent.toFixed(1) +
+              " % im Spielscore)"
+          : "Deine nächste Verbesserung eines bestehenden Rekords erscheint hier.",
+      ),
+    );
+    const wins = Object.entries(p.recap?.closeWins || {});
+    for (const [id, w] of wins)
+      recap.append(
+        el(
+          "p",
+          "",
+          "Dein knappster Sieg in " +
+            titleFor(id) +
+            ": " +
+            w.margin +
+            " " +
+            w.unit +
+            " Vorsprung",
+        ),
+      );
+    if (!wins.length)
+      recap.append(
+        el(
+          "p",
+          "muted small",
+          "Knappe Siege werden ab diesem Update für passende Punkte-, Klick- und Wortspiele gespeichert.",
+        ),
+      );
+    panel.append(recap);
+    const lists = p.playlists || [],
+      box = el("section", "arcade-section");
+    box.append(el("h3", "", "Gespeicherte Spieleabende"));
+    for (const [i, list] of lists.entries()) {
+      const row = el("article", "saved-playlist");
+      row.append(
+        el("strong", "", list.name),
+        el("p", "small muted", list.games.map(titleFor).join(" → ")),
+        button(
+          "Bearbeiten",
+          () => {
+            A.playlistEditing = i;
+            A.open("profile");
+          },
+          "quiet",
+        ),
+        button(
+          "In der Lobby laden",
+          () =>
+            attempt(async () => {
+              if (!room || room.phase !== "lobby" || room.hostId !== myId)
+                throw new Error(
+                  "Du kannst einen Spieleabend als Host in deiner Lobby laden.",
+                );
+              const r = await rpc("settings", {
+                mode: "party",
+                playlist: list.games,
+              });
+              if (!r.ok)
+                throw new Error(
+                  r.error || "Spieleabend konnte nicht geladen werden.",
+                );
+              dialog.close();
+            }),
+          "quiet",
+        ),
+        button(
+          "Löschen",
+          () =>
+            attempt(async () => {
+              await A.save({ playlists: lists.filter((_, n) => n !== i) });
+              A.playlistEditing = null;
+              A.open("profile");
+            }),
+          "quiet",
+        ),
+      );
+      box.append(row);
+    }
+    const editing =
+        Number.isInteger(A.playlistEditing) && lists[A.playlistEditing]
+          ? A.playlistEditing
+          : null,
+      initial = editing === null ? { name: "", games: [] } : lists[editing],
+      name = field("Name deines Spieleabends", "text", initial.name),
+      grid = el("div", "playlist-edit-games"),
+      selection = new Set(initial.games);
+    name.input.maxLength = 32;
+    box.append(
+      el(
+        "h3",
+        "",
+        editing === null
+          ? "Neuen Spieleabend anlegen"
+          : "Spieleabend bearbeiten",
+      ),
+      name.wrap,
+      el(
+        "p",
+        "small muted",
+        "Ein bis zehn Spiele, bis zu vier gespeicherte Abende. Die Reihenfolge folgt deiner Auswahl.",
+      ),
+    );
+    const summary = el("p", "small");
+    const repaint = () => {
+      summary.textContent =
+        [...selection]
+          .map((id, i) => i + 1 + ". " + titleFor(id))
+          .join(" → ") || "Noch keine Spiele gewählt.";
+    };
+    for (const g of catalog) {
+      const lab = el("label", "checkbox-label"),
+        c = el("input");
+      c.type = "checkbox";
+      c.checked = selection.has(g.id);
+      c.onchange = () => {
+        if (c.checked) {
+          if (selection.size >= 10) {
+            c.checked = false;
+            return;
+          }
+          selection.add(g.id);
+        } else selection.delete(g.id);
+        repaint();
+      };
+      lab.append(c, el("span", "", g.title));
+      grid.append(lab);
+    }
+    box.append(
+      grid,
+      summary,
+      button(
+        "Spieleabend speichern",
+        () =>
+          attempt(async () => {
+            if (!name.input.value.trim() || !selection.size)
+              throw new Error(
+                "Gib einen Namen ein und wähle mindestens ein Spiel.",
+              );
+            if (editing === null && lists.length >= 4)
+              throw new Error(
+                "Du hast vier Spieleabende gespeichert. Bearbeite oder lösche einen vorhandenen Abend.",
+              );
+            const next = [...lists],
+              value = { name: name.input.value, games: [...selection] };
+            if (editing === null) next.push(value);
+            else next[editing] = value;
+            await A.save({ playlists: next });
+            A.playlistEditing = null;
+            A.open("profile");
+            toast("Spieleabend gespeichert.");
+          }),
+        "primary",
+      ),
+    );
+    if (editing !== null)
+      box.append(
+        button(
+          "Neuen Abend anlegen",
+          () => {
+            A.playlistEditing = null;
+            A.open("profile");
+          },
+          "quiet",
+        ),
+      );
+    repaint();
+    panel.append(box);
+  }
   function profileEditor() {
     heading("Dein Profil. Dein Stil.");
     const nav = el("nav", "profile-sections");
@@ -602,6 +859,7 @@
       ["edit", "Profil bearbeiten"],
       ["appearance", "Aussehen"],
       ["shelf", "Vitrine & Sammlung"],
+      ["library", "Meine Arcade"],
     ])
       nav.append(
         button(
@@ -616,19 +874,22 @@
     panel.append(nav);
     if (A.profileSection === "appearance") return appearance();
     if (A.profileSection === "shelf") return collection();
+    if (A.profileSection === "library") return arcadeLibrary();
     profileDetails();
   }
   function profileDetails() {
+    const draft = GiGDrafts.get(A.profile.uid, "profile") || {};
+    const initial = { ...A.profile, ...draft };
     const live = el("div", "profile-live-preview");
-    profileCard(A.profile, live);
+    profileCard(initial, live);
     panel.append(live);
     const fields = el("div", "profile-editor"),
-      bio = field("Über dich · maximal 180 Zeichen", "textarea", A.profile.bio);
+      bio = field("Über dich · maximal 180 Zeichen", "textarea", initial.bio);
     bio.input.maxLength = 180;
     const status = field(
         "Dein Status · maximal 60 Zeichen",
         "text",
-        A.profile.status || "",
+        initial.status || "",
       ),
       emoji = el("select"),
       emojiLabel = el("label", "account-field", "Status-Emoji");
@@ -638,7 +899,7 @@
       o.value = value;
       emoji.append(o);
     }
-    emoji.value = A.profile.statusEmoji || "✨";
+    emoji.value = initial.statusEmoji || "✨";
     emojiLabel.append(emoji);
     fields.append(bio.wrap, status.wrap, emojiLabel);
     const selectors = {};
@@ -648,12 +909,12 @@
         label = field(
           "Link " + (n + 1) + " · Beschriftung",
           "text",
-          A.profile.links?.[n]?.label || "",
+          initial.links?.[n]?.label || "",
         ),
         url = field(
           "Adresse (https://…)",
           "url",
-          A.profile.links?.[n]?.url || "",
+          initial.links?.[n]?.url || "",
         );
       label.input.maxLength = 32;
       url.input.maxLength = 300;
@@ -667,7 +928,7 @@
       o.value = g.id;
       favorite.append(o);
     }
-    favorite.value = A.profile.favorite;
+    favorite.value = initial.favorite;
     const label = el("label", "account-field", "Lieblingsspiel");
     label.append(favorite);
     fields.append(label);
@@ -685,7 +946,7 @@
       o.value = id;
       featured.append(o);
     }
-    featured.value = A.profile.featuredBadge || "";
+    featured.value = initial.featuredBadge || "";
     featuredLabel.append(featured);
     fields.append(featuredLabel);
     const shelf = el("div", "showcase-editor");
@@ -694,7 +955,7 @@
         c = el("input");
       c.type = "checkbox";
       c.value = id;
-      c.checked = A.profile.showcase.includes(id);
+      c.checked = (initial.showcase || []).includes(id);
       lab.append(c, badgeNode(id));
       shelf.append(lab);
     }
@@ -724,6 +985,7 @@
       ),
     });
     const preview = () => {
+      GiGDrafts.set(A.profile.uid, "profile", collect());
       live.replaceChildren();
       profileCard({ ...A.profile, ...collect() }, live);
     };
@@ -739,6 +1001,7 @@
             for (const [k, v] of Object.entries(selectors))
               changes[k] = v.sel.value;
             await A.save(changes);
+            GiGDrafts.clear(A.profile.uid, "profile");
             toast("Profil gespeichert.");
             A.open("profile");
           }),
@@ -869,7 +1132,9 @@
       chosenTrail = A.profile.trail || "none";
     const preview = el("div", "garage-preview"),
       gridCars = el("div", "vehicle-grid");
-    const cards = [];
+    const cards = [],
+      trailCards = [];
+    const trailGrid = el("div", "trail-grid");
     const trail = itemSelect(
       A.profile,
       "trail",
@@ -882,6 +1147,10 @@
       preview.append(el("strong", "", GiGVehicles.names[chosenCar]));
       for (const { b, id } of cards)
         b.setAttribute("aria-pressed", String(chosenCar === id));
+      for (const { b, id, art } of trailCards) {
+        b.setAttribute("aria-pressed", String(chosenTrail === id));
+        art.innerHTML = GiGVehicles.svg(chosenCar, id);
+      }
     }
     for (const [id, name] of Object.entries(GiGVehicles.names)) {
       const unlocked = id === "truck" || GiG.owns(A.profile, "car-" + id);
@@ -912,6 +1181,36 @@
       cards.push({ b, id });
       gridCars.append(b);
     }
+    for (const [id, name] of [
+      ["none", "Keine Spur"],
+      ["gold", "Goldstaub"],
+      ["mint", "Mint-Spur"],
+      ["pink", "Pink-Pixel"],
+    ]) {
+      const b = button(
+          "",
+          () => {
+            chosenTrail = id;
+            trail.sel.value = id;
+            refreshGarage();
+          },
+          "trail-card",
+        ),
+        art = el("span", "trail-art");
+      b.disabled = id !== "none" && !GiG.owns(A.profile, "trail-" + id);
+      art.innerHTML = GiGVehicles.svg(chosenCar, id);
+      b.append(
+        art,
+        el("strong", "", name),
+        el(
+          "small",
+          "muted",
+          b.disabled ? "Im GiG-Shop freischalten" : "Vorschau & Auswahl",
+        ),
+      );
+      trailCards.push({ b, id, art });
+      trailGrid.append(b);
+    }
     trail.sel.onchange = () => {
       chosenTrail = trail.sel.value;
       refreshGarage();
@@ -920,6 +1219,8 @@
       preview,
       el("h3", "", "Dein Fahrzeug"),
       gridCars,
+      el("h3", "", "Deine Fahrzeugspur"),
+      trailGrid,
       trail.wrap,
       el(
         "p",
@@ -1130,97 +1431,157 @@
     return c;
   }
   function bannerEditor(refresh, changes) {
-    const section = el("section", "banner-editor");
+    const section = el("section", "banner-editor"),
+      status = el(
+        "p",
+        "banner-status",
+        "1. Bild auswählen · 2. Ausschnitt einstellen · 3. Banner speichern.",
+      );
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
     section.append(
       el("h3", "", "Dein eigener Profilbanner"),
       el(
         "p",
         "muted small",
-        "Das gespeicherte Banner ist auf deinem öffentlichen Profil sichtbar. Wähle ein Bild und stelle den Ausschnitt ein.",
+        "Dein gespeicherter Banner ist öffentlich auf deinem Profil sichtbar.",
       ),
     );
-    const file = field("Bild auswählen · PNG, JPEG oder WebP", "file"),
+    const file = field("Bild auswählen · PNG, JPEG oder WebP bis 8 MB", "file"),
       range = field(
         "Bildausschnitt · oben / unten",
         "range",
-        A.profile.bannerPosition ?? 50,
+        changes.bannerPosition ?? A.profile.bannerPosition ?? 50,
       );
     file.input.accept = "image/png,image/jpeg,image/webp";
     file.input.disabled = !A.config?.uploads;
     range.input.min = 0;
     range.input.max = 100;
     range.input.step = 1;
-    let selected = null;
+    let selected = null,
+      working = false;
     const crop = el("canvas", "banner-crop-preview");
     crop.width = 960;
     crop.height = 260;
     crop.hidden = true;
-    const save = button(
-      "Banner hochladen",
+    function message(text, error = false) {
+      status.textContent = text;
+      status.classList.toggle("account-warning", error);
+    }
+    async function run(fn) {
+      if (working) return;
+      working = true;
+      section.setAttribute("aria-busy", "true");
+      dialog.setAttribute("aria-busy", "true");
+      save.disabled = true;
+      file.input.disabled = true;
+      try {
+        await fn();
+      } catch (e) {
+        message(errorText(e), true);
+      } finally {
+        working = false;
+        section.removeAttribute("aria-busy");
+        dialog.removeAttribute("aria-busy");
+        save.disabled = !selected;
+        file.input.disabled = !A.config?.uploads;
+      }
+    }
+    function normalized() {
+      const c = el("canvas");
+      c.width = 960;
+      c.height = 480;
+      const x = c.getContext("2d"),
+        scale = Math.max(960 / selected.width, 480 / selected.height),
+        w = selected.width * scale,
+        h = selected.height * scale;
+      x.fillStyle = "#151b26";
+      x.fillRect(0, 0, 960, 480);
+      x.drawImage(selected, (960 - w) / 2, (480 - h) / 2, w, h);
+      return c;
+    }
+    function updateCrop() {
+      if (!selected) return;
+      const x = crop.getContext("2d");
+      x.clearRect(0, 0, 960, 260);
+      x.drawImage(normalized(), 0, -220 * (+range.input.value / 100));
+    }
+    const remove = button(
+      "Eigenes Banner entfernen",
       () =>
-        attempt(async () => {
-          if (!selected) throw new Error("Wähle zuerst ein Bild.");
-          const canvas = el("canvas");
-          canvas.width = 960;
-          canvas.height = 480;
-          const scale = Math.max(960 / selected.width, 480 / selected.height),
-            w = selected.width * scale,
-            h = selected.height * scale;
-          const ctx = canvas.getContext("2d");
-          ctx.fillStyle = "#151b26";
-          ctx.fillRect(0, 0, 960, 480);
-          ctx.drawImage(selected, (960 - w) / 2, (480 - h) / 2, w, h);
-          const blob = await new Promise((resolve) =>
-            canvas.toBlob(resolve, "image/png"),
+        run(async () => {
+          await A.save({ removeBanner: true });
+          changes.bannerFile = 0;
+          refresh();
+          remove.disabled = true;
+          message("Eigenes Banner entfernt.");
+        }),
+      "quiet",
+    );
+    remove.disabled = !A.profile.bannerFile;
+    const save = button(
+      "Banner speichern",
+      () =>
+        run(async () => {
+          message("Bild wird aufbereitet …");
+          const c = normalized(),
+            x = c.getContext("2d");
+          let blob = await new Promise((resolve) =>
+            c.toBlob(resolve, "image/png"),
           );
-          if (!blob || blob.size > 480000)
-            throw new Error(
-              "Das Bild ist zu detailreich. Bitte ein einfacheres Motiv wählen.",
+          if (!blob || blob.size > 420000)
+            blob = new Blob(
+              [GiGBannerPNG.encode(x.getImageData(0, 0, 960, 480).data)],
+              { type: "image/png" },
             );
-          const r = await api("/api/profile/banner", "PUT", blob);
+          if (blob.size > 480000)
+            throw new Error(
+              "Das Bild konnte nicht verkleinert werden. Bitte ein anderes Motiv wählen.",
+            );
+          message("Banner wird hochgeladen …");
+          const r = await api(
+            "/api/profile/banner?position=" + range.input.value,
+            "PUT",
+            blob,
+          );
           await adopt(r.profile);
-          await A.save({ bannerPosition: +range.input.value });
-          toast("Banner gespeichert.");
-          A.profileSection = "appearance";
-          A.open("profile");
+          changes.bannerFile = A.profile.bannerFile;
+          changes.bannerPosition = A.profile.bannerPosition;
+          refresh();
+          remove.disabled = false;
+          message(
+            "✓ Banner gespeichert. Er wird oben in deiner Profilvorschau angezeigt.",
+          );
         }),
       "primary",
     );
     save.disabled = true;
-    function updateCrop() {
-      if (!selected) return;
-      const ctx = crop.getContext("2d"),
-        baseScale = Math.max(960 / selected.width, 480 / selected.height),
-        bw = selected.width * baseScale,
-        bh = selected.height * baseScale;
-      // Preview the exact normalized 960x480 upload, cropped like object-fit:cover in the profile.
-      ctx.fillStyle = "#151b26";
-      ctx.fillRect(0, 0, 960, 260);
-      ctx.drawImage(
-        selected,
-        (960 - bw) / 2,
-        (480 - bh) / 2 - (480 - 260) * (+range.input.value / 100),
-        bw,
-        bh,
-      );
-    }
     file.input.onchange = () =>
-      attempt(async () => {
+      run(async () => {
+        selected = null;
+        crop.hidden = true;
         const f = file.input.files?.[0];
         if (!f) return;
         if (!/^image\/(png|jpeg|webp)$/.test(f.type) || f.size > 8000000)
           throw new Error("Bitte PNG, JPEG oder WebP bis 8 MB auswählen.");
+        message("Bild wird geladen …");
         const url = URL.createObjectURL(f),
           img = new Image();
         try {
-          img.src = url;
-          await img.decode();
-          if (img.width * img.height > 24000000)
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = () =>
+              reject(new Error("Dieses Bild konnte nicht geladen werden."));
+            img.src = url;
+          });
+          if (img.width * img.height > 24000000 || !img.width || !img.height)
             throw new Error("Bitte ein kleineres Bild verwenden.");
           selected = img;
           crop.hidden = false;
-          save.disabled = false;
           updateCrop();
+          message(
+            "Bild bereit. Stelle den Ausschnitt ein und drücke Banner speichern.",
+          );
         } finally {
           URL.revokeObjectURL(url);
         }
@@ -1230,36 +1591,21 @@
       refresh();
       updateCrop();
     };
-    section.append(file.wrap, range.wrap, crop, save);
+    section.append(file.wrap, range.wrap, crop, status, save, remove);
     if (!A.config?.uploads)
-      section.append(
-        el(
-          "p",
-          "muted small",
-          "Bild-Uploads sind derzeit nicht verfügbar. Die eingebauten Banner bleiben auswählbar.",
-        ),
-      );
-    if (A.profile.bannerFile)
-      section.append(
-        button(
-          "Eigenes Banner entfernen",
-          () =>
-            attempt(async () => {
-              await A.save({ removeBanner: true });
-              toast("Eingebauter Banner ausgewählt.");
-              A.open("profile");
-            }),
-          "quiet",
-        ),
+      message(
+        "Bild-Uploads sind derzeit nicht verfügbar. Die eingebauten Banner funktionieren weiter.",
+        true,
       );
     panel.append(section);
   }
   function appearance() {
     const preview = el("div");
     panel.append(preview);
-    const changes = {},
+    const changes = GiGDrafts.get(A.profile.uid, "appearance") || {},
       selectors = {};
     function refresh() {
+      GiGDrafts.set(A.profile.uid, "appearance", changes);
       preview.replaceChildren();
       profileCard({ ...A.profile, ...changes }, preview);
     }
@@ -1273,6 +1619,7 @@
     ]) {
       const s = itemSelect(A.profile, key, label, key, base);
       selectors[key] = s;
+      if (changes[key] != null) s.sel.value = changes[key];
       s.sel.onchange = () => {
         changes[key] = s.sel.value;
         refresh();
@@ -1292,7 +1639,7 @@
       o.value = v;
       banner.append(o);
     }
-    banner.value = A.profile.banner || "pixels";
+    banner.value = changes.banner || A.profile.banner || "pixels";
     banner.onchange = () => {
       changes.banner = banner.value;
       refresh();
@@ -1301,7 +1648,7 @@
     const accent = field(
       "Profil-Akzentfarbe",
       "color",
-      A.profile.accent || "#b5f36a",
+      changes.accent || A.profile.accent || "#b5f36a",
     );
     accent.input.oninput = () => {
       changes.accent = accent.input.value;
@@ -1319,6 +1666,7 @@
               banner: banner.value,
               accent: accent.input.value,
             });
+            GiGDrafts.clear(A.profile.uid, "appearance");
             toast("Aussehen gespeichert.");
           }),
         "primary",
@@ -2282,7 +2630,7 @@
       if (p.uid) {
         const name = row.querySelector(".player-name");
         if (name) {
-          name.classList.add("profile-link");
+          name.classList.add("lobby-profile-link");
           name.tabIndex = 0;
           name.setAttribute("role", "button");
           name.onclick = () => openPublicProfile(p.uid);

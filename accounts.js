@@ -45,6 +45,9 @@ const decorate = (p) => {
     ...p,
     owner,
     achievements,
+    level: owner
+      ? Number.MAX_SAFE_INTEGER
+      : 1 + Math.floor((p.earned || 0) / 150),
     title,
     showcase: (p.showcase || []).filter((id) => achievements.includes(id)),
     featuredBadge: achievements.includes(p.featuredBadge)
@@ -86,7 +89,7 @@ const expose = (p) => {
         stats: p.stats,
         records: p.records || {},
         joinedAt: p.joinedAt,
-        level: 1 + Math.floor((p.earned || 0) / 150),
+        level: p.level,
         owner: ownerOf(p.uid),
       }
     : null;
@@ -122,6 +125,8 @@ const fresh = (uid, username) => ({
   looks: [],
   palettes: [],
   playlists: [],
+  favorites: [],
+  recap: { closeWins: {}, improvement: null },
   animation: null,
   animationSlots: [],
   favorite: "dub",
@@ -537,6 +542,10 @@ function createAccounts(
           "detective",
           "coop",
         ];
+        if (Array.isArray(a.favorites))
+          p.favorites = [
+            ...new Set(a.favorites.filter((id) => ids.includes(id))),
+          ].slice(0, 26);
         if (Array.isArray(a.playlists))
           p.playlists = a.playlists.slice(0, 4).map((l) => ({
             name: clean(l.name, 32) || "Mein Abend",
@@ -713,7 +722,19 @@ function createAccounts(
       } catch {
         throw fail("Ungültige PNG-Datei.");
       }
-      const bytes = PNG.sync.write(png);
+      // Keep the validated palette/compression, strip ancillary metadata.
+      const chunks = [b.subarray(0, 8)];
+      for (let at = 8; at + 12 <= b.length; ) {
+        const length = b.readUInt32BE(at),
+          end = at + 12 + length,
+          type = b.toString("ascii", at + 4, at + 8);
+        if (end > b.length) throw fail("Ungültige PNG-Datei.");
+        if (["IHDR", "PLTE", "tRNS", "IDAT", "IEND"].includes(type))
+          chunks.push(b.subarray(at, end));
+        at = end;
+        if (type === "IEND") break;
+      }
+      const bytes = Buffer.concat(chunks);
       if (bytes.length > 480000)
         throw fail(
           "Das Banner ist zu groß. Bitte ein einfacheres Motiv wählen.",
@@ -721,6 +742,9 @@ function createAccounts(
       await saveMedia(u.uid, "profile-banner.png", bytes, "image/png");
       const profile = await mutate(u.uid, (p) => {
         p.bannerFile = Date.now();
+        const position = Number(req.query.position);
+        if (req.query.position !== undefined && Number.isFinite(position))
+          p.bannerPosition = Math.max(0, Math.min(100, Math.round(position)));
       });
       res.json({ ok: true, profile });
     }),
@@ -993,6 +1017,8 @@ function createAccounts(
       duration,
       raw,
       detail,
+      margin,
+      marginUnit,
     },
   ) {
     const coins = G.rewardCoins({
@@ -1013,6 +1039,37 @@ function createAccounts(
       if (rank === 1) p.stats.wins++;
       p.stats.games[game] = (p.stats.games[game] || 0) + 1;
       p.records ||= {};
+      p.recap ||= { closeWins: {}, improvement: null };
+      p.recap.closeWins ||= {};
+      if (
+        rank === 1 &&
+        Number.isFinite(margin) &&
+        margin > 0 &&
+        ["Klicks", "Wörter", "Punkte"].includes(marginUnit) &&
+        (!p.recap.closeWins[game] || margin < p.recap.closeWins[game].margin)
+      )
+        p.recap.closeWins[game] = { margin, unit: marginUnit, at: Date.now() };
+      const before = p.records[game];
+      if (
+        Number.isFinite(raw) &&
+        before &&
+        raw > before.raw &&
+        before.raw !== 0
+      ) {
+        const percent = ((raw - before.raw) / Math.abs(before.raw)) * 100;
+        if (
+          Number.isFinite(percent) &&
+          (!p.recap.improvement || percent > p.recap.improvement.percent)
+        )
+          p.recap.improvement = {
+            game,
+            before: before.detail,
+            after: clean(detail, 100),
+            percent,
+            at: Date.now(),
+          };
+      }
+
       if (
         Number.isFinite(raw) &&
         (!p.records[game] || raw > p.records[game].raw)
@@ -1039,7 +1096,7 @@ function createAccounts(
       ok: false,
       error:
         err.type === "entity.too.large"
-          ? "Datei ist zu groß. MP3: maximal 500 KB; Pixel-PNG: maximal 20 KB."
+          ? "Datei ist zu groß. Banner: maximal 480 KB; MP3: maximal 500 KB; Pixel-PNG: maximal 20 KB."
           : "Ungültige Anfrage.",
     });
   });

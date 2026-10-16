@@ -1014,6 +1014,17 @@
       }
       playlist.append(choices);
       const saved = read("gig-playlists", []);
+      const playlistName = el("input"),
+        nameLabel = el("label", "account-field", "Name für diesen Spieleabend");
+      playlistName.maxLength = 32;
+      playlistName.placeholder = "Zum Beispiel: Freitag mit der Crew";
+      const draftKey =
+        "gig-playlist-name-" + (Account?.profile?.uid || "guest");
+      playlistName.value = read(draftKey, "");
+      playlistName.oninput = () => store(draftKey, playlistName.value);
+      nameLabel.append(playlistName);
+      playlist.append(nameLabel);
+
       playlist.append(
         makeButton(
           "Zusammenstellung speichern",
@@ -1021,12 +1032,22 @@
             if (!Account?.profile) return Account.open("register");
             if (!current.length)
               return toast("Wähle zuerst Spiele für deine Zusammenstellung.");
+            if (!playlistName.value.trim())
+              return toast("Gib deinem Spieleabend einen Namen.");
+            if ((Account.profile.playlists || []).length >= 4)
+              return toast(
+                "Verwalte deine vier gespeicherten Abende unter Mein Profil → Meine Arcade.",
+              );
             const next = [
-              ...(Account.profile.playlists || []).slice(-3),
-              { name: "Mein Abend " + (saved.length + 1), games: [...current] },
+              ...(Account.profile.playlists || []),
+              { name: playlistName.value.trim(), games: [...current] },
             ];
             Account.save({ playlists: next })
-              .then(() => toast("Playlist gespeichert."))
+              .then(() => {
+                store(draftKey, "");
+                paintLobby();
+                toast("Spieleabend gespeichert.");
+              })
               .catch((e) => toast(e.message, true));
           },
           "quiet",
@@ -1043,6 +1064,16 @@
         playlist.append(b);
       }
     }
+    playlist.append(
+      makeButton(
+        "Gespeicherte Abende verwalten →",
+        () => {
+          Account.profileSection = "library";
+          Account.open(Account.profile ? "profile" : "register");
+        },
+        "quiet",
+      ),
+    );
     teamPanel.replaceChildren();
     teamPanel.append(
       el(
