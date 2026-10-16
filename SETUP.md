@@ -1,6 +1,6 @@
 # MultiplayerGames-GiG · Version 4
 
-Entwickelt von Jonas N. Node.js, Express, Socket.IO und Vanilla JavaScript. 20 Spiele, jetzt mit Firebase-Konten, Pixelart-Profilen, GiG-Coins, privaten Uploads und **GiG Monster Trails**. Alle bisherigen Spiele einschließlich Meme Dub Studio, Sketch & Guess und GiG Grand Prix bleiben erhalten. Grand-Prix-Lenkung: A/← links, D/→ rechts.
+Entwickelt von Jonas N. Node.js, Express, Socket.IO und Vanilla JavaScript. 26 Spiele, jetzt mit Firebase-Konten, Pixelart-Profilen, GiG-Coins, privaten Uploads und **GiG Monster Trails**. Alle bisherigen Spiele einschließlich Meme Dub Studio, Sketch & Guess und GiG Grand Prix bleiben erhalten. Grand-Prix-Lenkung: A/← links, D/→ rechts.
 
 **Wichtig:** Das Update läuft auch ohne Cloud-Zugangsdaten im Gastmodus. Ein sichtbarer Firebase-Web-Konfigurationsblock ist kein Server-Schlüssel und reicht allein nicht zum Speichern. Anmeldung und Uploads werden erst mit den nachfolgenden Schritten verfügbar. Zugangsdaten gehören weder ins Repository noch in Chats.
 

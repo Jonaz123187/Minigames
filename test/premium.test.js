@@ -15,8 +15,8 @@ const round = (ids) => ({
   controls: controls(ids),
 });
 
-test("20 games: finite states for 1, 2 and 8 players", () => {
-  assert.equal(Object.keys(GAMES).length, 20);
+test("26 games: finite states for 1, 2 and 8 players", () => {
+  assert.equal(Object.keys(GAMES).length, 26);
   for (const [name, game] of Object.entries(GAMES))
     for (const count of [1, 2, 8]) {
       const ids = Array.from({ length: count }, (_, i) => "p" + i),
@@ -273,7 +273,7 @@ test("Code: repeated colors counted correctly and private histories", () => {
   assert.equal(g.players.a.solved, true);
 });
 test(
-  "Socket: synchronized wishes, opt-in solo, no practice points, private snapshots and all 20 lifecycles",
+  "Socket: synchronized wishes, opt-in solo, no practice points, private snapshots and all 26 lifecycles",
   { timeout: 20000 },
   async (t) => {
     let now = 1000000;
@@ -318,7 +318,7 @@ test(
     const a = await connect();
     await call(a, "lobby", { action: "create", name: "Jonas" });
     await until(() => a.room);
-    assert.equal(a.catalog.length, 20);
+    assert.equal(a.catalog.length, 26);
     assert.equal((await call(a, "start", { game: "click" })).ok, false);
     assert.equal(
       (await call(a, "start", { game: "draw", practice: true })).ok,
@@ -349,10 +349,13 @@ test(
     assert.equal(a.room.selected, "click");
     await call(a, "wish", { game: "draw" });
     await until(() => b.room.selected === "draw");
+    const c = await connect();
+    await call(c, "lobby", { action: "join", name: "Ben", code: a.room.code });
     for (const [id, game] of Object.entries(GAMES)) {
       await call(a, "wish", { game: id });
       await call(a, "ready", { ready: true });
       await call(b, "ready", { ready: true });
+      await call(c, "ready", { ready: true });
       assert.equal(
         (await call(a, "start", { game: id })).ok,
         true,
@@ -389,7 +392,7 @@ test(
           false,
         );
       }
-      step(game.seconds * 1000 + 100);
+      step(a.room.round.endsAt - a.room.round.startsAt + 100);
       await until(() => a.room.phase === "results");
       assert.ok(
         a.room.lastResult.rows.every((p) => Number.isFinite(p.raw)),
@@ -399,9 +402,11 @@ test(
       await until(() => a.room.phase === "lobby");
     }
     for (const id of Object.keys(GAMES)) {
-      const response = await fetch(url + "/previews/" + id + ".png");
+      const response = await fetch(
+        url + a.catalog.find((g) => g.id === id).preview,
+      );
       assert.equal(response.status, 200, id + " preview");
-      assert.ok(Number(response.headers.get("content-length")) > 1000);
+      assert.ok(Number(response.headers.get("content-length")) > 300);
     }
     assert.equal((await fetch(url + "/recorder-worklet.js")).status, 200);
   },

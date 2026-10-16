@@ -123,6 +123,12 @@
   };
   for (const [id, theme] of Object.entries(siteThemes))
     if (theme.price) add("site-" + id, theme.name, "Website", theme.price);
+  for (const [id, name] of [
+    ["arcade", "Arcade-Nacht"],
+    ["space", "Sternenraum"],
+    ["garden", "Pixelgarten"],
+  ])
+    add("decor-" + id, name, "Lobby", 180);
   const soundEmojis = [
     "🎵",
     "😂",
@@ -257,7 +263,20 @@
     }
     if (a?.custom && owns(p, "custom-avatar") && p?.avatarFile) {
       b.custom = p.uid;
-      b.revision = Number(p.avatarFile) || 1;
+      const slot = (p.animationSlots || []).find(
+        (x) => x.slot === Number(a.slot),
+      );
+      b.revision = Number(slot?.revision || p.avatarFile) || 1;
+      const sequence =
+        slot || (!a.slot && !p.animationSlots?.length ? p.animation : null);
+      if (slot) b.slot = slot.slot;
+      if (sequence)
+        b.sequence = {
+          columns: sequence.columns,
+          idle: sequence.idle,
+          winner: sequence.winner,
+          ms: sequence.ms,
+        };
     }
     return b;
   }
@@ -368,6 +387,15 @@
       "#9466bb",
     ];
   function svg(a = {}, pose = null) {
+    if (a.custom && /^[\w-]{1,128}$/.test(a.custom) && a.sequence) {
+      const n = a.sequence,
+        cols = Math.max(1, Math.min(6, Number(n.columns) || 1)),
+        count = Math.max(1, Math.min(cols, Number(n.idle) || 1)),
+        win = Math.max(1, Math.min(cols, Number(n.winner) || count)),
+        ms = [180, 280, 420].includes(n.ms) ? n.ms : 280;
+      const src = `/api/media/avatar/${a.custom}?v=${Number(a.revision) || 1}&amp;slot=${Number(a.slot) || 0}`;
+      return `<svg class="custom-pixel-animation" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Selbst gezeichneter animierter Avatar"><g class="pixel-sequence-idle"><image href="${src}" width="${cols * 32}" height="64" style="--sequence-steps:${count};--sequence-distance:-${count * 32}px;--sequence-time:${count * ms}ms"/></g><g class="pixel-sequence-cheer"><image href="${src}" y="-32" width="${cols * 32}" height="64" style="--sequence-steps:${win};--sequence-distance:-${win * 32}px;--sequence-time:${win * ms}ms"/></g></svg>`;
+    }
     if (a.custom && /^[\w-]{1,128}$/.test(a.custom))
       return `<img src="/api/media/avatar/${a.custom}?v=${Number(a.revision) || 1}" alt="Eigenes Pixelbild" class="pixel-image"/>`;
     a = { ...defaults, ...a };
@@ -664,6 +692,6 @@
     rewardCoins,
     siteThemes,
     soundEmojis,
-    version: 6,
+    version: 7,
   };
 });

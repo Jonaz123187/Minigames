@@ -415,6 +415,8 @@
       banner = el("div", "profile-banner"),
       hero = el("div", "profile-hero"),
       avatar = avatarNode(p.avatar);
+    card.style.setProperty("--profile-accent", p.accent || "#b5f36a");
+    banner.classList.add("banner-" + (p.banner || "pixels"));
     avatar.classList.add("profile-avatar", "frame-" + (p.frame || "default"));
     hero.append(avatar);
     const names = el("div");
@@ -445,6 +447,19 @@
         p.bio || "Noch keine Beschreibung. Dafür bereit für die nächste Runde.",
       ),
     );
+    const links = el("div", "profile-links");
+    for (const link of p.links || []) {
+      try {
+        const url = new URL(link.url);
+        if (!["https:", "http:"].includes(url.protocol)) continue;
+        const a = el("a", "profile-link", link.label || url.hostname);
+        a.href = url.href;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer ugc";
+        links.append(a);
+      } catch {}
+    }
+    card.append(links);
     const stats = el("div", "profile-stats");
     for (const [n, v] of [
       ["Runden", p.stats?.rounds || 0],
@@ -498,6 +513,20 @@
         ),
       );
     card.append(badges);
+    if (p.gallery?.length) {
+      const shelf = el("div", "profile-gallery");
+      shelf.append(el("h3", "", "Meine Zeichnungen & Geschichten"));
+      for (const c of p.gallery.slice(0, 3)) {
+        const block = el("article");
+        block.append(el("strong", "", c.name));
+        const first = c.entries?.find((e) => e.kind === "drawing");
+        if (first) block.append(galleryCanvas(first.value));
+        const sentence = c.entries?.find((e) => e.kind === "text");
+        if (sentence) block.append(el("p", "", sentence.value));
+        shelf.append(block);
+      }
+      card.append(shelf);
+    }
     parent.append(card);
   }
   function petNode(id) {
@@ -519,22 +548,52 @@
   }
   function profileEditor() {
     heading("Dein Profil. Dein Stil.");
+    const nav = el("nav", "profile-sections");
+    for (const [key, label] of [
+      ["edit", "Profil bearbeiten"],
+      ["appearance", "Aussehen"],
+      ["shelf", "Vitrine & Sammlung"],
+    ])
+      nav.append(
+        button(
+          label,
+          () => {
+            A.profileSection = key;
+            A.open("profile");
+          },
+          (A.profileSection || "edit") === key ? "active" : "quiet",
+        ),
+      );
+    panel.append(nav);
+    if (A.profileSection === "appearance") return appearance();
+    if (A.profileSection === "shelf") return collection();
+    profileDetails();
+  }
+  function profileDetails() {
     profileCard(A.profile, panel);
     const fields = el("div", "profile-editor"),
       bio = field("Über dich · maximal 180 Zeichen", "textarea", A.profile.bio);
     bio.input.maxLength = 180;
     fields.append(bio.wrap);
     const selectors = {};
-    for (const [key, label, base] of [
-      ["theme", "Profil-Thema", "default"],
-      ["frame", "Avatarrahmen", "default"],
-      ["pet", "Begleiter", "none"],
-      ["title", "Titel", "none"],
-      ["effect", "Siegereffekt", "default"],
-      ["trail", "Fahrzeugspur", "none"],
-    ]) {
-      selectors[key] = itemSelect(A.profile, key, label, key, base);
-      fields.append(selectors[key].wrap);
+    const linkFields = [];
+    for (let n = 0; n < 3; n++) {
+      const row = el("div", "profile-link-editor"),
+        label = field(
+          "Link " + (n + 1) + " · Beschriftung",
+          "text",
+          A.profile.links?.[n]?.label || "",
+        ),
+        url = field(
+          "Adresse (https://…)",
+          "url",
+          A.profile.links?.[n]?.url || "",
+        );
+      label.input.maxLength = 32;
+      url.input.maxLength = 300;
+      row.append(label.wrap, url.wrap);
+      fields.append(row);
+      linkFields.push({ label, url });
     }
     const favorite = el("select");
     for (const g of catalog) {
@@ -574,6 +633,12 @@
           attempt(async () => {
             const changes = {
               bio: bio.input.value,
+              links: linkFields
+                .filter((l) => l.url.input.value)
+                .map((l) => ({
+                  label: l.label.input.value,
+                  url: l.url.input.value,
+                })),
               favorite: favorite.value,
               showcase: [...shelf.querySelectorAll("input:checked")].map(
                 (c) => c.value,
@@ -679,7 +744,10 @@
           card.append(
             button(
               "In Einstellungen auswählen →",
-              () => A.open("settings"),
+              () => {
+                A.profileSection = "appearance";
+                A.open("profile");
+              },
               "quiet",
             ),
           );
@@ -879,53 +947,442 @@
         ),
       );
   }
+  function galleryCanvas(values) {
+    const c = el("canvas", "saved-pixel-drawing");
+    c.width = c.height = 160;
+    const ctx = c.getContext("2d"),
+      colors = [
+        "#18212d",
+        "#f5f0df",
+        "#b5f36a",
+        "#aa97ff",
+        "#ffb56b",
+        "#72d9ff",
+        "#ff82ad",
+        "#f3d76b",
+        "#529879",
+        "#b16666",
+        "#725680",
+        "#91a3b9",
+      ];
+    values.forEach((n, i) => {
+      if (n) {
+        ctx.fillStyle = colors[n] || colors[1];
+        ctx.fillRect((i % 16) * 10, Math.floor(i / 16) * 10, 10, 10);
+      }
+    });
+    return c;
+  }
+  function appearance() {
+    const preview = el("div");
+    panel.append(preview);
+    const changes = {},
+      selectors = {};
+    function refresh() {
+      preview.replaceChildren();
+      profileCard({ ...A.profile, ...changes }, preview);
+    }
+    for (const [key, label, base] of [
+      ["theme", "Profil-Thema", "default"],
+      ["frame", "Avatarrahmen", "default"],
+      ["pet", "Begleiter", "none"],
+      ["title", "Titel", "none"],
+      ["effect", "Siegereffekt", "default"],
+      ["trail", "Fahrzeugspur", "none"],
+    ]) {
+      const s = itemSelect(A.profile, key, label, key, base);
+      selectors[key] = s;
+      s.sel.onchange = () => {
+        changes[key] = s.sel.value;
+        refresh();
+      };
+      panel.append(s.wrap);
+    }
+    const banner = el("select"),
+      label = el("label", "account-field", "Profilbanner");
+    for (const [v, t] of [
+      ["pixels", "Pixelmuster"],
+      ["stripes", "Streifen"],
+      ["stars", "Sterne"],
+      ["sunset", "Sonnenuntergang"],
+      ["plain", "Einfarbig"],
+    ]) {
+      const o = el("option", "", t);
+      o.value = v;
+      banner.append(o);
+    }
+    banner.value = A.profile.banner || "pixels";
+    banner.onchange = () => {
+      changes.banner = banner.value;
+      refresh();
+    };
+    label.append(banner);
+    const accent = field(
+      "Profil-Akzentfarbe",
+      "color",
+      A.profile.accent || "#b5f36a",
+    );
+    accent.input.oninput = () => {
+      changes.accent = accent.input.value;
+      refresh();
+    };
+    panel.append(
+      label,
+      accent.wrap,
+      button(
+        "Aussehen speichern",
+        () =>
+          attempt(async () => {
+            await A.save({
+              ...changes,
+              banner: banner.value,
+              accent: accent.input.value,
+            });
+            toast("Aussehen gespeichert.");
+          }),
+        "primary",
+      ),
+    );
+    refresh();
+    websiteThemes();
+    panel.append(
+      el("h3", "", "Gespeicherte Looks"),
+      button(
+        "Aktuellen Look als weiteren Platz speichern",
+        () =>
+          attempt(async () => {
+            await A.save({
+              looks: [
+                ...(A.profile.looks || []).slice(-7),
+                {
+                  name: "Look " + ((A.profile.looks?.length || 0) + 1),
+                  avatar: A.profile.avatar,
+                },
+              ],
+            });
+            A.open("profile");
+          }),
+        "quiet",
+      ),
+    );
+    for (const [i, l] of (A.profile.looks || []).entries()) {
+      const row = el("div", "saved-look");
+      row.append(
+        avatarNode(l.avatar),
+        button(l.name, () =>
+          attempt(async () => {
+            await A.save({ avatar: l.avatar });
+            A.open("profile");
+          }),
+        ),
+        button(
+          "Entfernen",
+          () =>
+            attempt(async () => {
+              await A.save({
+                looks: A.profile.looks.filter((_, n) => n !== i),
+              });
+              A.open("profile");
+            }),
+          "quiet",
+        ),
+      );
+      panel.append(row);
+    }
+  }
+  function collection() {
+    panel.append(
+      el(
+        "p",
+        "muted",
+        "Speichere Zeichnungen und Flüsterpost-Geschichten am Endscreen. Bis zu fünf Sammlungsplätze; bis zu drei davon kannst du in deiner öffentlichen Vitrine zeigen.",
+      ),
+    );
+    for (const [i, c] of (A.profile.gallery || []).entries()) {
+      const card = el("article", "collection-card");
+      card.append(el("h3", "", c.name));
+      for (const e of c.entries || [])
+        card.append(
+          e.kind === "drawing" ? galleryCanvas(e.value) : el("p", "", e.value),
+        );
+      const check = el("input"),
+        lab = el("label", "checkbox-label");
+      check.type = "checkbox";
+      check.checked = (A.profile.galleryPublic || []).includes(i);
+      check.onchange = () =>
+        attempt(async () => {
+          const shown = new Set(A.profile.galleryPublic || []);
+          if (check.checked) shown.add(i);
+          else shown.delete(i);
+          await A.save({ galleryPublic: [...shown].slice(0, 3) });
+        });
+      lab.append(check, el("span", "", "Auf meinem Profil zeigen"));
+      card.append(
+        lab,
+        button(
+          "Aus Sammlung entfernen",
+          () =>
+            attempt(async () => {
+              await A.save({
+                gallery: A.profile.gallery.filter((_, n) => n !== i),
+                galleryPublic: [],
+              });
+              A.open("profile");
+            }),
+          "quiet",
+        ),
+      );
+      panel.append(card);
+    }
+  }
+  A.saveGallery = (chain) =>
+    attempt(async () => {
+      await A.save({
+        gallery: [
+          ...(A.profile.gallery || []).slice(-4),
+          {
+            name:
+              (room?.lastResult?.title || "Meine Zeichnung") +
+              " · " +
+              new Date().toLocaleDateString("de-DE"),
+            entries: chain.entries,
+          },
+        ],
+        galleryPublic: [],
+      });
+      toast("In deiner privaten Sammlung gespeichert.");
+    });
   function atelier() {
     heading(
-      "Das Pixelatelier.",
-      "Male deinen eigenen 32 × 32 Avatar oder lade ein quadratisches Pixelbild hoch.",
+      "Dein Pixelatelier.",
+      "Ein Bild oder eine Animation aus bis zu vier Bildern. Eine eigene Siegeranimation ist optional. Hochgeladene Bilder bleiben statisch.",
     );
     if (!GiG.owns(A.profile, "custom-avatar")) {
       panel.append(
-        el(
-          "p",
-          "muted",
-          "Schalte das Pixelatelier für 400 GiG-Coins frei. Es enthält Editor und Bild-Uploads.",
-        ),
+        el("p", "muted", "Pixelatelier mit GiG-Coins freischalten."),
         button("Zum GiG-Shop →", () => A.open("shop"), "primary"),
       );
       return;
     }
-    const tools = el("div", "pixel-tools"),
-      paint = document.createElement("canvas");
-    paint.width = paint.height = 32;
-    paint.className = "pixel-editor";
-    paint.style.touchAction = "none";
-    const context = paint.getContext("2d"),
+    const chosenSlot = A.atelierSlot || A.profile.avatar?.slot || 1;
+    const slotSelector = el("select"),
+      slotLabel = el("label", "account-field", "Deine Animationsplätze");
+    for (let n = 1; n <= 3; n++) {
+      const o = el(
+        "option",
+        "",
+        "Animation " +
+          n +
+          ((A.profile.animationSlots || []).some((s) => s.slot === n)
+            ? " · gespeichert"
+            : " · frei"),
+      );
+      o.value = n;
+      slotSelector.append(o);
+    }
+    slotSelector.value = chosenSlot;
+    slotSelector.onchange = () =>
+      attempt(async () => {
+        A.atelierSlot = +slotSelector.value;
+        const r = await api("/api/avatar/animation/" + A.atelierSlot);
+        A.atelierData = r.animation;
+        A.atelierDataSlot = A.atelierSlot;
+        A.open("atelier");
+      });
+    slotLabel.append(slotSelector);
+    panel.append(slotLabel);
+    if ((A.profile.animationSlots || []).some((s) => s.slot === chosenSlot))
+      panel.append(
+        button(
+          "Diesen Animationsplatz als Avatar verwenden",
+          () =>
+            attempt(async () => {
+              await A.save({
+                avatar: {
+                  ...A.profile.avatar,
+                  custom: A.profile.uid,
+                  slot: chosenSlot,
+                },
+              });
+              toast("Animationsplatz ausgewählt.");
+            }),
+          "quiet",
+        ),
+      );
+    if (
+      A.atelierDataSlot !== chosenSlot &&
+      A.profile.animation?.slot !== chosenSlot &&
+      (A.profile.animationSlots || []).some((s) => s.slot === chosenSlot)
+    ) {
+      panel.append(el("p", "muted", "Animationsplatz wird geladen …"));
+      api("/api/avatar/animation/" + chosenSlot)
+        .then((r) => {
+          A.atelierData = r.animation;
+          A.atelierDataSlot = chosenSlot;
+          if (A.tab === "atelier") A.open("atelier");
+        })
+        .catch((e) => toast(e.message, true));
+      return;
+    }
+    const data =
+        A.atelierDataSlot === chosenSlot
+          ? A.atelierData
+          : chosenSlot === A.profile.animation?.slot
+            ? A.profile.animation
+            : null,
+      decode = (raw) => {
+        const b = atob(raw),
+          a = new Uint8ClampedArray(4096);
+        for (let i = 0; i < a.length; i++) a[i] = b.charCodeAt(i);
+        return a;
+      };
+    const frames = {
+      idle: data?.frames?.map(decode) || [new Uint8ClampedArray(4096)],
+      cheer: data?.cheer?.map(decode) || [],
+    };
+    let set = "idle",
+      index = 0,
+      down = false,
+      eraser = false,
+      onion = true;
+    const paint = el("canvas", "pixel-editor"),
+      preview = el("canvas", "animation-preview"),
+      onionCanvas = el("canvas", "onion-canvas");
+    paint.width =
+      paint.height =
+      preview.width =
+      preview.height =
+      onionCanvas.width =
+      onionCanvas.height =
+        32;
+    const canvasWrap = el("div", "animation-canvas-wrap"),
+      tools = el("div", "pixel-tools"),
+      strip = el("div", "animation-frames"),
+      ctx = paint.getContext("2d"),
+      prev = preview.getContext("2d"),
+      ghost = onionCanvas.getContext("2d"),
       color = el("input");
     color.type = "color";
-    color.value = "#b5f36a";
+    color.value = A.profile.palettes?.[0]?.[0] || "#b5f36a";
     color.setAttribute("aria-label", "Pixelfarbe");
-    let eraser = false,
-      down = false;
+    canvasWrap.append(onionCanvas, paint);
+    paint.style.touchAction = "none";
+    const speed = el("select");
+    speed.setAttribute("aria-label", "Animationsgeschwindigkeit");
+    for (const [v, t] of [
+      [420, "Gemütlich"],
+      [280, "Normal"],
+      [180, "Schnell"],
+    ]) {
+      const o = el("option", "", t);
+      o.value = v;
+      speed.append(o);
+    }
+    speed.value = data?.ms || 280;
+    const ping = el("input"),
+      pingLabel = el("label", "checkbox-label"),
+      ghostCheck = el("input"),
+      ghostLabel = el("label", "checkbox-label");
+    ping.type = ghostCheck.type = "checkbox";
+    ping.checked = !!data?.pingpong;
+    ghostCheck.checked = true;
+    pingLabel.append(ping, el("span", "", "Vor und zurück"));
+    ghostLabel.append(
+      ghostCheck,
+      el("span", "", "Vorheriges Bild durchscheinen lassen"),
+    );
+    ghostCheck.onchange = () => {
+      onion = ghostCheck.checked;
+      redraw();
+    };
+    function save() {
+      if (frames[set].length)
+        frames[set][index] = new Uint8ClampedArray(
+          ctx.getImageData(0, 0, 32, 32).data,
+        );
+    }
+    function redraw() {
+      ctx.clearRect(0, 0, 32, 32);
+      if (frames[set][index])
+        ctx.putImageData(new ImageData(frames[set][index], 32, 32), 0, 0);
+      ghost.clearRect(0, 0, 32, 32);
+      if (onion && index > 0)
+        ghost.putImageData(new ImageData(frames[set][index - 1], 32, 32), 0, 0);
+      strip.replaceChildren();
+      frames[set].forEach((f, i) => {
+        const b = button(
+          "Bild " + (i + 1),
+          () => {
+            save();
+            index = i;
+            redraw();
+          },
+          i === index ? "active" : "quiet",
+        );
+        const thumb = el("canvas");
+        thumb.width = thumb.height = 32;
+        thumb.getContext("2d").putImageData(new ImageData(f, 32, 32), 0, 0);
+        b.prepend(thumb);
+        strip.append(b);
+      });
+    }
     tools.append(
       color,
-      button("Stift", () => {
-        eraser = false;
+      button("Stift", () => (eraser = false)),
+      button("Radierer", () => (eraser = true)),
+      button("Bild leeren", () => {
+        ctx.clearRect(0, 0, 32, 32);
+        save();
       }),
-      button("Radierer", () => {
-        eraser = true;
+      button("Bild duplizieren", () => {
+        save();
+        if (frames[set].length >= 4)
+          return toast("Maximal vier Bilder pro Animation.");
+        frames[set].splice(
+          index + 1,
+          0,
+          new Uint8ClampedArray(frames[set][index] || 4096),
+        );
+        index++;
+        redraw();
       }),
-      button("Leeren", () => context.clearRect(0, 0, 32, 32)),
+      button("Bild entfernen", () => {
+        if (set === "idle" && frames[set].length === 1) return;
+        frames[set].splice(index, 1);
+        index = Math.max(0, index - 1);
+        redraw();
+      }),
     );
+    const modes = el("div", "profile-sections");
+    for (const [v, t] of [
+      ["idle", "Normale Animation"],
+      ["cheer", "Siegeranimation"],
+    ])
+      modes.append(
+        button(
+          t,
+          () => {
+            save();
+            set = v;
+            index = 0;
+            if (!frames[set].length)
+              frames[set].push(new Uint8ClampedArray(frames.idle[0]));
+            redraw();
+          },
+          "quiet",
+        ),
+      );
     const draw = (e) => {
       const r = paint.getBoundingClientRect(),
         x = Math.floor(((e.clientX - r.left) / r.width) * 32),
         y = Math.floor(((e.clientY - r.top) / r.height) * 32);
-      if (eraser) context.clearRect(x, y, 1, 1);
+      if (x < 0 || x >= 32 || y < 0 || y >= 32) return;
+      if (eraser) ctx.clearRect(x, y, 1, 1);
       else {
-        context.fillStyle = color.value;
-        context.fillRect(x, y, 1, 1);
+        ctx.fillStyle = color.value;
+        ctx.fillRect(x, y, 1, 1);
       }
+      save();
     };
     paint.onpointerdown = (e) => {
       e.preventDefault();
@@ -939,54 +1396,122 @@
     paint.onpointerup =
       paint.onpointercancel =
       paint.onlostpointercapture =
+        () => (down = false);
+    const palettes = el("div", "pixel-tools");
+    for (const c of A.profile.palettes?.[0] || []) {
+      const b = button("", () => (color.value = c), "paint-swatch");
+      b.style.background = c;
+      b.setAttribute("aria-label", c);
+      palettes.append(b);
+    }
+    palettes.append(
+      button(
+        "Farbe in Palette speichern",
+        () =>
+          attempt(async () => {
+            const p = [
+              ...new Set([...(A.profile.palettes?.[0] || []), color.value]),
+            ].slice(-12);
+            await A.save({
+              palettes: [p, ...(A.profile.palettes || []).slice(1, 4)],
+            });
+            toast("Farbe gespeichert.");
+          }),
+        "quiet",
+      ),
+    );
+    function encode(a) {
+      let s = "";
+      for (const n of a) s += String.fromCharCode(n);
+      return btoa(s);
+    }
+    panel.append(
+      modes,
+      tools,
+      palettes,
+      strip,
+      canvasWrap,
+      el("p", "eyebrow", "Live-Vorschau"),
+      preview,
+      speed,
+      pingLabel,
+      ghostLabel,
+      button(
+        "Avatar & Animation speichern",
+        () =>
+          attempt(async () => {
+            save();
+            const r = await api("/api/avatar/animation", "PUT", {
+              slot: chosenSlot,
+              frames: frames.idle.map(encode),
+              cheer: frames.cheer.map(encode),
+              ms: +speed.value,
+              pingpong: ping.checked,
+            });
+            await adopt(r.profile);
+            A.atelierData = r.profile.animation;
+            A.atelierDataSlot = chosenSlot;
+            toast("Dein selbst animierter Avatar ist gespeichert.");
+          }),
+        "primary",
+      ),
+      button(
+        "Siegeranimation entfernen",
         () => {
-          down = false;
-        };
+          frames.cheer = [];
+          if (set === "cheer") {
+            set = "idle";
+            index = 0;
+          }
+          redraw();
+        },
+        "quiet",
+      ),
+    );
     const upload = el("input");
     upload.type = "file";
     upload.accept = "image/png";
-    upload.setAttribute("aria-label", "Eigenes Pixelbild als PNG");
+    upload.setAttribute("aria-label", "Statisches Pixelbild hochladen");
     upload.onchange = () =>
       attempt(async () => {
         const f = upload.files[0];
         if (!f) return;
         if (f.size > 20000)
-          throw new Error(
-            "Maximal 20 KB. Bitte ein quadratisches PNG mit 16 bis 64 Pixeln auswählen.",
-          );
+          throw new Error("Maximal 20 KB · PNG mit 16 bis 64 Pixeln.");
         const r = await api(
           "/api/avatar",
           "PUT",
           new Blob([f], { type: "image/png" }),
         );
         await adopt(r.profile);
-        toast("Eigenes Pixelbild gespeichert.");
+        toast("Statisches Profilbild gespeichert.");
         A.open("profile");
       });
     panel.append(
-      tools,
-      paint,
-      button(
-        "Gemalten Avatar speichern",
-        () =>
-          attempt(async () => {
-            const blob = await new Promise((resolve) =>
-              paint.toBlob(resolve, "image/png"),
-            );
-            const r = await api("/api/avatar", "PUT", blob);
-            await adopt(r.profile);
-            toast("Dein Pixelbild ist jetzt dein Avatar.");
-            A.open("profile");
-          }),
-        "primary",
-      ),
       el(
         "p",
         "small muted",
-        "Oder eigenes PNG hochladen: quadratisch, 16 bis 64 Pixel, maximal 20 KB.",
+        "Oder ein statisches PNG hochladen: quadratisch, 16–64 Pixel, maximal 20 KB.",
       ),
       upload,
     );
+    redraw();
+    function animate(now) {
+      if (!preview.isConnected) return;
+      const list = frames[set].length ? frames[set] : frames.idle;
+      const order =
+        ping.checked && list.length > 2
+          ? [...list, ...list.slice(1, -1).reverse()]
+          : list;
+      const frame =
+        order[
+          reducedMotion ? 0 : Math.floor(now / +speed.value) % order.length
+        ];
+      prev.clearRect(0, 0, 32, 32);
+      if (frame) prev.putImageData(new ImageData(frame, 32, 32), 0, 0);
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
   }
   function accountPreview() {
     const preview = el("div", "account-preview");
@@ -1135,7 +1660,6 @@
     c.onchange = () => setMute(c.checked);
     label.append(c);
     panel.append(label);
-    websiteThemes();
   }
   async function logout() {
     await attempt(async () => {
@@ -1329,6 +1853,35 @@
       );
       box.append(row);
     });
+    const best = profiles
+      .filter((p) => Number.isFinite(p.records?.[next.selected]?.raw))
+      .sort(
+        (a, b) => b.records[next.selected].raw - a.records[next.selected].raw,
+      );
+    if (best.length)
+      box.append(
+        el(
+          "h3",
+          "crew-best-title",
+          "Crew-Rekord · " +
+            (catalog.find((g) => g.id === next.selected)?.title ||
+              next.selected),
+        ),
+        el(
+          "p",
+          "crew-best",
+          best
+            .filter(
+              (p) =>
+                p.records[next.selected].raw ===
+                best[0].records[next.selected].raw,
+            )
+            .map((p) => p.username)
+            .join(" & ") +
+            " · " +
+            best[0].records[next.selected].detail,
+        ),
+      );
     if (!profiles.length)
       box.append(
         el(
@@ -1460,12 +2013,23 @@
     Sound.unlock();
     currentBoard?.pause();
     currentBoard = new Audio(packet.url);
-    currentBoard.volume = 0.55;
+    currentBoard.dataset.player = packet.id;
+    currentBoard.volume =
+      0.55 *
+      (window.GiGAudio?.board ?? 1) *
+      (window.GiGAudio?.forPlayer(packet.id) ?? 1);
     currentBoard
       .play()
       .catch(() => toast("Tippe einmal auf die Seite, um Sound freizugeben."));
     const playing = currentBoard;
     setTimeout(() => playing.pause(), 5000);
+  });
+  document.addEventListener("gig:audio", () => {
+    if (currentBoard)
+      currentBoard.volume =
+        0.55 *
+        (window.GiGAudio?.board ?? 1) *
+        (window.GiGAudio?.forPlayer(currentBoard.dataset.player) ?? 1);
   });
   $("soundToggle").addEventListener("click", () => {
     if (!Sound.enabled) currentBoard?.pause();

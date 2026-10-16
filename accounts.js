@@ -45,6 +45,12 @@ const expose = (p) =>
         trail: p.trail,
         car: p.car,
         bio: p.bio,
+        links: p.links || [],
+        banner: p.banner || "pixels",
+        accent: p.accent || "#b5f36a",
+        gallery: (p.galleryPublic || [])
+          .map((i) => p.gallery?.[i])
+          .filter(Boolean),
         favorite: p.favorite,
         showcase: p.showcase,
         achievements: p.achievements,
@@ -73,6 +79,16 @@ const fresh = (uid, username) => ({
   trail: "none",
   car: "truck",
   bio: "",
+  links: [],
+  banner: "pixels",
+  accent: "#b5f36a",
+  gallery: [],
+  galleryPublic: [],
+  looks: [],
+  palettes: [],
+  playlists: [],
+  animation: null,
+  animationSlots: [],
   favorite: "dub",
   showcase: [],
   achievements: [],
@@ -392,14 +408,118 @@ function createAccounts(
   );
   app.post(
     "/api/profile",
-    express.json({ limit: "8kb" }),
+    express.json({ limit: "128kb" }),
     api(async (req, res) => {
       const u = await user(req),
         a = req.body || {};
       const profile = await mutate(u.uid, (p) => {
-        p.bio = clean(a.bio, 180);
+        if (typeof a.bio === "string") p.bio = clean(a.bio, 180);
+        if (Array.isArray(a.links))
+          p.links = a.links.slice(0, 3).flatMap((link) => {
+            try {
+              const url = new URL(link.url);
+              if (
+                !["http:", "https:"].includes(url.protocol) ||
+                url.username ||
+                url.password ||
+                url.href.length > 300
+              )
+                return [];
+              return [
+                { label: clean(link.label, 32) || url.hostname, url: url.href },
+              ];
+            } catch {
+              return [];
+            }
+          });
+        if (
+          ["pixels", "stripes", "stars", "sunset", "plain"].includes(a.banner)
+        )
+          p.banner = a.banner;
+        if (/^#[0-9a-f]{6}$/i.test(a.accent || "")) p.accent = a.accent;
+        if (Array.isArray(a.looks))
+          p.looks = a.looks.slice(0, 8).map((l) => ({
+            name: clean(l.name, 24) || "Mein Look",
+            avatar: G.avatar(l.avatar, { ...p, owner: ownerOf(p.uid) }),
+          }));
+        if (Array.isArray(a.palettes))
+          p.palettes = a.palettes
+            .slice(0, 4)
+            .map((p) =>
+              Array.isArray(p)
+                ? p.filter((c) => /^#[0-9a-f]{6}$/i.test(c)).slice(0, 12)
+                : [],
+            );
+        const ids = [
+          "race",
+          "snake",
+          "click",
+          "typing",
+          "pong",
+          "reaction",
+          "dub",
+          "draw",
+          "monster",
+          "quiz",
+          "bomber",
+          "golf",
+          "tag",
+          "dodge",
+          "runner",
+          "rhythm",
+          "aim",
+          "stack",
+          "memory",
+          "code",
+          "telephone",
+          "faker",
+          "estimate",
+          "onebutton",
+          "detective",
+          "coop",
+        ];
+        if (Array.isArray(a.playlists))
+          p.playlists = a.playlists.slice(0, 4).map((l) => ({
+            name: clean(l.name, 32) || "Mein Abend",
+            games: Array.isArray(l.games)
+              ? [...new Set(l.games.filter((id) => ids.includes(id)))].slice(
+                  0,
+                  10,
+                )
+              : [],
+          }));
+        if (Array.isArray(a.gallery))
+          p.gallery = a.gallery.slice(0, 5).map((c) => ({
+            name: clean(c.name, 40) || "Meine Geschichte",
+            entries: Array.isArray(c.entries)
+              ? c.entries.slice(0, 8).flatMap((e) => {
+                  if (e.kind === "text")
+                    return [{ kind: "text", value: clean(e.value, 100) }];
+                  if (
+                    e.kind === "drawing" &&
+                    Array.isArray(e.value) &&
+                    e.value.length === 256 &&
+                    e.value.every(
+                      (v) => Number.isInteger(v) && v >= 0 && v < 12,
+                    )
+                  )
+                    return [{ kind: "drawing", value: e.value }];
+                  return [];
+                })
+              : [],
+          }));
+        if (Array.isArray(a.galleryPublic))
+          p.galleryPublic = [
+            ...new Set(
+              a.galleryPublic.filter(
+                (i) =>
+                  Number.isInteger(i) && i >= 0 && i < (p.gallery?.length || 0),
+              ),
+            ),
+          ].slice(0, 3);
         p.favorite = clean(a.favorite, 24);
-        p.avatar = G.avatar(a.avatar, { ...p, owner: ownerOf(p.uid) });
+        if (a.avatar)
+          p.avatar = G.avatar(a.avatar, { ...p, owner: ownerOf(p.uid) });
         if (
           a.siteTheme === "default" ||
           (G.siteThemes[a.siteTheme] && G.owns(p, "site-" + a.siteTheme))
@@ -533,7 +653,120 @@ function createAccounts(
       await saveMedia(u.uid, "avatar.png", PNG.sync.write(png), "image/png");
       const profile = await mutate(u.uid, (p) => {
         p.avatarFile = Date.now();
-        p.avatar = { ...p.avatar, custom: p.uid };
+        p.animation = null;
+        p.avatar = G.avatar(
+          { ...p.avatar, custom: p.uid, slot: 0 },
+          { ...p, owner: ownerOf(p.uid) },
+        );
+      });
+      res.json({ ok: true, profile });
+    }),
+  );
+  app.get(
+    "/api/avatar/animation/:slot",
+    api(async (req, res) => {
+      const u = await user(req),
+        slot = Number(req.params.slot);
+      if (!Number.isInteger(slot) || slot < 1 || slot > 3)
+        throw fail("Ungültiger Animationsplatz.");
+      const data = await db
+        .collection("gigAnimations")
+        .doc(u.uid + "_" + slot)
+        .get();
+      res.json({ ok: true, animation: data.exists ? data.data() : null });
+    }),
+  );
+  app.put(
+    "/api/avatar/animation",
+    express.json({ limit: "96kb" }),
+    api(async (req, res) => {
+      const u = await user(req),
+        p = await get(u.uid),
+        a = req.body;
+      if (!G.owns(p, "custom-avatar"))
+        throw fail("Schalte zuerst das Pixelatelier frei.", 403);
+      function decode(list) {
+        if (!Array.isArray(list) || list.length < 1 || list.length > 4)
+          throw fail("Bitte ein bis vier Bilder zeichnen.");
+        return list.map((frame) => {
+          if (
+            typeof frame !== "string" ||
+            frame.length !== 5464 ||
+            !/^[A-Za-z0-9+/]+={0,2}$/.test(frame)
+          )
+            throw fail("Ungültiges Animationsbild.");
+          const b = Buffer.from(frame, "base64");
+          if (b.length !== 4096)
+            throw fail("Bilder müssen 32 × 32 Pixel groß sein.");
+          return b;
+        });
+      }
+      const slot = Number(a?.slot || 1);
+      if (!Number.isInteger(slot) || slot < 1 || slot > 3)
+        throw fail("Wähle einen der drei Animationsplätze.");
+      const idle = decode(a?.frames),
+        cheer = Array.isArray(a.cheer) && a.cheer.length ? decode(a.cheer) : [];
+      const ms = [180, 280, 420].includes(a.ms) ? a.ms : 280;
+      const seq = (frames) =>
+        a.pingpong && frames.length > 2
+          ? [...frames, ...frames.slice(1, -1).reverse()]
+          : frames;
+      const first = seq(idle),
+        second = cheer.length ? seq(cheer) : first,
+        columns = Math.max(first.length, second.length);
+      const png = new PNG({ width: 32 * columns, height: 64 });
+      for (const [row, list] of [first, second].entries())
+        for (let i = 0; i < list.length; i++)
+          for (let y = 0; y < 32; y++)
+            list[i].copy(
+              png.data,
+              ((row * 32 + y) * png.width + i * 32) * 4,
+              y * 128,
+              (y + 1) * 128,
+            );
+      await saveMedia(
+        u.uid,
+        "avatar-" + slot + ".png",
+        PNG.sync.write(png),
+        "image/png",
+      );
+      await db.runTransaction(async (t) => {
+        t.set(db.collection("gigAnimations").doc(u.uid + "_" + slot), {
+          slot,
+          frames: a.frames,
+          cheer: a.cheer || [],
+          ms,
+          pingpong: !!a.pingpong,
+          columns,
+          idle: first.length,
+          winner: second.length,
+        });
+      });
+      const profile = await mutate(u.uid, (p) => {
+        p.avatarFile = Date.now();
+        p.animation = {
+          slot,
+          frames: a.frames,
+          cheer: a.cheer || [],
+          ms,
+          pingpong: !!a.pingpong,
+          columns,
+          idle: first.length,
+          winner: second.length,
+        };
+        p.animationSlots = (p.animationSlots || []).filter(
+          (x) => x.slot !== slot,
+        );
+        p.animationSlots.push({
+          slot,
+          revision: p.avatarFile,
+          columns,
+          idle: first.length,
+          winner: second.length,
+          ms,
+        });
+        p.avatar = { ...p.avatar, custom: p.uid, slot };
+        p.avatar = G.avatar(p.avatar, { ...p, owner: ownerOf(p.uid) });
       });
       res.json({ ok: true, profile });
     }),
@@ -627,7 +860,12 @@ function createAccounts(
       const p = await get(req.params.uid);
       if (!p?.avatarFile) throw fail("Bild nicht gefunden.", 404);
       res.setHeader("Cache-Control", "public, max-age=60");
-      res.redirect(await media(p.uid, "avatar.png"));
+      const slot = Number(req.query.slot || 0);
+      if (slot && !(p.animationSlots || []).some((x) => x.slot === slot))
+        throw fail("Bild nicht gefunden.", 404);
+      res.redirect(
+        await media(p.uid, slot ? "avatar-" + slot + ".png" : "avatar.png"),
+      );
     }),
   );
   async function reward(

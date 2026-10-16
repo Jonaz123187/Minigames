@@ -84,6 +84,24 @@ const WORDS = [
   "Zirkuszelt",
   "Ufo",
 ];
+function drawingPixels(strokes) {
+  const pixels = Array(256).fill(0),
+    colors = [6, 4, 8, 5, 3, 6, 9, 1, 1, 1];
+  for (const [x1, y1, x2, y2, color] of strokes) {
+    const ax = (x1 / 900) * 15,
+      ay = (y1 / 500) * 15,
+      bx = (x2 / 900) * 15,
+      by = (y2 / 500) * 15,
+      steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) * 2));
+    for (let i = 0; i <= steps; i++) {
+      const x = Math.round(ax + ((bx - ax) * i) / steps),
+        y = Math.round(ay + ((by - ay) * i) / steps);
+      if (x >= 0 && x < 16 && y >= 0 && y < 16)
+        pixels[y * 16 + x] = colors[color] || 1;
+    }
+  }
+  return pixels;
+}
 function nextDrawing(g, now) {
   g.secret = WORDS[rand(0, WORDS.length - 1)];
   g.phase = "drawing";
@@ -110,6 +128,7 @@ const draw = {
     const g = {
       ids,
       turn: 0,
+      archive: [],
       players: rows(ids, () => ({ score: 0, lastGuess: 0 })),
       log: [],
     };
@@ -178,6 +197,17 @@ const draw = {
           .filter((id) => id !== g.ids[g.turn])
           .every((id) => g.guessed.includes(id)))
     ) {
+      g.archive.push({
+        owner: g.ids[g.turn],
+        entries: [
+          { kind: "text", author: g.ids[g.turn], value: g.secret },
+          {
+            kind: "drawing",
+            author: g.ids[g.turn],
+            value: drawingPixels(g.strokes),
+          },
+        ],
+      });
       g.phase = "reveal";
       g.turnEnds = now + 3000;
     }
@@ -211,6 +241,7 @@ const draw = {
   },
   score: (g, id) => g.players[id].score,
   detail: (g, id) => g.players[id].score + " Zeichen- & Ratepunkte",
+  archive: (g) => g.archive,
 };
 
 const dodge = {

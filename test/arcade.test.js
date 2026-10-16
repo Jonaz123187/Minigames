@@ -225,7 +225,7 @@ test(
     assert.equal(
       (await call(outsider, "lobby", { action: "join", name: "Late", code }))
         .ok,
-      false,
+      true,
     );
     await until(() => a.room.phase === "playing");
     assert.equal(c.room.phase, "lobby", "Other rooms remain in lobby");
@@ -266,6 +266,8 @@ test(
     await until(() => a.room.phase === "lobby", 11000);
     assert.equal(a.room.round, null);
     assert.equal(a.room.players[0].score, 10);
+    await call(outsider, "ready", { ready: true });
+    await call(outsider, "lobby", { action: "leave" });
     await call(a, "wish", { game: "snake" });
     await call(a, "ready", { ready: true });
     await call(b, "ready", { ready: true });
