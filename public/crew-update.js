@@ -1,6 +1,22 @@
 "use strict";
 // Shared in-game menu and party-game views. Simulation remains on the server.
 (function () {
+  const sidebar = document.querySelector(".lobby-sidebar");
+  function updateSidebarSticky() {
+    const height = sidebar.getBoundingClientRect().height;
+    sidebar.classList.toggle("sticky-ready", height > 0);
+    if (height > 0) {
+      // A negative top lets tall sidebars scroll naturally before their bottom sticks.
+      const top = Math.min(20, window.innerHeight - height - 20);
+      sidebar.style.setProperty("--sidebar-sticky-top", top + "px");
+    }
+  }
+  if (typeof ResizeObserver !== "undefined")
+    new ResizeObserver(updateSidebarSticky).observe(sidebar);
+  window.addEventListener("resize", updateSidebarSticky, { passive: true });
+  window.visualViewport?.addEventListener("resize", updateSidebarSticky, {
+    passive: true,
+  });
   const newGames = new Set([
     "telephone",
     "faker",
@@ -1091,5 +1107,6 @@
     select.disabled = !host;
     select.onchange = () => setting({ decoration: select.value });
     decor.append(select);
+    updateSidebarSticky();
   }
 })();
