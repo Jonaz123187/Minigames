@@ -10,3 +10,8 @@ https://multiplayergames-gig.onrender.com/
 - [v6: lebendige Pixelavatare und Kontofortschritt](UPDATE-v6.md)
 - [v5-Update und Installation](UPDATE-v5.md)
 - [Firebase, Supabase, Render und lokale Entwicklung](SETUP.md)
+
+
+## Update v7.2
+
+Garage mit Fahrzeug-Vorschauen und Spuren, neue Karosserien, mehr Platz und Anpassung im Profil, kompakter Teammodus sowie einheitliche Cover für alle 26 Spiele: [Details und Validierung](UPDATE-v7.2.md).

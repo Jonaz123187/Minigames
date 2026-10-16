@@ -790,6 +790,7 @@
     rewardCoins,
     siteThemes,
     soundEmojis,
+    statusEmojis: ["✨", "🏁", "🎨", "🎮", "🎤", "🔥", "🌙", "💬", "🦆", "🏆"],
     badges,
     badgesFor,
     version: 7,

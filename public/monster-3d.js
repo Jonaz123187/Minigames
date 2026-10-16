@@ -43,37 +43,9 @@ function box(parent, x, y, z, w, h, d, color, ghost = false) {
 function truck(p) {
   const g = new THREE.Group(),
     ghost = p.id !== myId,
-    color =
-      {
-        truck: "#b5cf65",
-        jeep: "#779c84",
-        sport: "#d97c72",
-        van: "#d7bb76",
-        duck: "#f1d568",
-      }[p.car] || p.color;
-  box(g, 0, 0, 0, 94, 24, 52, color, ghost);
-  box(
-    g,
-    8,
-    23,
-    0,
-    p.car === "van" ? 80 : p.car === "sport" ? 42 : 48,
-    p.car === "van" ? 36 : 30,
-    46,
-    color,
-    ghost,
-  );
-  box(g, 12, 25, 24, 28, 15, 2, "#334952", ghost);
-  box(g, 12, 25, -24, 28, 15, 2, "#334952", ghost);
-  box(g, 50, 1, 0, 5, 8, 46, "#e9dbae", ghost);
-  box(g, -48, -4, 0, 5, 7, 54, "#394249", ghost);
-  if (p.car === "duck") {
-    box(g, 38, 30, 0, 24, 13, 35, "#efac55", ghost);
-    box(g, 24, 40, 24, 5, 5, 2, "#29313b", ghost);
-  }
-  if (p.car === "jeep") {
-    box(g, -30, 20, 0, 22, 12, 45, "#465e51", ghost);
-  }
+    color = GiGVehicles.colors[p.car] || GiGVehicles.colors.truck;
+  for (const part of GiGVehicles.parts(p.car))
+    box(g, part.x, part.y, part.z, part.w, part.h, part.d, part.color, ghost);
   const wheels = [];
   for (let i = 0; i < 2; i++) {
     const axle = new THREE.Group();
@@ -308,9 +280,12 @@ function fallback() {
     ctx.save();
     ctx.translate(v.x, v.y);
     ctx.rotate(v.angle);
-    ctx.fillStyle = player.color;
-    ctx.fillRect(-45, -13, 90, 26);
-    ctx.fillRect(-13, -40, 45, 28);
+    for (const part of GiGVehicles.parts(player.car).sort(
+      (a, b) => a.z - b.z,
+    )) {
+      ctx.fillStyle = part.color;
+      ctx.fillRect(part.x - part.w / 2, -part.y - part.h / 2, part.w, part.h);
+    }
     ctx.restore();
     for (const w of v.wheels) {
       ctx.beginPath();

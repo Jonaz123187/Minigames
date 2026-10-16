@@ -145,6 +145,218 @@
   min-width: 150px;
   margin-right: 12px;
 }
+/* Compact, aligned controls in both dialogs and the lobby. */
+.checkbox-label,
+.soundboard-panel > label,
+.showcase-editor > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.checkbox-label input[type="checkbox"],
+.soundboard-panel input[type="checkbox"],
+.showcase-editor input[type="checkbox"] {
+  appearance: auto;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: #b5f36a;
+}
+.mute-setting {
+  margin: 24px 0 12px;
+}
+.soundboard-panel > label {
+  margin-top: 18px;
+}
+.lobby-sidebar .team-editor {
+  margin: 0;
+  padding: 18px;
+}
+.team-editor summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+}
+.team-editor[open] summary {
+  margin-bottom: 18px;
+}
+.team-editor > .checkbox-label {
+  margin: 0 0 16px;
+}
+.team-editor .account-field {
+  display: grid;
+  min-width: 0;
+  width: 100%;
+  margin: 12px 0 0;
+}
+.profile-identity {
+  min-width: 0;
+  flex: 1;
+}
+.profile-hero h2 {
+  overflow-wrap: anywhere;
+}
+.profile-status {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d7dfec;
+  overflow-wrap: anywhere;
+}
+.gig-profile .profile-hero {
+  padding-bottom: 26px;
+}
+.profile-about {
+  margin: 4px 30px 28px;
+  padding: 22px 0 0;
+  border-top: 1px solid #ffffff12;
+}
+.profile-about h3 {
+  margin: 0 0 12px;
+}
+.profile-about .profile-bio {
+  padding: 0;
+  margin: 0;
+  max-width: 65ch;
+  line-height: 1.8;
+}
+.profile-about .profile-links {
+  margin: 20px 0 0;
+  padding: 0;
+  gap: 12px;
+}
+.profile-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+.profile-link:focus-visible {
+  outline: 2px solid #f5f0df;
+  outline-offset: 4px;
+}
+.profile-banner {
+  position: relative;
+  height: clamp(130px, 22vw, 200px);
+  overflow: hidden;
+}
+.profile-banner-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.featured-badge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 18px 30px 0;
+}
+.featured-badge .eyebrow {
+  margin: 0;
+}
+.banner-editor {
+  margin: 28px 0;
+  padding: 22px;
+  background: #ffffff04;
+  border: 1px solid #ffffff14;
+  border-radius: 12px;
+}
+.banner-editor > button {
+  margin: 12px 10px 0 0;
+}
+.banner-crop-preview {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  display: block;
+  margin-top: 18px;
+}
+.banner-crop-preview[hidden] {
+  display: none;
+}
+.profile-live-preview {
+  grid-column: 1 / -1;
+}
+.garage-preview {
+  display: grid;
+  justify-items: center;
+  padding: 16px;
+  margin: 20px 0 28px;
+  background: radial-gradient(ellipse, #35413655, #111925);
+  border: 1px solid #ffffff14;
+  border-radius: 16px;
+}
+.garage-preview > svg {
+  width: min(380px, 100%);
+  height: auto;
+}
+.vehicle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 16px 0 24px;
+}
+.vehicle-card {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 12px;
+  text-align: center;
+  background: #111a25;
+  border: 1px solid #ffffff20;
+  border-radius: 12px;
+}
+.vehicle-card[aria-pressed="true"] {
+  border-color: #b5f36a;
+  box-shadow: 0 0 0 2px #b5f36a22;
+  background: #24352b;
+}
+.vehicle-card:disabled {
+  opacity: 0.6;
+}
+.vehicle-art {
+  display: block;
+  width: 100%;
+}
+.vehicle-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+@media (max-width: 600px) {
+  .profile-about {
+    margin: 4px 18px 24px;
+  }
+  .featured-badge {
+    padding: 16px 18px 0;
+  }
+  .profile-hero {
+    flex-wrap: wrap;
+  }
+  .profile-identity {
+    flex-basis: calc(100% - 120px);
+  }
+  .profile-hero .pixel-pet {
+    position: absolute;
+    right: 18px;
+    top: -48px;
+  }
+  .vehicle-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .banner-editor {
+    padding: 16px;
+  }
+}
 body[data-lobby-decor="arcade"] .lobby-grid {
   background: radial-gradient(ellipse at 85% 15%, #7a3d8d1f, transparent 65%);
 }

@@ -106,26 +106,25 @@ function ribbon(track, width, y, colors, segments = track.segments) {
   scene.add(mesh);
   return mesh;
 }
-function makeCar(color) {
+function makeCar(color, skin) {
   const car = new THREE.Group(),
     body = material(color, { metalness: 0.32, roughness: 0.32 }),
-    dark = material("#151c24"),
-    glass = material("#253c4a", { metalness: 0.65, roughness: 0.2 }),
-    white = new THREE.MeshBasicMaterial({ color: "#fff1cf" }),
-    rear = new THREE.MeshBasicMaterial({ color: "#d74443" });
-  box(car, 0, 0.58, 0, 1.8, 0.55, 3.8, body).castShadow = true;
-  box(car, 0, 0.83, -0.38, 1.7, 0.3, 2.8, body).castShadow = true;
-  box(car, 0, 1.11, -0.28, 1.4, 0.45, 1.3, glass);
-  box(car, 0, 1.34, -0.4, 1.4, 0.08, 1.1, body);
-  box(car, 0, 0.85, 1.2, 0.26, 0.03, 1.35, dark);
-  box(car, 0, 0.7, -1.85, 2, 0.12, 0.23, dark);
-  box(car, -0.7, 0.62, 1.91, 0.35, 0.17, 0.04, white);
-  box(car, 0.7, 0.62, 1.91, 0.35, 0.17, 0.04, white);
-  box(car, -0.62, 0.63, -1.91, 0.5, 0.12, 0.04, rear);
-  box(car, 0.62, 0.63, -1.91, 0.5, 0.12, 0.04, rear);
-  box(car, -0.65, 1.06, -1.57, 0.08, 0.42, 0.08, dark);
-  box(car, 0.65, 1.06, -1.57, 0.08, 0.42, 0.08, dark);
-  box(car, 0, 1.29, -1.57, 2.04, 0.08, 0.43, body);
+    dark = material("#151c24");
+  for (const p of GiGVehicles.parts(skin)) {
+    const piece = box(
+      car,
+      p.z * 0.034,
+      0.68 + p.y * 0.025,
+      p.x * 0.04,
+      p.d * 0.034,
+      p.h * 0.025,
+      p.w * 0.04,
+      material(p.color),
+    );
+    piece.castShadow = true;
+  }
+  // A player-color strip keeps online opponents recognizable for every model.
+  box(car, 0, 0.71, 1.93, 1.3, 0.08, 0.04, body);
   for (const x of [-0.92, 0.92])
     for (const z of [-1.2, 1.2]) {
       const wheel = new THREE.Mesh(
@@ -342,7 +341,7 @@ function buildScene(meta) {
   mergeStatic(scene);
   cars = new Map();
   carPoses.clear();
-  for (const p of roster()) cars.set(p.id, makeCar(p.color));
+  for (const p of roster()) cars.set(p.id, makeCar(p.color, p.car));
   const first = state?.players?.[viewId()] || GiGRace.spawn(worldTrack);
   cameraAt.set(
     first.x - Math.sin(first.heading) * 13,

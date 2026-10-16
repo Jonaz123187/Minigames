@@ -480,11 +480,18 @@ main {
   gap: 40px;
   align-items: start;
 }
+/* Tall crew columns scroll until their bottom is visible, then stay alongside
+   the game list. JS measures the inset; normal flow is the safe fallback. */
 .lobby-sidebar {
-  position: sticky;
-  top: 20px;
+  position: static;
   display: grid;
   gap: 16px;
+}
+@media (min-width: 801px) {
+  .lobby-sidebar.sticky-ready {
+    position: sticky;
+    top: var(--sidebar-sticky-top, 20px);
+  }
 }
 .panel {
   border: 1px solid var(--border);
@@ -810,9 +817,12 @@ main {
   flex: 1;
 }
 .game-copy h3 {
-  font-size: 16px;
-  margin-bottom: 7px;
-  line-height: 1.2;
+  font-size: clamp(20px, 1.8vw, 25px);
+  font-weight: 850;
+  color: #f4f6ef;
+  margin: 0 0 10px;
+  line-height: 1.18;
+  letter-spacing: -0.025em;
 }
 .game-copy p {
   font-size: 11px;

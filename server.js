@@ -396,18 +396,16 @@ Object.assign(GAMES, require("./games"), require("./party-games"), {
   quiz: require("./quiz"),
   monster: require("./monster"),
 });
+// Feature-rich party highlights lead the lobby; keep this curated order in the catalog.
 const ORDER = [
-  "telephone",
-  "faker",
-  "estimate",
-  "onebutton",
-  "detective",
-  "coop",
   "dub",
   "draw",
-  "monster",
   "race",
+  "monster",
   "quiz",
+  "telephone",
+  "faker",
+  "coop",
   "bomber",
   "golf",
   "tag",
@@ -419,6 +417,9 @@ const ORDER = [
   "snake",
   "memory",
   "code",
+  "detective",
+  "estimate",
+  "onebutton",
   "reaction",
   "typing",
   "pong",
@@ -985,18 +986,7 @@ function createArcade({
           category: g.category || THEMES[id]?.[0] || "Arcade",
           difficulty: g.difficulty || THEMES[id]?.[1] || "Mittel",
           minPlayers: g.minPlayers || 1,
-          preview: [
-            "telephone",
-            "faker",
-            "estimate",
-            "onebutton",
-            "detective",
-            "coop",
-            "monster",
-            "race",
-          ].includes(id)
-            ? "/previews/covers/" + id + ".webp"
-            : "/previews/" + id + ".png",
+          preview: "/previews/covers/" + id + ".webp",
         };
       }),
     );

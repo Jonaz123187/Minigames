@@ -47,6 +47,9 @@ const decorate = (p) => {
     achievements,
     title,
     showcase: (p.showcase || []).filter((id) => achievements.includes(id)),
+    featuredBadge: achievements.includes(p.featuredBadge)
+      ? p.featuredBadge
+      : "",
   };
 };
 const expose = (p) => {
@@ -64,6 +67,13 @@ const expose = (p) => {
         trail: p.trail,
         car: p.car,
         bio: p.bio,
+        status: p.status || "",
+        statusEmoji: p.statusEmoji || "✨",
+        featuredBadge: G.badgesFor(p).includes(p.featuredBadge)
+          ? p.featuredBadge
+          : "",
+        bannerFile: p.bannerFile || 0,
+        bannerPosition: p.bannerPosition ?? 50,
         links: p.links || [],
         banner: p.banner || "pixels",
         accent: p.accent || "#b5f36a",
@@ -99,6 +109,11 @@ const fresh = (uid, username) => ({
   trail: "none",
   car: "truck",
   bio: "",
+  status: "",
+  statusEmoji: "✨",
+  featuredBadge: "",
+  bannerFile: 0,
+  bannerPosition: 50,
   links: [],
   banner: "pixels",
   accent: "#b5f36a",
@@ -447,6 +462,17 @@ function createAccounts(
         a = req.body || {};
       const profile = await mutate(u.uid, (p) => {
         if (typeof a.bio === "string") p.bio = clean(a.bio, 180);
+        if (typeof a.status === "string") p.status = clean(a.status, 60);
+        if (G.statusEmojis.includes(a.statusEmoji))
+          p.statusEmoji = a.statusEmoji;
+        if (a.featuredBadge === "" || G.badgesFor(p).includes(a.featuredBadge))
+          p.featuredBadge = a.featuredBadge;
+        if (Number.isFinite(a.bannerPosition))
+          p.bannerPosition = Math.max(
+            0,
+            Math.min(100, Math.round(a.bannerPosition)),
+          );
+        if (a.removeBanner === true) p.bannerFile = 0;
         if (Array.isArray(a.links))
           p.links = a.links.slice(0, 3).flatMap((link) => {
             try {
@@ -664,6 +690,41 @@ function createAccounts(
         503,
       );
   }
+  app.put(
+    "/api/profile/banner",
+    express.raw({ type: "image/png", limit: "480kb" }),
+    api(async (req, res) => {
+      const u = await user(req),
+        p = await get(u.uid),
+        b = req.body;
+      if (!p) throw fail("Bitte zuerst dein Profil einrichten.");
+      if (
+        !Buffer.isBuffer(b) ||
+        b.length < 33 ||
+        b.length > 480000 ||
+        b.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" ||
+        b.readUInt32BE(16) !== 960 ||
+        b.readUInt32BE(20) !== 480
+      )
+        throw fail("Bitte einen PNG-Banner mit 960 × 480 Pixeln verwenden.");
+      let png;
+      try {
+        png = PNG.sync.read(b, { checkCRC: true });
+      } catch {
+        throw fail("Ungültige PNG-Datei.");
+      }
+      const bytes = PNG.sync.write(png);
+      if (bytes.length > 480000)
+        throw fail(
+          "Das Banner ist zu groß. Bitte ein einfacheres Motiv wählen.",
+        );
+      await saveMedia(u.uid, "profile-banner.png", bytes, "image/png");
+      const profile = await mutate(u.uid, (p) => {
+        p.bannerFile = Date.now();
+      });
+      res.json({ ok: true, profile });
+    }),
+  );
   app.put(
     "/api/avatar",
     express.raw({ type: "image/png", limit: "20kb" }),
@@ -893,6 +954,17 @@ function createAccounts(
     if (error) throw fail("Datei ist gerade nicht verfügbar.", 404);
     return data.signedUrl;
   }
+  app.get(
+    "/api/media/banner/:uid",
+    api(async (req, res) => {
+      if (!/^[\w-]{1,128}$/.test(req.params.uid))
+        throw fail("Banner nicht gefunden.", 404);
+      const p = await get(req.params.uid);
+      if (!p?.bannerFile) throw fail("Banner nicht gefunden.", 404);
+      res.setHeader("Cache-Control", "no-store");
+      res.redirect(await media(p.uid, "profile-banner.png"));
+    }),
+  );
   app.get(
     "/api/media/avatar/:uid",
     api(async (req, res) => {
