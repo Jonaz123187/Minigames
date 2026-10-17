@@ -629,7 +629,7 @@ test("Lobby kick: only host, reconnect requests, approval and lobby-scoped ban; 
   });
   assert.match(denied.error, /gesperrt/);
 });
-test("Monster Trails: minimum total upgrade profile is frozen, worlds are separate, full throttle does not win", () => {
+test("Monster Trails: fair upgrade profile, separate worlds and recoverable driving", () => {
   const g = GAMES.monster.init(["a", "b"], 10000, {
     upgrades: {
       a: { power: 3, grip: 2, weight: 2 },
@@ -640,10 +640,10 @@ test("Monster Trails: minimum total upgrade profile is frozen, worlds are separa
   assert.notEqual(g.players.a.engine, g.players.b.engine);
   const controls = { a: { throttle: 1 }, b: { throttle: 0 } },
     round = { connected: new Set(["a", "b"]), controls };
-  for (let i = 0; i < 6000 && !g.players.a.out; i++)
+  for (let i = 0; i < 600 && !g.players.a.finished; i++)
     GAMES.monster.tick(g, 1 / 60, 10000 + (i * 1000) / 60, round);
   assert.equal(g.players.a.finished, false);
-  assert.equal(g.players.a.out, true);
+  assert.equal(g.players.a.out, false);
   assert.ok(g.players.a.best > 500);
   assert.ok(g.players.b.body.position.x < 200);
   GAMES.monster.dispose(g);
@@ -689,11 +689,12 @@ test("Monster Trails: controlled throttle and air correction can finish all thre
             : w.body.velocity.x > cap
               ? 0
               : 1
-          : Math.max(
-              -1,
-              Math.min(1, w.angle * 3 + w.body.angularVelocity * 14),
-            );
-      T.step(w, { throttle }, 1 / 60, track, (i * 1000) / 60);
+          : 0.45,
+        tilt = Math.max(
+          -1,
+          Math.min(1, w.angle * 3 + w.body.angularVelocity * 14),
+        );
+      T.step(w, { throttle, tilt }, 1 / 60, track, (i * 1000) / 60);
     }
     assert.equal(
       w.finished,

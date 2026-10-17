@@ -130,11 +130,10 @@ function currentControls() {
   return {
     throttle:
       room?.round?.game === "monster"
-        ? d("ArrowUp", "KeyW", "ArrowRight", "KeyD") -
-          d("ArrowDown", "KeyS", "ArrowLeft", "KeyA")
+        ? d("ArrowUp", "KeyW") - d("ArrowDown", "KeyS")
         : joy.y || d("ArrowUp", "KeyW") - d("ArrowDown", "KeyS"),
     axis: joy.x || d("ArrowRight", "KeyD") - d("ArrowLeft", "KeyA"),
-    tilt: d("ArrowRight", "KeyD") - d("ArrowLeft", "KeyA"),
+    tilt: d("ArrowLeft", "KeyA") - d("ArrowRight", "KeyD"),
     target: pointerTarget,
     drift: !!d("Space", "ShiftLeft", "ShiftRight"),
   };
@@ -224,11 +223,25 @@ renderTouch = function (id) {
     ? "Touch-Steuerung aktiv · Querformat bietet mehr Spielfläche."
     : "";
   if (!isTouchDevice) return;
-  if (id === "monster")
-    box.append(
-      touchButton("◀ Bremse / zurück", "KeyA", null, "monster-pedal"),
-      touchButton("Gas ▶", "KeyD", null, "monster-pedal gas"),
+  if (id === "monster") {
+    const balance = el("div", "drive-steer");
+    balance.append(
+      touchButton("Nase hoch", "KeyA"),
+      touchButton("Nase runter", "KeyD"),
+      touchButton(
+        "↺ Checkpoint",
+        "KeyR",
+        () => send({ action: "reset" }),
+        "reset-car",
+      ),
     );
+    const pedals = el("div", "drive-pedals");
+    pedals.append(
+      touchButton("Bremse", "KeyS", null, "monster-pedal"),
+      touchButton("Gas", "KeyW", null, "monster-pedal gas"),
+    );
+    box.append(balance, pedals);
+  }
   if (id === "race") {
     const steer = el("div", "drive-steer");
     steer.append(touchButton("←", "KeyA"), touchButton("→", "KeyD"));
@@ -284,6 +297,8 @@ window.addEventListener("orientationchange", () => {
 });
 
 function reportPing(ms) {
+  if (!Number.isFinite(ms)) return;
+  ms = Math.max(0, Math.round(ms));
   socket.emit("ping:report", { ms });
   $("networkText").textContent = ms + " ms";
   $("network").classList.toggle("slow", ms >= 100 && ms < 220);
@@ -306,7 +321,9 @@ function paintPing(node, ms) {
           ? "#ebc38d"
           : "#efa2a2";
   node.title =
-    ms === null || ms === undefined ? "Ping wird gemessen" : ms + " ms Ping";
+    ms === null || ms === undefined
+      ? "Ping wird gemessen"
+      : Math.max(0, Math.round(ms)) + " ms Ping";
   node.setAttribute("aria-label", node.title);
 }
 const baseLobby = renderPremiumLobby;
@@ -642,7 +659,11 @@ $("quickToggle").onclick = () => {
   );
 };
 document.addEventListener("keydown", (e) => {
-  if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) || e.repeat)
+  if (
+    (document.querySelector("dialog[open]") && e.code !== "Escape") ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) ||
+    e.repeat
+  )
     return;
   if (e.code === "KeyQ" && room?.round) {
     e.preventDefault();
@@ -889,8 +910,9 @@ function receiveSnapshot(packet) {
   } else spectatingId = null;
   $("spectator").hidden = !eliminated;
   if (eliminated && !spectatingId)
-    $("spectatorName").textContent =
-      "Du bist ausgeschieden · Warte auf das Rundenergebnis";
+    $("spectatorName").textContent = state.players[myId]?.finished
+      ? "Du bist im Ziel · Warte auf das Rundenergebnis"
+      : "Du bist ausgeschieden · Warte auf das Rundenergebnis";
   $("nextSpectator").hidden = !spectatingId;
   if (spectatingId) {
     const p = roster().find((p) => p.id === spectatingId);
@@ -900,7 +922,9 @@ function receiveSnapshot(packet) {
       el(
         "small",
         "",
-        "Du bist ausgeschieden · Nächste Runde spielst du wieder mit",
+        state.players[myId]?.finished
+          ? "Du bist im Ziel · Deine Crew spielt zu Ende"
+          : "Du bist ausgeschieden · Nächste Runde spielst du wieder mit",
       ),
     );
   }
@@ -1396,9 +1420,9 @@ function phaseClock() {
         ? "Auflösung"
         : "Frage " + (state.index + 1) + " / 6";
   }
-  if (state && ["race", "monster"].includes(id) && state.finishAt) {
+  if (state && ["race", "monster", "golf"].includes(id) && state.finishAt) {
     deadline = Math.min(deadline, state.finishAt);
-    total = 15;
+    total = id === "golf" ? 30 : 15;
     label = "Ziel offen · letzte Sekunden";
   }
   if (

@@ -48,7 +48,7 @@ const GAMES = {
     icon: "02",
     seconds: 60,
     description:
-      "Ein Feld, alle Schlangen. Futter schnappen, Koepfe und Koerper meiden.",
+      "Ein Feld, alle Schlangen. Futter schnappen, Köpfe und Körper meiden.",
     controls:
       "Pfeiltasten / WASD oder Richtungstasten · Kein Umdrehen auf der Stelle",
     init(ids) {
@@ -165,9 +165,9 @@ const GAMES = {
     icon: "03",
     seconds: 10,
     description:
-      "Zehn Sekunden. Ein Button. Wer schafft die meisten Anschlaege?",
+      "Zehn Sekunden. Ein Button. Wer schafft die meisten Anschläge?",
     controls:
-      "Leertaste oder den grossen Button antippen · Maximal 25 gewertete Klicks/s",
+      "Leertaste oder den großen Button im Spielfeld antippen · Maximal 25 gewertete Klicks/s",
     init: (ids) => ({
       players: Object.fromEntries(
         ids.map((id) => [id, { clicks: 0, recent: [], last: 0 }]),
@@ -198,12 +198,12 @@ const GAMES = {
     description:
       "Alle bekommen denselben Text. Jedes korrekte Wort bringt dich voran.",
     controls:
-      "Wort tippen, mit Leertaste / Enter abschicken · Grossschreibung beachten",
+      "Wort tippen, mit Leertaste / Enter abschicken · Großschreibung beachten",
     init(ids) {
       const texts = [
-        "Heute wird die Lobby zur Arcade und aus Freunden werden Rivalen Wir fahren ueber wilde Huegel sammeln bunte Punkte und lachen bis der letzte Button glueht Die naechste Runde gehoert dir",
-        "Der kleine Pixel fliegt durch die Nacht Hinter ihm leuchten Schlangen vor ihm wartet das Ziel Ein guter Reflex und ein schnelles Wort machen aus einer normalen Pause einen grossartigen Spieleabend",
-        "Acht Kumpels ein geheimer Code und jede Menge Chaos Wer bleibt ruhig wenn die Lampe gruen wird Wer rettet das Auto am steilen Berg Am Ende zaehlt der Spass an jeder Runde",
+        "Heute wird die Lobby zur Arcade und aus Freunden werden Rivalen Wir fahren über wilde Hügel sammeln bunte Punkte und lachen bis der letzte Button glüht Die nächste Runde gehört dir",
+        "Der kleine Pixel fliegt durch die Nacht Hinter ihm leuchten Schlangen vor ihm wartet das Ziel Ein guter Reflex und ein schnelles Wort machen aus einer normalen Pause einen großartigen Spieleabend",
+        "Acht Kumpels ein geheimer Code und jede Menge Chaos Wer bleibt ruhig wenn die Lampe grün wird Wer rettet das Auto am steilen Berg Am Ende zählt der Spaß an jeder Runde",
       ];
       return {
         words: texts[randInt(0, texts.length - 1)].split(" "),
@@ -235,7 +235,7 @@ const GAMES = {
       ),
     }),
     score: (g, id) => g.players[id].index,
-    detail: (g, id) => `${g.players[id].index} / ${g.words.length} Woerter`,
+    detail: (g, id) => `${g.players[id].index} / ${g.words.length} Wörter`,
   },
   pong: {
     title: "Pong Rallye",
@@ -321,11 +321,11 @@ const GAMES = {
       `${g.players[id].hits} Treffer · ${g.players[id].misses} verpasst`,
   },
   reaction: {
-    title: "Gruenes Licht",
+    title: "Grünes Licht",
     icon: "06",
     seconds: 45,
     description:
-      "Fuenf Signale. Erst bei Gruen druecken! Ein Fruehstart kostet 1000 ms.",
+      "Fünf Signale. Erst bei Grün drücken! Ein Frühstart kostet 1000 ms.",
     controls:
       "Leertaste oder Signal antippen · Niedrigste Durchschnittszeit gewinnt",
     init(ids, startsAt) {
@@ -835,6 +835,7 @@ function createArcade({
         game.archive?.(round.state) ||
         (round.game === "telephone" ? round.state.chains : null),
       highlights: highlights(round.game, round.state, round.roster),
+      scorecards: game.scorecards?.(round.state) || null,
     };
     const closeLimits = {
       click: [3, "Klicks"],

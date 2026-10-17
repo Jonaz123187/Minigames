@@ -132,6 +132,8 @@ $("soundToggle").onclick = () => {
 };
 
 let favoriteSaving = false;
+let liveScoreSignature = "";
+const liveScoreNodes = new Map();
 let category = "Alle",
   panelRound = null,
   currentRoundToken = null,
@@ -731,7 +733,12 @@ function laneInput(lane) {
   Sound.tone([330, 392, 440, 523][lane], 0.07, 0.025, "triangle");
 }
 document.addEventListener("keydown", (e) => {
-  if (!active() || ["INPUT", "TEXTAREA"].includes(e.target.tagName) || e.repeat)
+  if (
+    !active() ||
+    document.querySelector("dialog[open]") ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) ||
+    e.repeat
+  )
     return;
   const id = room.round.game;
   if (id === "rhythm") {
@@ -1183,7 +1190,13 @@ function statFor(id, p) {
           ? "Frühstart"
           : p.current + " ms";
     case "draw":
-      return p.score + " Punkte";
+    case "telephone":
+    case "faker":
+    case "estimate":
+    case "onebutton":
+    case "detective":
+    case "coop":
+      return p.score + " Punkte" + (p.submitted ? " · ✓" : "");
     case "dub":
       return (
         p.total +
@@ -1201,7 +1214,14 @@ function statFor(id, p) {
     case "runner":
       return Math.round((p.best - 100) / 10) + " m";
     case "golf":
-      return p.hole + "/3 · " + p.shots + " Schläge";
+      return (
+        p.hole +
+        "/" +
+        (room.round.meta.holes || 3) +
+        " · " +
+        p.shots +
+        " Schläge"
+      );
     case "memory":
       return p.levels + "/6 · " + p.lives + " Leben";
     case "rhythm":
@@ -1232,24 +1252,38 @@ function premiumFrame(time) {
   }
   if (time - lastHud > 250) {
     lastHud = time;
-    $("liveScores").replaceChildren(
-      ...roster().map((player) => {
-        const box = el(
-            "div",
-            "live-score" + (player.id === myId ? " you" : ""),
-          ),
-          dot = el("i");
-        dot.style.background = player.color;
-        const copy = el("div");
-        copy.append(
-          el("small", "", playerName(player)),
-          el("strong", "", statFor(id, state.players?.[player.id])),
+    const people = roster(),
+      signature =
+        room.round.id +
+        ":" +
+        JSON.stringify(
+          people.map((player) => [player.id, player.name, player.avatar]),
         );
-        box.append(dot, copy);
-        return box;
-      }),
-    );
+    if (signature !== liveScoreSignature) {
+      liveScoreSignature = signature;
+      liveScoreNodes.clear();
+      $("liveScores").replaceChildren(
+        ...people.map((player) => {
+          const box = el(
+              "div",
+              "live-score" + (player.id === myId ? " you" : ""),
+            ),
+            copy = el("div"),
+            score = el("strong");
+          copy.append(el("small", "", playerName(player)), score);
+          box.append(avatarNode(player.avatar), copy);
+          liveScoreNodes.set(player.id, score);
+          return box;
+        }),
+      );
+    }
+    for (const player of people) {
+      const node = liveScoreNodes.get(player.id),
+        value = statFor(id, state.players?.[player.id]);
+      if (node && node.textContent !== value) node.textContent = value;
+    }
   }
+
   if (room.round.practice)
     $("roundPhase").textContent = "TRAINING · ohne Wertung";
   const snapshot = {
@@ -1277,6 +1311,12 @@ function premiumFrame(time) {
   lastStats = { id, ...snapshot, reactionGo: lastStats.reactionGo };
   if (id === "race") {
     Sound.engine(active() ? (p?.speed || 0) / 60 : 0);
+  } else if (id === "monster") {
+    Sound.engine(
+      active() && time >= (p?.recoveringUntil || 0)
+        ? Math.min(1, (p?.speed || 0) / 80)
+        : 0,
+    );
   } else Sound.engine(0);
   if (id === "reaction" && state.go && !lastStats.reactionGo && active())
     Sound.fx("good");
@@ -1441,68 +1481,6 @@ function drawAvatar(p, x, y, r = 13, alpha = 1) {
   ctx.globalAlpha = 1;
 }
 function outMessage() {}
-function renderDraw() {
-  heading(
-    "SKETCH & GUESS",
-    `ZEICHNUNG ${state.turn + 1} / ${room.round.meta.turns}`,
-  );
-  rect(board.x - 3, board.y - 3, board.w + 6, board.h + 6, "#5f6f8d", 10);
-  rect(board.x, board.y, board.w, board.h, "#f5eee1", 7);
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(board.x, board.y, board.w, board.h);
-  ctx.clip();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  const strokes = [...drawingStrokes.entries()].sort((a, b) => a[0] - b[0]);
-  for (const [, s] of strokes) {
-    if (s[0] === s[2] && s[1] === s[3])
-      circle(board.x + s[0], board.y + s[1], s[5] / 2, PALETTE[s[4]]);
-    else
-      line(
-        board.x + s[0],
-        board.y + s[1],
-        board.x + s[2],
-        board.y + s[3],
-        PALETTE[s[4]],
-        s[5],
-      );
-  }
-  ctx.restore();
-  const drawer = roster().find((p) => p.id === state.drawer);
-  text(drawer?.name || "Zeichner", 962, 111, 13, drawer?.color || "#c6b5ff");
-  text("ZEICHNET", 962, 132, 9, "#8a9dbb");
-  text(
-    Math.max(0, Math.ceil((state.turnEnds - serverNow()) / 1000)) + " s",
-    962,
-    180,
-    26,
-    "#e8e9f7",
-  );
-  text(state.guessed.length + " Treffer", 962, 212, 11, "#a4f5db");
-  text(
-    state.phase === "reveal"
-      ? "LÖSUNG"
-      : state.drawer === myId
-        ? "DEIN GEHEIMES WORT"
-        : "GESUCHT",
-    board.x,
-    65,
-    10,
-    "#93a6c0",
-  );
-  text(
-    state.word || state.mask.split("").join(" "),
-    board.x + 115,
-    66,
-    20,
-    "#c6b5ff",
-  );
-  if (state.phase === "reveal") {
-    rect(board.x + 220, board.y + 200, 460, 92, "#17223aeb", 13);
-    text(state.word, W / 2 - 80, board.y + 255, 32, "#d3c3ff", "center");
-  }
-}
 function waveform(pcm, x, y, w, h, color) {
   if (!pcm) {
     line(x, y + h / 2, x + w, y + h / 2, "#34435d", 2);
@@ -1539,639 +1517,23 @@ function waveform(pcm, x, y, w, h, color) {
     );
   }
 }
-function renderDub() {
-  const time = serverNow(),
-    mine = state.players[myId];
-  heading(
-    "MEME DUB STUDIO",
-    "RHythmus · BETONUNG · GEMEINSAM LACHEN".toUpperCase(),
-  );
-  const activeTrack = state.playlist?.find(
-      (p) => time >= p.at && time < p.at + p.duration * 1000,
-    ),
-    who = roster().find((p) => p.id === activeTrack?.id);
-  const phase =
-    state.phase === "listen"
-      ? "01 / VORLAGE HÖREN"
-      : state.phase === "record"
-        ? "02 / DEINE VERSION"
-        : "03 / EURE BÜHNE";
-  text(phase, W / 2, 94, 12, "#a4b5d0", "center");
-  circle(W / 2, 230, 106, (capture ? "#ff8d9e" : "#b8a4ff") + "12");
-  circle(W / 2, 230, 78, capture ? "#ff8d9e22" : "#b8a4ff22");
-  rect(W / 2 - 20, 188, 40, 65, capture ? "#ff8d9e" : "#c8b6ff", 19);
-  ctx.strokeStyle = "#c8b6ff";
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.arc(W / 2, 234, 34, 0, Math.PI);
-  ctx.stroke();
-  line(W / 2, 268, W / 2, 285, "#c8b6ff", 5);
-  line(W / 2 - 20, 285, W / 2 + 20, 285, "#c8b6ff", 5);
-  if (capture) {
-    const level = capture.vu;
-    for (let i = 0; i < 12; i++) {
-      const h = 10 + Math.sin(performance.now() / 130 + i) * level * 35;
-      rect(W / 2 - 135 + i * 23, 338 - h / 2, 8, Math.abs(h) + 4, "#ff8d9e", 4);
-    }
-  }
-  text(
-    who
-      ? who.name + " ist auf der Bühne"
-      : capture
-        ? "Du bist dran. Gib alles."
-        : state.phase === "record"
-          ? mine?.submitted
-            ? "Deine Version ist abgegeben."
-            : "Mach die Vorlage zu deiner Version."
-          : "Hör genau hin. Gleich bist du dran.",
-    W / 2,
-    365,
-    24,
-    who?.color || "#d3c3ff",
-    "center",
-  );
-  waveform(
-    activeTrack ? dubLoaded.get(activeTrack.id) : dubLoaded.get("reference"),
-    160,
-    400,
-    800,
-    70,
-    activeTrack ? who?.color || "#a4f5db" : "#b8a4ff",
-  );
-  roster().forEach((p, i) => {
-    const data = state.players[p.id],
-      x = 70 + (i * (W - 140)) / Math.max(1, roster().length - 1);
-    circle(x, 525, 5, p.color);
-    text(p.name.slice(0, 12), x, 551, 11, p.color, "center");
-    text(
-      data.score !== null
-        ? (data.score / 10).toFixed(1) + " %"
-        : data.submitted
-          ? "✓ abgegeben"
-          : "…",
-      x,
-      576,
-      12,
-      data.submitted ? "#a4f5db" : "#7a8faa",
-      "center",
-    );
-  });
-}
-function renderDodge() {
-  heading("METEOR DASH", "DASH LÄDT ALLE 2 SEKUNDEN");
-  fieldStart(900, 520);
-  for (const b of state.meteors) {
-    line(b.x - b.vx * 0.09, b.y - b.vy * 0.09, b.x, b.y, "#ffb87855", b.r);
-    circle(b.x, b.y, b.r, "#ffb878");
-    circle(b.x - 3, b.y - 3, b.r * 0.45, "#ffe3ba");
-  }
-  roster().forEach((p) => {
-    const v = state.players[p.id];
-    if (!v) return;
-    const x = smooth(p.id + "dx", v.x),
-      y = smooth(p.id + "dy", v.y);
-    if (serverNow() < v.dashUntil) circle(x, y, 25, p.color + "44");
-    drawAvatar(p, x, y, 12, v.alive ? 1 : 0.18);
-    text(
-      p.id === myId ? "DU" : p.name.slice(0, 10),
-      x,
-      y - 23,
-      10,
-      p.color,
-      "center",
-    );
-  });
-  fieldEnd();
-  const p = state.players[myId];
-  if (!p.alive) outMessage();
-  else
-    text(
-      "♥".repeat(p.hp) +
-        " · " +
-        (serverNow() - p.dashAt >= 2000 ? "DASH BEREIT" : "DASH LÄDT"),
-      W / 2,
-      H - 15,
-      13,
-      "#c8b6ff",
-      "center",
-    );
-}
-function renderRunner() {
-  const mine = state.players[viewId()],
-    camera = smooth("runnercam", mine.x - 230);
-  heading("GAP RUNNER", "SPRINGEN · DOPPELSPRUNG · DUCKEN");
-  ctx.fillStyle = "#182a43";
-  ctx.beginPath();
-  ctx.moveTo(0, 460);
-  for (let x = 0; x <= W; x += 40)
-    ctx.lineTo(x, 280 - Math.sin((x + camera * 0.15) / 170) * 70);
-  ctx.lineTo(W, 460);
-  ctx.fill();
-  ctx.save();
-  ctx.translate(-camera, 40);
-  const gaps = room.round.meta.obstacles.filter((o) => o.type === "gap");
-  let from = camera - 30;
-  for (const gap of gaps.filter(
-    (g) => g.x + g.w > camera && g.x < camera + W,
-  )) {
-    rect(from, 420, Math.max(0, gap.x - from), 210, "#263a49");
-    line(from, 420, gap.x, 420, "#a4f5db", 4);
-    from = gap.x + gap.w;
-  }
-  rect(from, 420, camera + W + 30 - from, 210, "#263a49");
-  line(from, 420, camera + W + 30, 420, "#a4f5db", 4);
-  for (const o of room.round.meta.obstacles) {
-    if (o.x + o.w < camera || o.x > camera + W) continue;
-    if (o.type === "spike") {
-      ctx.fillStyle = "#ff8d9e";
-      for (let x = o.x; x < o.x + o.w; x += 18) {
-        ctx.beginPath();
-        ctx.moveTo(x, 420);
-        ctx.lineTo(x + 9, 380);
-        ctx.lineTo(Math.min(x + 18, o.x + o.w), 420);
-        ctx.fill();
-      }
-    }
-    if (o.type === "beam") {
-      rect(o.x, 365, o.w, 34, "#ffc57f", 5);
-      text("↓", o.x + o.w / 2, 390, 22, "#27324b", "center");
-    }
-  }
-  [...roster()]
-    .sort((a, b) => Number(a.id === myId) - Number(b.id === myId))
-    .forEach((p) => {
-      const v = state.players[p.id],
-        x = smooth(p.id + "runx", v.x),
-        y = smooth(p.id + "runy", v.y),
-        height = v.duck ? 18 : 38;
-      ctx.globalAlpha = v.alive ? (p.id === myId ? 1 : 0.45) : 0.2;
-      rect(x - 12, y - height, 24, height, p.color, 7);
-      circle(x + 6, y - height + 10, 3, "#17243a");
-      text(
-        p.id === myId ? "DU" : p.name.slice(0, 9),
-        x,
-        y - height - 12,
-        11,
-        p.color,
-        "center",
-      );
-      ctx.globalAlpha = 1;
-    });
-  ctx.restore();
-  rect(28, 65, 220, 72, "#111b2deb", 11);
-  text(Math.round((mine.best - 100) / 10) + " m", 44, 98, 24, "#c7b6ff");
-  text(
-    mine.lives +
-      "/3 Leben · " +
-      (mine.jumps === 1
-        ? "Doppelsprung bereit"
-        : mine.jumps === 2
-          ? "Landung abwarten"
-          : "Sprung bereit"),
-    44,
-    122,
-    10,
-    "#a3b5d0",
-  );
-  if (!mine.alive) outMessage();
-}
-function renderGolf() {
-  const mine = state.players[viewId()],
-    course = room.round.meta.courses[Math.min(mine.hole, 2)];
-  heading(
-    "POCKET GOLF",
-    `BAHN ${Math.min(3, mine.hole + 1)} / 3 · ${mine.shots} SCHLÄGE`,
-  );
-  fieldStart();
-  for (let y = 0; y < 500; y += 40)
-    for (let x = 0; x < 900; x += 40)
-      if ((x + y) % 80 === 0)
-        rect(x, y, Math.min(40, 900 - x), Math.min(40, 500 - y), "#15293a");
-  const walls = [...course.walls, state.gates[Math.min(mine.hole, 2)]];
-  walls.forEach((b, i) => {
-    rect(b.x + 3, b.y + 4, b.w, b.h, "#080e19aa", 2);
-    rect(b.x, b.y, b.w, b.h, i === walls.length - 1 ? "#ffb878" : "#7b86ac", 3);
-  });
-  circle(course.hole.x, course.hole.y, 16, "#080d17");
-  circle(course.hole.x, course.hole.y, 8, "#05080f");
-  line(
-    course.hole.x,
-    course.hole.y,
-    course.hole.x,
-    course.hole.y - 50,
-    "#dce7ff",
-    2,
-  );
-  ctx.fillStyle = "#c8b5ff";
-  ctx.beginPath();
-  ctx.moveTo(course.hole.x, course.hole.y - 50);
-  ctx.lineTo(course.hole.x + 27, course.hole.y - 40);
-  ctx.lineTo(course.hole.x, course.hole.y - 31);
-  ctx.fill();
-  roster().forEach((p) => {
-    const b = state.players[p.id];
-    if (b.hole !== mine.hole || b.finished) return;
-    circle(
-      smooth(p.id + "golfx", b.x),
-      smooth(p.id + "golfy", b.y),
-      9,
-      p.color,
-    );
-    if (p.id === myId) {
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, 12, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  });
-  if (golfDrag) {
-    const dx = golfDrag.x - (golfDrag.pointer.x - field.x),
-      dy = golfDrag.y - (golfDrag.pointer.y - field.y),
-      power = Math.min(1, Math.hypot(dx, dy) / 180);
-    ctx.setLineDash([6, 5]);
-    line(mine.x, mine.y, mine.x + dx * 0.8, mine.y + dy * 0.8, "#d7c9ff", 3);
-    ctx.setLineDash([]);
-    text(
-      "STÄRKE " + Math.round(power * 100) + " %",
-      mine.x,
-      mine.y - 27,
-      11,
-      "#e7dbff",
-      "center",
-    );
-  }
-  fieldEnd();
-  text(
-    Math.hypot(mine.vx, mine.vy) > 12
-      ? "BALL ROLLT …"
-      : "VOM BALL WEGZIEHEN UND LOSLASSEN",
-    W / 2,
-    H - 17,
-    12,
-    "#b5c4dd",
-    "center",
-  );
-}
-function renderMemory() {
-  const own = state.players[viewId()];
-  heading("MEMORY PULSE", `LEVEL ${state.level} / 6 · ${state.length} FELDER`);
-  for (let i = 0; i < 16; i++) {
-    const x = 345 + (i % 4) * 110,
-      y = 80 + Math.floor(i / 4) * 110,
-      lit = state.lit === i,
-      color = CODE_COLORS[i % 6];
-    if (lit) {
-      ctx.save();
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 25;
-      rect(x, y, 96, 96, color, 13);
-      ctx.restore();
-    } else rect(x, y, 96, 96, "#273450", 13);
-    text(i + 1, x + 48, y + 55, 18, lit ? "#1d253a" : "#7f92b4", "center");
-  }
-  text(
-    state.phase === "show"
-      ? "MERKEN. NOCH NICHT DRÜCKEN."
-      : "DEINE REIHENFOLGE: " + own.index + " / " + state.length,
-    W / 2,
-    560,
-    18,
-    state.phase === "show" ? "#c7b6ff" : "#a4f5db",
-    "center",
-  );
-  text(
-    "♥".repeat(Math.max(0, own.lives)),
-    W / 2,
-    594,
-    18,
-    "#ff9caf",
-    "center",
-  );
-  if (own.lives <= 0) outMessage("KEINE LEBEN MEHR · SCHAUE DER CREW ZU");
-}
-function renderRhythm() {
-  const left = 310,
-    width = 125,
-    target = 520,
-    time = serverNow(),
-    p = state.players[myId];
-  heading("RHYTHM RUSH", "PERFECT ±55 ms · GOOD ±150 ms");
-  for (let lane = 0; lane < 4; lane++) {
-    rect(left + lane * width, 65, width - 5, 505, "#172338", 8);
-    line(
-      left + lane * width,
-      target,
-      left + (lane + 1) * width - 5,
-      target,
-      CODE_COLORS[lane],
-      4,
-    );
-    rect(
-      left + lane * width + 10,
-      537,
-      width - 25,
-      32,
-      CODE_COLORS[lane] + "25",
-      6,
-    );
-    text(
-      ["A", "S", "D", "F"][lane],
-      left + lane * width + 60,
-      559,
-      16,
-      CODE_COLORS[lane],
-      "center",
-    );
-  }
-  for (const n of room.round.meta.notes) {
-    if (p.hits.includes(n.id)) continue;
-    const y = target - (n.at - time) * 0.32;
-    if (y < 65 || y > 572) continue;
-    rect(
-      left + n.lane * width + 12,
-      y - 9,
-      width - 29,
-      18,
-      p.missed.includes(n.id) ? "#ff8d9e55" : CODE_COLORS[n.lane],
-      6,
-    );
-  }
-  text(p.score, 160, 170, 36, "#c7b6ff", "center");
-  text("PUNKTE", 160, 195, 11, "#8da2c3", "center");
-  text(p.combo + "×", 960, 170, 36, "#a4f5db", "center");
-  text("KOMBO", 960, 195, 11, "#8da2c3", "center");
-  text(
-    "HÖRE AUF DIE TÖNE UND TRIFF DIE LINIE.",
-    W / 2,
-    H - 16,
-    12,
-    "#a5b7d3",
-    "center",
-  );
-}
-function renderStack() {
-  const p = state.players[viewId()],
-    camera = Math.max(0, (p.height - 14) * 27);
-  heading("PERFECT STACK", "PERFEKTE TREFFER GEBEN BREITE ZURÜCK");
-  rect(120, 555, 690, 12, "#627392", 4);
-  p.tower.forEach((b, i) => {
-    const y = 528 - i * 27 + camera;
-    if (y < 65 || y > 560) return;
-    rect(b.x, y, b.w, 24, CODE_COLORS[i % 6], 4);
-    line(b.x + 5, y + 4, b.x + b.w - 5, y + 4, "#ffffff40", 2);
-  });
-  if (p.alive) {
-    const y = 490 - p.height * 27 + camera;
-    rect(p.x, y, p.width, 25, "#e3d6ff", 5);
-    text("▼", p.x + p.width / 2, y - 12, 18, "#d6c4ff", "center");
-  }
-  text(p.height + "", 65, 130, 38, "#c9b9ff", "center");
-  text("BLÖCKE", 65, 156, 10, "#90a4c4", "center");
-  text("PERFECT " + p.perfect, 65, 190, 10, "#a4f5db", "center");
-  roster().forEach((player, i) => {
-    const v = state.players[player.id],
-      y = 100 + i * 50;
-    text(player.name.slice(0, 15), 880, y, 11, player.color);
-    rect(880, y + 10, 175, 7, "#28384f", 4);
-    rect(880, y + 10, Math.min(175, v.height * 6), 7, player.color, 4);
-    text(v.height, 1080, y + 3, 16, player.color, "right");
-  });
-  text("FEHLER " + p.errors + " / 2", W / 2, H - 22, 12, "#a4b8d1", "center");
-  if (!p.alive) outMessage("DEIN TURM STEHT · DIE CREW SPIELT WEITER");
-}
-function renderBomber() {
-  heading(
-    "BOMBER ARENA",
-    "2 BOMBEN · 1,9 SEKUNDEN ZÜNDSCHNUR · EIGENE BOMBEN TREFFEN DICH AUCH",
-  );
-  const cell = 40,
-    left = 260,
-    top = 65;
-  for (let y = 0; y < 13; y++)
-    for (let x = 0; x < 15; x++)
-      rect(
-        left + x * cell,
-        top + y * cell,
-        cell - 1,
-        cell - 1,
-        (x + y) % 2 ? "#17283a" : "#1c2d40",
-        2,
-      );
-  room.round.meta.walls.forEach((k) => {
-    const [x, y] = k.split(",").map(Number);
-    rect(left + x * cell + 1, top + y * cell + 1, 38, 38, "#52637c", 4);
-    rect(left + x * cell + 5, top + y * cell + 4, 30, 6, "#778aa5", 2);
-  });
-  state.boxes.forEach((k) => {
-    const [x, y] = k.split(",").map(Number);
-    rect(left + x * cell + 3, top + y * cell + 3, 34, 34, "#a47c56", 4);
-    line(
-      left + x * cell + 6,
-      top + y * cell + 7,
-      left + x * cell + 33,
-      top + y * cell + 32,
-      "#cfaa76",
-      3,
-    );
-    line(
-      left + x * cell + 32,
-      top + y * cell + 7,
-      left + x * cell + 6,
-      top + y * cell + 32,
-      "#cfaa76",
-      3,
-    );
-  });
-  state.blasts.forEach((b) =>
-    b.cells.forEach((k) => {
-      const [x, y] = k.split(",").map(Number);
-      rect(left + x * cell + 1, top + y * cell + 1, 38, 38, "#ffb878", 7);
-      circle(left + x * cell + 20, top + y * cell + 20, 11, "#fff0bb");
-    }),
-  );
-  state.bombs.forEach((b) => {
-    const x = left + b.x * cell + 20,
-      y = top + b.y * cell + 20;
-    circle(x, y, 13, "#090f19");
-    line(x + 6, y - 10, x + 9, y - 19, "#bd9f75", 3);
-    glowCircle(x + 10, y - 19, 3, "#ff9c7c");
-    text(
-      Math.max(0, (b.at - serverNow()) / 1000).toFixed(1),
-      x,
-      y + 4,
-      10,
-      "#e9e6ed",
-      "center",
-    );
-  });
-  roster().forEach((p) => {
-    const v = state.players[p.id];
-    drawAvatar(
-      p,
-      left + smooth(p.id + "bx", v.x * cell) + 20,
-      top + smooth(p.id + "by", v.y * cell) + 20,
-      12,
-      v.alive ? 1 : 0.18,
-    );
-  });
-  const own = state.players[myId];
-  if (!own.alive) outMessage();
-}
-function renderAim() {
-  const p = state.players[myId];
-  heading("PRECISION LAB", "VIOLETT TREFFEN · ROT STEHEN LASSEN");
-  fieldStart(900, 520);
-  for (const t of state.targets) {
-    if (p.seen.includes(t.id)) continue;
-    const color = t.good ? "#b8a4ff" : "#ff7f94";
-    circle(t.x, t.y, t.r + 6, color + "22");
-    circle(t.x, t.y, t.r, color);
-    circle(t.x, t.y, t.r * 0.35, t.good ? "#5b4887" : "#8f3549");
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(
-      t.x,
-      t.y,
-      t.r + 10,
-      -Math.PI / 2,
-      -Math.PI / 2 + Math.PI * 2 * (1 - (state.t - t.born) / 1.4),
-    );
-    ctx.stroke();
-  }
-  const x = pointer.x - field.x,
-    y = pointer.y - field.y;
-  if (x >= 0 && x < 900 && y >= 0 && y < 520) {
-    circle(x, y, 2, "#f0f1ff");
-    line(x - 12, y, x - 5, y, "#f0f1ff", 1);
-    line(x + 5, y, x + 12, y, "#f0f1ff", 1);
-    line(x, y - 12, x, y - 5, "#f0f1ff", 1);
-    line(x, y + 5, x, y + 12, "#f0f1ff", 1);
-  }
-  fieldEnd();
-  text(
-    p.score +
-      " PUNKTE · " +
-      Math.round((p.hits / Math.max(1, p.shots)) * 100) +
-      " % PRÄZISION · " +
-      p.combo +
-      "× KOMBO",
-    W / 2,
-    H - 17,
-    12,
-    "#c6b6f8",
-    "center",
-  );
-}
-function renderTag() {
-  heading("HOT POTATO", "LEERTASTE: ABGEBEN IN 65 PX · SHIFT: DASH");
-  fieldStart(800, 500);
-  room.round.meta.walls.forEach((w) => {
-    rect(w.x + 4, w.y + 5, w.w, w.h, "#060b14aa", 6);
-    rect(w.x, w.y, w.w, w.h, "#536581", 6);
-  });
-  roster().forEach((p) => {
-    const v = state.players[p.id],
-      x = smooth(p.id + "tx", v.x),
-      y = smooth(p.id + "ty", v.y);
-    if (state.owner === p.id && v.alive) {
-      ctx.strokeStyle = "#ffb878";
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 6]);
-      ctx.beginPath();
-      ctx.arc(x, y, 65, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      circle(x, y, 26, "#ff8d9e30");
-    }
-    drawAvatar(p, x, y, 13, v.alive ? 1 : 0.16);
-    text(p.name.slice(0, 13), x, y - 28, 11, p.color, "center");
-    if (state.owner === p.id && v.alive) {
-      circle(x, y - 48, 10, "#ffb878");
-      text("!", x, y - 44, 13, "#243149", "center");
-    }
-  });
-  fieldEnd();
-  const owner = roster().find((p) => p.id === state.owner),
-    remain = Math.max(0, (state.explodeAt - serverNow()) / 1000);
-  rect(30, 65, 145, 90, "#15223aee", 10);
-  text(
-    remain.toFixed(1) + " s",
-    49,
-    105,
-    29,
-    remain < 3 ? "#ff8d9e" : "#ffb878",
-  );
-  text(
-    (owner?.id === myId ? "DU HAST DIE BOMBE" : owner?.name || "").slice(0, 19),
-    49,
-    135,
-    10,
-    "#cbd6ed",
-  );
-  if (!state.players[myId].alive) outMessage();
-}
-function renderCode() {
-  const p = state.players[myId];
-  heading("CODE BREAKER", "WEISS = EXAKT · GRAU = FARBE RICHTIG, PLATZ FALSCH");
-  const left = 310;
-  rect(left - 30, 68, 560, 510, "#111d30", 12);
-  for (let i = 0; i < 10; i++) {
-    const y = 94 + i * 47,
-      row = p.history[i];
-    text(String(i + 1).padStart(2, "0"), left - 3, y + 11, 12, "#627897");
-    for (let j = 0; j < 4; j++)
-      circle(
-        left + 68 + j * 70,
-        y + 5,
-        15,
-        row ? CODE_COLORS[row.guess[j]] : "#283752",
-      );
-    if (row) {
-      for (let j = 0; j < 4; j++) {
-        const color =
-          j < row.exact
-            ? "#eef4ff"
-            : j < row.exact + row.near
-              ? "#7c90ad"
-              : "#26344c";
-        circle(
-          left + 378 + (j % 2) * 17,
-          y - 2 + Math.floor(j / 2) * 17,
-          5,
-          color,
-        );
-      }
-    }
-  }
-  text(
-    "DEIN CODE IST PRIVAT. ALLE KNACKEN DIESELBE LÖSUNG.",
-    W / 2,
-    H - 17,
-    11,
-    "#95aaca",
-    "center",
-  );
-  if (state.solution) {
-    rect(W / 2 - 160, H / 2 - 50, 320, 100, "#263252f0", 12);
-    text("GEKNACKT!", W / 2, H / 2 - 10, 23, "#a4f5db", "center");
-    state.solution.forEach((c, i) =>
-      circle(W / 2 - 75 + i * 50, H / 2 + 23, 15, CODE_COLORS[c]),
-    );
-  }
-}
-Object.assign(renderers, {
-  draw: renderDraw,
-  dub: renderDub,
-  dodge: renderDodge,
-  runner: renderRunner,
-  golf: renderGolf,
-  memory: renderMemory,
-  rhythm: renderRhythm,
-  stack: renderStack,
-  bomber: renderBomber,
-  aim: renderAim,
-  tag: renderTag,
-  code: renderCode,
-});
+// The new renderer layer owns artwork; panel/input/audio code remains shared here.
+Object.assign(
+  renderers,
+  Object.fromEntries(
+    [
+      "draw",
+      "dub",
+      "dodge",
+      "runner",
+      "golf",
+      "memory",
+      "rhythm",
+      "stack",
+      "bomber",
+      "aim",
+      "tag",
+      "code",
+    ].map((id) => [id, renderGameLoading]),
+  ),
+);

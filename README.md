@@ -11,17 +11,18 @@ https://multiplayergames-gig.onrender.com/
 - [v5-Update und Installation](UPDATE-v5.md)
 - [Firebase, Supabase, Render und lokale Entwicklung](SETUP.md)
 
-
 ## Update v7.2
 
 Garage mit Fahrzeug-Vorschauen und Spuren, neue Karosserien, mehr Platz und Anpassung im Profil, kompakter Teammodus sowie einheitliche Cover für alle 26 Spiele: [Details und Validierung](UPDATE-v7.2.md).
-
 
 ## Update v7.3
 
 Lobby- und Profilkorrekturen, sichere Overlay-Bedienung, zuverlässiger Banner-Upload, goldenes Erstellerprofil sowie private Favoriten, Spieleabende und Rückblicke: [Details und Validierung](UPDATE-v7.3.md).
 
-
 ## Update v7.4
 
 Freies Zeichnen und gemeinsame Galerie in Sketch Suspect, stabile Zeitsteuerung, erreichbare One-Tap-Ziele und Mehrspieler-/Zuschauerprüfungen für alle 26 Spiele: [Details und Validierung](UPDATE-v7.4.md).
+
+## Update v8.0
+
+Alle 26 Spielansichten überarbeitet, Monster Trails mit Checkpoints und getrennter Balance-Steuerung, sechs neue Golfbahnen samt gemeinsamer Scorecard, neue 3D-Fahrzeuge und Kamera sowie korrigierter Ping und weicher Bannerübergang: [Änderungen und Prüfungen](UPDATE-v8.md).

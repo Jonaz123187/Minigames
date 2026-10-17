@@ -1,5 +1,13 @@
 import * as THREE from "./vendor/three.module.min.js";
 import { mergeGeometries } from "./vendor/BufferGeometryUtils.js";
+import {
+  createVehicle,
+  groundShadow,
+  label,
+  disposeScene,
+  skyBackdrop,
+  surfaceTexture,
+} from "./premium-scene.js";
 // A real 3D scene. All rules and car movement remain on the authoritative server.
 let renderer = null,
   scene,
@@ -11,7 +19,8 @@ let renderer = null,
   cameraLook = new THREE.Vector3(),
   failed = false,
   renderSize = "",
-  carPoses = new Map();
+  carPoses = new Map(),
+  trailSystems = new Map();
 const canvas3D = document.getElementById("raceCanvas");
 let materialCache = new Map();
 function material(color, extra = {}) {
@@ -107,82 +116,23 @@ function ribbon(track, width, y, colors, segments = track.segments) {
   return mesh;
 }
 function makeCar(color, skin) {
-  const car = new THREE.Group(),
-    body = material(color, { metalness: 0.32, roughness: 0.32 }),
-    dark = material("#151c24");
-  for (const p of GiGVehicles.parts(skin)) {
-    const piece = box(
-      car,
-      p.z * 0.034,
-      0.68 + p.y * 0.025,
-      p.x * 0.04,
-      p.d * 0.034,
-      p.h * 0.025,
-      p.w * 0.04,
-      material(p.color),
-    );
-    piece.castShadow = true;
-  }
-  // A player-color strip keeps online opponents recognizable for every model.
-  box(car, 0, 0.71, 1.93, 1.3, 0.08, 0.04, body);
-  for (const x of [-0.92, 0.92])
-    for (const z of [-1.2, 1.2]) {
-      const wheel = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.38, 0.38, 0.24, 12),
-        dark,
-      );
-      wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(x, 0.38, z);
-      car.add(wheel);
-      const hub = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.2, 0.2, 0.25, 8),
-        material("#aeb7be"),
-      );
-      hub.rotation.z = Math.PI / 2;
-      hub.position.copy(wheel.position);
-      car.add(hub);
-    }
-  const boost = box(
-    car,
-    0,
-    0.36,
-    -2.35,
-    0.7,
-    0.2,
-    0.8,
-    new THREE.MeshBasicMaterial({
-      color: "#9adaff",
-      transparent: true,
-      opacity: 0.7,
-    }),
-  );
-  boost.name = "boost";
-  boost.visible = false;
-  mergeStatic(car);
+  const car = createVehicle(skin, color);
+  const shadow = groundShadow(2.8);
+  shadow.position.y = 0.09;
+  car.add(shadow);
+  car.userData.flame.name = "boost";
   scene.add(car);
   return car;
 }
 function buildScene(meta) {
-  if (scene) {
-    const geometries = new Set(),
-      materials = new Set();
-    scene.traverse((o) => {
-      if (o.geometry) geometries.add(o.geometry);
-      if (o.material)
-        (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) =>
-          materials.add(m),
-        );
-    });
-    for (const g of geometries) g.dispose();
-    for (const m of materials) m.dispose();
-  }
+  disposeScene(scene);
   materialCache = new Map();
   scene = new THREE.Scene();
   worldTrack = GiGRace.makeTrack(meta.track);
   const night = meta.track === "night",
     alpine = meta.track === "alpine";
   const sky = night ? "#152333" : alpine ? "#aebec5" : "#afc9d0";
-  scene.background = new THREE.Color(sky);
+  skyBackdrop(scene, night ? "#101b32" : alpine ? "#81aab9" : "#7bb6c8", sky);
   scene.fog = new THREE.Fog(sky, 140, 470);
   scene.add(new THREE.AmbientLight("#d8e5f0", 0.65));
   scene.add(
@@ -195,24 +145,34 @@ function buildScene(meta) {
   const sun = new THREE.DirectionalLight("#fff2dc", night ? 1.4 : 2.6);
   sun.position.set(-90, 150, 40);
   sun.castShadow = !isTouchDevice;
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.left = -300;
-  sun.shadow.camera.right = 400;
-  sun.shadow.camera.top = 280;
-  sun.shadow.camera.bottom = -300;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -75;
+  sun.shadow.camera.right = 75;
+  sun.shadow.camera.top = 75;
+  sun.shadow.camera.bottom = -75;
   sun.shadow.camera.far = 600;
-  sun.shadow.bias = -0.0008;
+  sun.shadow.bias = -0.0003;
+  sun.name = "sun";
+  scene.add(sun.target);
   scene.add(sun);
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(2200, 2200),
-    material(night ? "#33424a" : alpine ? "#76846b" : "#879f84"),
+    material(night ? "#273b4b" : alpine ? "#6b9280" : "#9bbd91"),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.08;
   ground.receiveShadow = true;
   scene.add(ground);
-  ribbon(worldTrack, worldTrack.width + 1.6, 0.015, ["#dedbd1", "#ba5e4b"]);
-  ribbon(worldTrack, worldTrack.width, 0.035, ["#424d55"]);
+  ribbon(worldTrack, worldTrack.width + 1.6, 0.015, ["#f5edde", "#d36a57"]);
+  const asphalt = ribbon(worldTrack, worldTrack.width, 0.035, [
+    night ? "#344854" : "#485960",
+  ]);
+  const uv = [];
+  const positions = asphalt.geometry.attributes.position;
+  for (let i = 0; i < positions.count; i++)
+    uv.push(positions.getX(i) / 7, positions.getZ(i) / 7);
+  asphalt.geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  asphalt.material.map = surfaceTexture("asphalt");
   for (const s of worldTrack.shortcuts) {
     const m = box(
       scene,
@@ -317,7 +277,7 @@ function buildScene(meta) {
       material("#588997", { metalness: 0.4, roughness: 0.3 }),
     );
     sea.rotation.x = -Math.PI / 2;
-    sea.position.set(900, -0.04, 0);
+    sea.position.set(875, -0.04, 0);
     scene.add(sea);
   }
   if (alpine) {
@@ -330,6 +290,150 @@ function buildScene(meta) {
       scene.add(mountain);
     }
   }
+  const startSign = label(
+    "GiG  /  GRAND PRIX",
+    "#dbf5ec",
+    "#162b35",
+    worldTrack.width + 1.5,
+    1.8,
+  );
+  startSign.position.set(0, 5.85, -0.29);
+  startSign.rotation.y = Math.PI;
+  gantry.add(startSign);
+  const furniture = new THREE.Group();
+  scene.add(furniture);
+  for (const index of worldTrack.checkpointIndices.slice(1)) {
+    const s = worldTrack.segments[index],
+      angle = Math.atan2(s.dx, s.dz);
+    const sign = label(
+      "›  " +
+        (index === worldTrack.checkpointIndices[1]
+          ? "RACING CLUB"
+          : "GiG MOTORSPORT"),
+      "#ccebdc",
+      "#1d3841",
+      8,
+      1.65,
+    );
+    const g = new THREE.Group();
+    g.position.set(
+      s.x + Math.cos(angle) * (worldTrack.width / 2 + 3),
+      2.7,
+      s.z - Math.sin(angle) * (worldTrack.width / 2 + 3),
+    );
+    g.rotation.y = angle;
+    sign.rotation.y = Math.PI;
+    g.add(sign);
+    scene.add(g);
+  }
+  for (let i = 0; i < worldTrack.segments.length; i += 10) {
+    const s = worldTrack.segments[i],
+      nx = s.dz / s.length,
+      nz = -s.dx / s.length;
+    if (night) {
+      const x = s.x + nx * (worldTrack.width / 2 + 3),
+        z = s.z + nz * (worldTrack.width / 2 + 3);
+      box(furniture, x, 3.8, z, 0.15, 7.6, 0.15, material("#516d7d"));
+      box(
+        furniture,
+        x,
+        7.6,
+        z,
+        3.5,
+        0.17,
+        0.5,
+        material("#b3f3e1", { emissive: "#7fcab9", emissiveIntensity: 0.7 }),
+      );
+    } else if (i % 20 === 0) {
+      const x = s.x - nx * 27,
+        z = s.z - nz * 27;
+      if (GiGRace.nearest(worldTrack, { x, z }).distance < 20) continue;
+      for (let j = 0; j < 4; j++)
+        box(
+          furniture,
+          x,
+          0.8 + j * 0.7,
+          z + j * 1.1,
+          12,
+          0.5,
+          1.1,
+          material(j % 2 ? "#d3d8c8" : "#426b6b"),
+        );
+      box(furniture, x, 4.1, z + 1.8, 13, 0.2, 6, material("#e9dfb7"));
+    }
+  }
+  if (!night && !alpine) {
+    for (let i = 0; i < 16; i++) {
+      const x = 365 + i * 4.8,
+        z = -140 + i * 22;
+      const rock = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(5 + (i % 5), 0),
+        material("#c6b996"),
+      );
+      rock.position.set(x, -0.8, z);
+      rock.scale.y = 0.7;
+      furniture.add(rock);
+    }
+  }
+  if (night) {
+    const windowMat = material("#d7ebcf", {
+      emissive: "#d7ebcf",
+      emissiveIntensity: 0.5,
+    });
+    for (let i = 0; i < 10; i++) {
+      const x = 360 + (i % 2) * 30,
+        z = -230 + i * 38;
+      box(
+        furniture,
+        x,
+        10,
+        z,
+        18,
+        20,
+        26,
+        material(i % 2 ? "#425465" : "#526574"),
+      );
+      for (let j = 0; j < 3; j++)
+        for (let k = 0; k < 4; k++)
+          box(
+            furniture,
+            x - 9.05,
+            4 + j * 5,
+            z - 9 + k * 6,
+            0.1,
+            1.7,
+            2.3,
+            windowMat,
+          );
+    }
+  } else if (!alpine) {
+    const trunk = material("#958263"),
+      leaf = material("#4e8170");
+    for (let i = 0; i < worldTrack.segments.length; i += 18) {
+      const s = worldTrack.segments[i],
+        x = s.x + (s.dz / s.length) * 22,
+        z = s.z - (s.dx / s.length) * 22;
+      if (GiGRace.nearest(worldTrack, { x, z }).distance < 17) continue;
+      const stem = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.25, 0.5, 7.5, 7),
+        trunk,
+      );
+      stem.position.set(x, 3.75, z);
+      furniture.add(stem);
+      for (let j = 0; j < 6; j++) {
+        const frond = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 5), leaf);
+        frond.scale.set(0.55, 0.18, 3.2);
+        frond.rotation.y = (j * Math.PI) / 3;
+        frond.rotation.x = 0.18;
+        frond.position.set(
+          x + Math.sin((j * Math.PI) / 3) * 1.7,
+          7.5,
+          z + Math.cos((j * Math.PI) / 3) * 1.7,
+        );
+        furniture.add(frond);
+      }
+    }
+  }
   const arrowMat = new THREE.MeshBasicMaterial({
     color: "#f3d4a0",
     transparent: true,
@@ -340,8 +444,32 @@ function buildScene(meta) {
   scene.add(arrow);
   mergeStatic(scene);
   cars = new Map();
+  trailSystems.clear();
   carPoses.clear();
-  for (const p of roster()) cars.set(p.id, makeCar(p.color, p.car));
+  for (const p of roster()) {
+    cars.set(p.id, makeCar(p.color, p.car));
+    if (p.trail && p.trail !== "none") {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(new Float32Array(36 * 3), 3),
+      );
+      geometry.setDrawRange(0, 0);
+      const material = new THREE.PointsMaterial({
+        color:
+          { gold: "#eed786", mint: "#8ed6b7", pink: "#e29ec1" }[p.trail] ||
+          p.color,
+        size: 0.16,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+      });
+      const points = new THREE.Points(geometry, material);
+      points.frustumCulled = false;
+      scene.add(points);
+      trailSystems.set(p.id, { points, history: [] });
+    }
+  }
   const first = state?.players?.[viewId()] || GiGRace.spawn(worldTrack);
   cameraAt.set(
     first.x - Math.sin(first.heading) * 13,
@@ -367,7 +495,7 @@ function initialize() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1;
+    renderer.toneMappingExposure = 1.08;
     camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 650);
     canvas3D.addEventListener("webglcontextlost", (e) => {
       e.preventDefault();
@@ -380,41 +508,7 @@ function initialize() {
   }
 }
 function fallback() {
-  background();
-  const own = state.players[viewId()],
-    scale = 3.3,
-    x = W / 2 - own.x * scale,
-    z = H / 2 - own.z * scale;
-  ctx.save();
-  ctx.translate(x, z);
-  ctx.scale(scale, scale);
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-  ctx.strokeStyle = "#44525e";
-  ctx.lineWidth = worldTrack.width;
-  ctx.beginPath();
-  worldTrack.points.forEach((p, i) =>
-    i ? ctx.lineTo(p.x, p.z) : ctx.moveTo(p.x, p.z),
-  );
-  ctx.closePath();
-  ctx.stroke();
-  for (const p of roster()) {
-    const car = state.players[p.id];
-    ctx.save();
-    ctx.translate(car.x, car.z);
-    ctx.rotate(-car.heading);
-    rect(-1, -2, 2, 4, p.color, 0.3);
-    ctx.restore();
-  }
-  ctx.restore();
-  text(
-    "STRECKENANSICHT · WEBGL NICHT VERFÜGBAR",
-    W / 2,
-    32,
-    12,
-    "#d7e7fa",
-    "center",
-  );
+  GiGPremium.raceFallback(worldTrack);
 }
 function minimap() {
   const pts = worldTrack.points,
@@ -492,25 +586,80 @@ renderers.race = function () {
       model.rotation.y = pos.heading;
       model.rotation.z = -(v.steer || 0) * Math.min(0.045, v.speed * 0.001);
       model.getObjectByName("boost").visible = serverNow() < v.boostUntil;
+      model.userData.wheels.forEach((wheel) => {
+        wheel.rotation.x +=
+          room.round.pause?.at == null ? (v.speed * frameDt) / 0.39 : 0;
+      });
+      model.userData.roots.forEach((wheel) => {
+        wheel.rotation.y = wheel.position.z > 0 ? (v.steer || 0) * 0.4 : 0;
+      });
+      model.userData.brakeMaterial.emissiveIntensity =
+        p.id === myId && currentControls().throttle < 0 ? 2.5 : 0.7;
+      model.userData.body.rotation.x = reducedMotion
+        ? 0
+        : Math.sin(serverNow() / 80) * Math.min(0.006, v.speed / 7000);
+      model.userData.flame.scale.y = reducedMotion
+        ? 1
+        : 0.8 + Math.sin(serverNow() / 40) * 0.2;
+      const trail = trailSystems.get(p.id);
+      if (trail) {
+        const at = serverNow();
+        if (
+          !reducedMotion &&
+          room.phase === "playing" &&
+          room.round.pause?.at == null &&
+          v.speed > 5 &&
+          (!trail.history.length || at - trail.history[0].at > 16)
+        )
+          trail.history.unshift({
+            x: pos.x - Math.sin(pos.heading) * 2.15,
+            z: pos.z - Math.cos(pos.heading) * 2.15,
+            at,
+          });
+        trail.history = trail.history
+          .filter((h) => at - h.at < 500)
+          .slice(0, 36);
+        const attribute = trail.points.geometry.attributes.position;
+        trail.history.forEach((h, i) =>
+          attribute.setXYZ(i, h.x, 0.3 + (at - h.at) / 3000, h.z),
+        );
+        attribute.needsUpdate = true;
+        trail.points.geometry.setDrawRange(
+          0,
+          reducedMotion ? 0 : trail.history.length,
+        );
+      }
       if (p.id === viewId()) focus = { ...v, ...pos };
     }
     if (focus) {
-      const back = 12 + Math.min(5, focus.speed * 0.08),
+      const back = 7.6 + Math.min(2.4, focus.speed * 0.04),
         target = new THREE.Vector3(
           focus.x - Math.sin(focus.heading) * back,
-          8.5 + focus.speed * 0.035,
+          3.8 + focus.speed * 0.017,
           focus.z - Math.cos(focus.heading) * back,
         ),
         look = new THREE.Vector3(
           focus.x + Math.sin(focus.heading) * 8,
-          1,
+          1.1,
           focus.z + Math.cos(focus.heading) * 8,
         ),
         t = 1 - Math.exp(-frameDt * 6);
+      if (cameraAt.distanceTo(target) > 75) {
+        cameraAt.copy(target);
+        cameraLook.copy(look);
+      }
       cameraAt.lerp(target, t);
       cameraLook.lerp(look, t);
       camera.position.copy(cameraAt);
       camera.lookAt(cameraLook);
+      const sun = scene.getObjectByName("sun");
+      sun.position.set(focus.x - 45, 95, focus.z + 30);
+      sun.target.position.set(focus.x, 0, focus.z);
+      const fov = 61 + (reducedMotion ? 0 : Math.min(8, focus.speed * 0.14));
+      if (Math.abs(camera.fov - fov) > 0.1) {
+        camera.fov += (fov - camera.fov) * t;
+        camera.updateProjectionMatrix();
+      }
       const next =
           worldTrack.points[
             worldTrack.checkpointIndices[focus.nextCheckpoint || 0]
@@ -518,7 +667,7 @@ renderers.race = function () {
         arrow = scene.getObjectByName("checkpoint");
       arrow.position.set(
         next.x,
-        5 + Math.sin(performance.now() / 400) * 0.25,
+        5 + (reducedMotion ? 0 : Math.sin(serverNow() / 400) * 0.25),
         next.z,
       );
       arrow.rotation.z = Math.PI;
@@ -528,43 +677,6 @@ renderers.race = function () {
     canvas3D.hidden = true;
     fallback();
   }
-  rect(24, H - 141, 210, 115, "#17212be6", 15);
-  text(Math.round(own.speed * 3.6), 42, H - 78, 45, "#f4f3ee");
-  text("KM/H", 151, H - 80, 10, "#aebecb");
-  text(
-    "RUNDE " +
-      Math.min(own.lap + 1, room.round.meta.laps) +
-      " / " +
-      room.round.meta.laps,
-    42,
-    H - 49,
-    12,
-    "#d5e5f5",
-  );
-  rect(42, H - 38, 174, 4, "#465666", 2);
-  rect(42, H - 38, 174 * Math.min(1, (own.drift || 0) / 2.5), 4, "#eac591", 2);
-  if (own.offroad)
-    text(
-      "NEBEN DER STRECKE · ZURÜCK AUF DEN ASPHALT",
-      W / 2,
-      42,
-      13,
-      "#fff1d5",
-      "center",
-    );
-  else if (serverNow() < own.boostUntil)
-    text("DRIFT BOOST", W / 2, 42, 16, "#d4ecff", "center");
-  else if (own.drift > 0.65)
-    text("BOOST BEREIT · DRIFT LOSLASSEN", W / 2, 42, 12, "#f1dab8", "center");
-  const top = Object.entries(state.players).sort(
-      (a, b) =>
-        Number(b[1].finished) - Number(a[1].finished) ||
-        (a[1].finished
-          ? a[1].finishTime - b[1].finishTime
-          : b[1].progress - a[1].progress),
-    ),
-    rank = top.findIndex(([id]) => id === viewId()) + 1;
-  rect(W - 147, 24, 122, 60, "#17212be0", 12);
-  text(rank + " / " + top.length, W - 85, 60, 26, "#e8edf4", "center");
+  if (!failed) GiGPremium.driveHUD("race", own, worldTrack);
   minimap();
 };

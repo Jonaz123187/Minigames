@@ -11,33 +11,46 @@
       sky: "#b9d8d2",
       ground: "#74aa79",
       edge: "#c6dba4",
-      length: 6200,
+      length: 9000,
     },
     canyon: {
       name: "Canyon Club",
       sky: "#dfc4ae",
       ground: "#cb8a65",
       edge: "#eec08b",
-      length: 6800,
+      length: 10000,
     },
     frost: {
       name: "Frosty Run",
       sky: "#bdd0e6",
       ground: "#89acbe",
       edge: "#e2e8eb",
-      length: 6500,
+      length: 9500,
     },
   };
   function height(x, id) {
     if (x < 450) return 0;
     const t = x - 450;
+    // Ease the first hill in. The old piecewise ramps dropped vertically at their ends.
+    const fade = Math.min(1, t / 240);
     let y =
-      Math.sin(t / 260) * 44 +
-      Math.sin(t / 103) * 19 +
-      (id === "canyon" ? Math.sin(t / 150) * 26 : 0);
-    if (x >= 1500 && x <= 1740) y -= (x - 1500) * 0.34;
-    if (x >= 3420 && x <= 3720) y -= (x - 3420) * 0.32;
-    if (x >= 3960 && x <= 4200) y -= (x - 3960) * 0.25;
+      (Math.sin(t / 310) * 40 +
+        Math.sin(t / 160) * 14 +
+        (id === "canyon" ? Math.sin(t / 205) * 18 : 0)) *
+      fade;
+    for (const [center, width, rise] of [
+      [1740, 330, 56],
+      [3720, 340, 66],
+      [4170, 300, 40],
+    ]) {
+      const v = Math.abs(x - center) / width;
+      if (v < 1) y -= ((1 + Math.cos(v * Math.PI)) * rise) / 2;
+    }
+    // The bridge has level approaches and a deliberately shallow drop onto the plank.
+    if (x > 4000 && x < 4640) {
+      const blend = Math.min(1, (x - 4000) / 200, (4640 - x) / 200);
+      y += (0 - y) * Math.max(0, blend);
+    }
     return y;
   }
   function course(id = "meadow") {
@@ -46,8 +59,8 @@
       pieces = [];
     for (let x = -300; x < def.length + 350; x += 60) {
       if (
-        (x > 1710 && x < 1830) ||
-        (x > 3690 && x < 3810) ||
+        (x >= 1740 && x < 1800) ||
+        (x >= 3720 && x < 3780) ||
         (x >= 4200 && x < 4440)
       )
         continue;
@@ -65,14 +78,17 @@
       ...def,
       id,
       pieces,
-      coins: Array.from({ length: 24 }, (_, i) => ({
-        x: 650 + i * 220,
-        y: height(650 + i * 220, id) - 76,
+      checkpoints: [
+        140, 1250, 2050, 3150, 3950, 4700, 5700, 6900, 8100, 9150,
+      ].filter((x) => x < def.length),
+      coins: Array.from({ length: 36 }, (_, i) => ({
+        x: 650 + (i * (def.length - 1100)) / 35,
+        y: height(650 + (i * (def.length - 1100)) / 35, id) - 76,
       })),
       obstacles: [
-        { x: 2350, y: height(2350, id) - 8, type: "log" },
-        { x: 4320, y: height(4320, id) - 30, type: "seesaw" },
-        { x: 5100, y: height(5100, id) - 10, type: "log" },
+        { x: 2350, y: height(2350, id) + 4, type: "log" },
+        { x: 4320, y: -12, type: "seesaw" },
+        { x: 5100, y: height(5100, id) + 2, type: "log" },
       ],
     };
   }
@@ -201,20 +217,69 @@
       at: 0,
       checkpoint: 0,
       resets: 0,
+      recoveringUntil: 0,
+      penalty: 0,
+      resetAt: -10000,
+      stuckTime: 0,
       planks: [],
     };
   }
+  function reset(w, track, now) {
+    if (w.finished || w.out || now - w.resetAt < 1800) return false;
+    const x = track.checkpoints[w.checkpoint] || 140,
+      y = height(x, track.id);
+    M.Body.setPosition(w.body, { x, y: y - 67 });
+    M.Body.setAngle(w.body, 0);
+    M.Body.setVelocity(w.body, { x: 0, y: 0 });
+    M.Body.setAngularVelocity(w.body, 0);
+    w.wheels.forEach((wheel, i) => {
+      M.Body.setPosition(wheel, { x: x + (i ? 34 : -34), y: y - 26 });
+      M.Body.setVelocity(wheel, { x: 0, y: 0 });
+      M.Body.setAngularVelocity(wheel, 0);
+      M.Body.setAngle(wheel, 0);
+    });
+    w.body.torque = 0;
+    w.body.force.x = w.body.force.y = 0;
+    w.wheels.forEach((b) => {
+      b.torque = 0;
+      b.force.x = b.force.y = 0;
+    });
+    for (const b of [w.body, ...w.wheels]) {
+      b.positionImpulse.x = b.positionImpulse.y = 0;
+      b.constraintImpulse.x =
+        b.constraintImpulse.y =
+        b.constraintImpulse.angle =
+          0;
+    }
+    w.progress = Math.max(0, x - 140);
+    w.angle = 0;
+    w.deadTime = 0;
+    w.stuckTime = 0;
+    w.air = 0;
+    w.resets++;
+    w.penalty += 3000;
+    w.recoveringUntil = now + 800;
+    w.resetAt = now;
+    return true;
+  }
   function step(w, input, dt, track, now) {
     if (w.out || w.finished) return;
-    const gas = Math.max(-1, Math.min(1, Number(input.throttle) || 0)),
+    const recovering = now < w.recoveringUntil;
+    const gas = recovering
+        ? 0
+        : Math.max(-1, Math.min(1, Number(input.throttle) || 0)),
       body = w.body;
+    const terrain = M.Composite.allBodies(w.engine.world).filter(
+      (b) => b.label === "ground" || b.label === "plank",
+    );
     const grounded = w.wheels.map(
       (wheel) =>
-        M.Query.collides(
-          wheel,
-          M.Composite.allBodies(w.engine.world).filter(
-            (b) => b.label === "ground" || b.label === "plank",
-          ),
+        M.Query.collides(wheel, terrain).length > 0 ||
+        M.Query.ray(
+          terrain,
+          wheel.position,
+          { x: wheel.position.x, y: wheel.position.y + 27 },
+          1,
         ).length > 0,
     );
     const contact = grounded.some(Boolean),
@@ -238,8 +303,12 @@
       }
     }
     // Rear-axle torque lifts the nose. Feathering the throttle is essential on ramps.
+    const tilt = Number.isFinite(input.tilt)
+      ? Math.max(-1, Math.min(1, input.tilt))
+      : gas;
     body.torque +=
-      (-gas * (contact ? 0.12 : 1.4)) / (1 + w.levels.weight * 0.14);
+      (contact ? -gas * 0.085 : -tilt * 1.05 - body.angularVelocity * 1.8) /
+      (1 + w.levels.weight * 0.14);
     if (!gas) {
       body.torque += -body.angularVelocity * 0.11;
       for (const wheel of w.wheels)
@@ -271,8 +340,24 @@
       ).length > 0;
     if (Math.abs(w.angle) > 2.1 && roof) w.deadTime += dt;
     else w.deadTime = Math.max(0, w.deadTime - dt);
-    if (w.deadTime > 0.25 || body.position.y > 450 || body.position.x < 0)
-      w.out = true;
+    if (
+      Math.abs(gas) > 0.5 &&
+      Math.abs(speed) < 0.25 &&
+      Math.abs(w.angle) > 1.05
+    )
+      w.stuckTime += dt;
+    else w.stuckTime = 0;
+    if (
+      w.deadTime > 0.8 ||
+      w.stuckTime > 2 ||
+      body.position.y > 450 ||
+      body.position.x < 0
+    )
+      reset(w, track, now);
+    if (contact && Math.abs(w.angle) < 0.7) {
+      const cp = track.checkpoints.findLastIndex((x) => body.position.x >= x);
+      w.checkpoint = Math.max(w.checkpoint, cp);
+    }
     if (body.position.x > track.length) {
       w.finished = true;
       w.finishAt = now;
@@ -304,7 +389,12 @@
       picked: [...w.coins],
       airtime: w.airtime,
       planks: w.planks,
+      checkpoint: w.checkpoint,
+      resets: w.resets,
+      penalty: w.penalty,
+      recoveringUntil: w.recoveringUntil,
+      grounded: w.grounded,
     };
   }
-  return { tracks, course, makeWorld, step, view };
+  return { tracks, course, height, makeWorld, step, reset, view };
 });
