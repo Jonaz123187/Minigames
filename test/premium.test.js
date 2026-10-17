@@ -152,7 +152,7 @@ test("Runner: two jumps, no auto-jump and idle run loses", () => {
     game.tick(idle, 1 / 60, 10000 + (i * 1000) / 60, r);
   assert.equal(idle.players.a.alive, false);
 });
-test("Golf: force cap, moving-ball lockout and three completed holes", () => {
+test("Golf: force cap, moving-ball lockout and all six completed holes", () => {
   const game = GAMES.golf,
     g = game.init(["a"]),
     r = round(["a"]);
@@ -165,7 +165,7 @@ test("Golf: force cap, moving-ball lockout and three completed holes", () => {
     game.input(g, "a", { action: "shoot", dx: 1, dy: 0 }, 12000),
     false,
   );
-  for (let h = 0; h < 3; h++) {
+  for (let h = 0; h < game.meta().holes; h++) {
     const hole = game.meta().courses[h].hole;
     Object.assign(g.players.a, { x: hole.x, y: hole.y, vx: 0, vy: 0 });
     game.tick(g, 1 / 60, 13000 + h * 1000, r);

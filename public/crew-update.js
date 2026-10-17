@@ -399,7 +399,8 @@
     if (state && newGames.has(room?.round?.game)) {
       const meter = $("timingMeter");
       if (meter) {
-        const elapsed = Math.max(0, serverNow() - state.at);
+        const elapsed =
+          state.ownResult?.elapsed ?? Math.max(0, serverNow() - state.at);
         meter.value = Math.min(2000, elapsed);
         const hit = $("oneHit");
         if (hit)
@@ -407,8 +408,13 @@
             !active() ||
             serverNow() < state.at ||
             !!state.players[myId]?.submitted;
-        $("timingLabel").textContent =
-          serverNow() < state.at
+        $("timingLabel").textContent = state.ownResult
+          ? state.ownResult.error == null
+            ? "FRÜHSTART"
+            : state.phase === "reveal"
+              ? state.ownResult.points + " PUNKTE"
+              : state.ownResult.elapsed + " ms"
+          : serverNow() < state.at
             ? "Start in " + Math.ceil((state.at - serverNow()) / 1000) + " …"
             : state.mode === "wait"
               ? state.green
@@ -905,7 +911,9 @@
       meter.value = 0;
       const label = el("strong", "timing-label");
       label.id = "timingLabel";
-      box.append(meter, label);
+      const orbit = el("div", "timing-orbit");
+      orbit.append(meter, label);
+      box.append(orbit);
       if (state.phase === "play" && can && !me.submitted) {
         const b = makeButton(
           "DRÜCKEN / LEERTASTE",

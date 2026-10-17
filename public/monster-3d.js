@@ -1,4 +1,12 @@
 import * as THREE from "./vendor/three.module.min.js";
+import {
+  createVehicle,
+  disposeScene,
+  batchScenery,
+  groundShadow,
+  label,
+  skyBackdrop,
+} from "./premium-scene.js";
 const screen = document.createElement("canvas");
 screen.id = "monsterCanvas";
 screen.hidden = true;
@@ -14,7 +22,8 @@ let coinMeshes = [],
   models = new Map(),
   cameraX = 140,
   cameraY = 60,
-  size = "";
+  size = "",
+  shadows = new Map();
 const mats = new Map();
 function mat(color, ghost = false) {
   const key = color + ghost;
@@ -42,10 +51,19 @@ function box(parent, x, y, z, w, h, d, color, ghost = false) {
 }
 function truck(p) {
   const g = new THREE.Group(),
-    ghost = p.id !== myId,
+    ghost = p.id !== viewId(),
     color = GiGVehicles.colors[p.car] || GiGVehicles.colors.truck;
-  for (const part of GiGVehicles.parts(p.car))
-    box(g, part.x, part.y, part.z, part.w, part.h, part.d, part.color, ghost);
+  const car = createVehicle(p.car, p.color, ghost);
+  car.userData.roots.forEach((root) => (root.visible = false));
+  car.userData.flame.visible = false;
+  car.scale.setScalar(25.5);
+  car.rotation.y = Math.PI / 2;
+  car.position.y = -33;
+  g.add(car);
+  const shadow = groundShadow(70);
+  shadow.scale.y = 0.55;
+  scene.add(shadow);
+  shadows.set(p.id, shadow);
   const wheels = [];
   for (let i = 0; i < 2; i++) {
     const axle = new THREE.Group();
@@ -79,6 +97,7 @@ function truck(p) {
         spoke.rotation.z = (j * Math.PI) / 2;
       }
     }
+    batchScenery(axle);
     scene.add(axle);
     wheels.push(axle);
   }
@@ -103,43 +122,171 @@ function truck(p) {
   return { g, wheels, trails, history: [] };
 }
 function build() {
-  if (scene) {
-    scene.traverse((o) => {
-      o.geometry?.dispose();
-    });
-  }
+  disposeScene(scene);
+  mats.clear();
+  shadows.clear();
   scene = new THREE.Scene();
   track = GiGMonster.course(room.round.meta.track);
-  scene.background = new THREE.Color(track.sky);
+  skyBackdrop(
+    scene,
+    track.id === "canyon"
+      ? "#b496ad"
+      : track.id === "frost"
+        ? "#8faccc"
+        : "#81b6b5",
+    track.sky,
+  );
   scene.fog = new THREE.Fog(track.sky, 1500, 4200);
-  scene.add(new THREE.HemisphereLight("#fff5dd", "#8c9699", 2.4));
+  scene.add(new THREE.HemisphereLight("#fff5df", "#567b87", 2.4));
   const sun = new THREE.DirectionalLight("#fff6de", 2.1);
   sun.position.set(-300, 700, 400);
-  scene.add(sun);
+  sun.name = "sun";
+  sun.castShadow = !isTouchDevice;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.left = -650;
+  sun.shadow.camera.right = 650;
+  sun.shadow.camera.top = 450;
+  sun.shadow.camera.bottom = -450;
+  sun.shadow.camera.far = 2200;
+  sun.shadow.bias = -0.0003;
+  scene.add(sun, sun.target);
+  const scenery = new THREE.Group();
+  scene.add(scenery);
+  // Continuous rolling land behind the narrow playable trail anchors trees and mountains.
+  const backVertices = [],
+    backColors = [],
+    backColor = new THREE.Color();
+  const depths = [-65, -600, -1400, -2200],
+    drops = [15, 55, 175, 230];
+  for (let x = -900; x < track.length + 1400; x += 180)
+    for (let row = 0; row < depths.length - 1; row++) {
+      const corners = [
+        [x, -GiGMonster.height(x, track.id) - drops[row], depths[row]],
+        [
+          x + 180,
+          -GiGMonster.height(x + 180, track.id) - drops[row],
+          depths[row],
+        ],
+        [
+          x + 180,
+          -GiGMonster.height(x + 180, track.id) - drops[row + 1],
+          depths[row + 1],
+        ],
+        [x, -GiGMonster.height(x, track.id) - drops[row + 1], depths[row + 1]],
+      ];
+      backColor.set(
+        track.id === "canyon"
+          ? ["#c59879", "#b9957d", "#b79988"][row]
+          : track.id === "frost"
+            ? ["#a2bdc4", "#b6ccd1", "#c1d4d6"][row]
+            : ["#84a983", "#91b095", "#a0bbaa"][row],
+      );
+      for (const i of [0, 1, 2, 0, 2, 3]) {
+        backVertices.push(...corners[i]);
+        backColors.push(backColor.r, backColor.g, backColor.b);
+      }
+    }
+  const backGeometry = new THREE.BufferGeometry();
+  backGeometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(backVertices, 3),
+  );
+  backGeometry.setAttribute(
+    "color",
+    new THREE.Float32BufferAttribute(backColors, 3),
+  );
+  backGeometry.computeVertexNormals();
+  const backLand = new THREE.Mesh(
+    backGeometry,
+    new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 1,
+      side: THREE.DoubleSide,
+    }),
+  );
+  scenery.add(backLand);
   for (const s of track.pieces) {
-    const block = box(scene, s.x, -s.y - 25, 0, s.w, 50, 95, track.ground);
+    const block = box(scenery, s.x, -s.y - 25, 0, s.w, 50, 110, track.ground);
+    block.receiveShadow = true;
     block.rotation.z = -s.a;
     const cap = box(
-      scene,
+      scenery,
       s.x,
       -s.y + 1,
       0,
       s.w,
       4,
-      97,
+      112,
       s.kind === "ice" ? "#e0eff3" : track.edge,
     );
     cap.rotation.z = -s.a;
+    cap.receiveShadow = true;
+    // A terrain cross-section, rather than a row of floating thin platforms.
+    const c = Math.cos(s.a),
+      a = Math.sin(s.a),
+      half = s.w / 2;
+    const lx = s.x - half * c,
+      rx = s.x + half * c,
+      ly = -s.y + half * a - 45,
+      ry = -s.y - half * a - 45;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(
+        [
+          lx,
+          ly,
+          55,
+          rx,
+          -300,
+          55,
+          rx,
+          ry,
+          55,
+          lx,
+          ly,
+          55,
+          lx,
+          -300,
+          55,
+          rx,
+          -300,
+          55,
+        ],
+        3,
+      ),
+    );
+    geo.computeVertexNormals();
+    const face = new THREE.Mesh(
+      geo,
+      mat(
+        track.id === "canyon"
+          ? "#ad7d65"
+          : track.id === "frost"
+            ? "#799dab"
+            : "#66816c",
+      ),
+    );
+    scenery.add(face);
+    if (Math.round(s.x) % 180 === 30) {
+      const rock = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(10, 0),
+        mat(track.id === "canyon" ? "#d0a283" : "#809881"),
+      );
+      rock.position.set(s.x, -s.y - 68, 58);
+      rock.scale.set(1.5, 0.5, 0.4);
+      scenery.add(rock);
+    }
   }
   box(
-    scene,
+    scenery,
     track.length / 2,
-    -190,
+    -320,
     0,
     track.length + 2500,
     30,
     2100,
-    "#82b4bc",
+    track.id === "canyon" ? "#c0a18d" : "#7aa9ad",
   );
   for (const o of track.obstacles)
     if (o.type === "log") {
@@ -154,44 +301,92 @@ function build() {
       box(scene, o.x, -o.y - 20, 0, 22, 40, 60, "#a49276");
       const plank = box(scene, o.x, -o.y, 0, 330, 42, 100, "#c6a37a");
       plank.name = "seesaw";
+      plank.userData.dynamic = true;
+      for (let x = -150; x <= 150; x += 25) {
+        const seam = box(plank, x, 22, 0, 1.2, 1, 99, "#e2cfa4");
+        seam.userData.dynamic = true;
+      }
     }
-  for (let x = 350; x < track.length; x += 390) {
-    const z = x % 780 ? 230 : -250;
-    box(scene, x, -35, z, 12, 70, 12, "#87735b");
-    box(
-      scene,
-      x,
-      15,
-      z,
-      65,
-      65,
-      65,
-      track.id === "frost" ? "#d2e4dd" : "#81a886",
+  for (let x = 350; x < track.length; x += 310) {
+    const z = -220 - (x % 3) * 60,
+      ground = -GiGMonster.height(x, track.id);
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(5, 8, 85, 7),
+      mat("#927e62"),
     );
-    box(
-      scene,
-      x,
-      55,
-      z,
-      43,
-      35,
-      43,
-      track.id === "frost" ? "#e6ece6" : "#97b995",
-    );
+    stem.position.set(x, ground + 22, z);
+    scenery.add(stem);
+    if (track.id === "canyon") {
+      const rock = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(47, 0),
+        mat(x % 2 ? "#c8a58a" : "#b58974"),
+      );
+      rock.position.set(x, ground + 15, z);
+      rock.scale.set(1.5, 1, 0.7);
+      scenery.add(rock);
+      stem.visible = false;
+    } else {
+      for (let j = 0; j < 3; j++) {
+        const crown = new THREE.Mesh(
+          track.id === "frost"
+            ? new THREE.ConeGeometry(45 - j * 9, 65, 8)
+            : new THREE.IcosahedronGeometry(42 - j * 5, 1),
+          mat(
+            track.id === "frost"
+              ? j === 2
+                ? "#dce9e1"
+                : "#638f89"
+              : ["#6b9d7c", "#86af83", "#a0c194"][j],
+          ),
+        );
+        crown.position.set(x, ground + 65 + j * 30, z);
+        crown.castShadow = false;
+        scenery.add(crown);
+      }
+    }
   }
-  for (let x = 800; x < track.length; x += 1300)
-    box(
-      scene,
-      x,
-      -80,
-      -650,
-      400,
-      180,
-      280,
-      track.id === "canyon" ? "#c39c82" : "#a9bdaf",
+  // Two depth layers keep the horizon calm while the foreground moves past the truck.
+  for (let i = 0; i < 18; i++) {
+    const peak = new THREE.Mesh(
+      new THREE.ConeGeometry(
+        230 + (i % 4) * 35,
+        230 + (i % 3) * 70,
+        track.id === "canyon" ? 5 : 7,
+      ),
+      mat(
+        track.id === "canyon"
+          ? "#bc9a83"
+          : track.id === "frost"
+            ? "#b6cbd4"
+            : "#8fae9a",
+      ),
     );
+    peak.position.set(i * 630 - 400, -90, -1500 - (i % 2) * 500);
+    scenery.add(peak);
+    if (track.id === "frost") {
+      const snow = new THREE.Mesh(
+        new THREE.ConeGeometry(68, 120, 7),
+        mat("#e4eeea"),
+      );
+      snow.position.copy(peak.position);
+      snow.position.y += 112;
+      scenery.add(snow);
+    }
+  }
+  for (const [i, x] of track.checkpoints.entries()) {
+    const y = -GiGMonster.height(x, track.id);
+    box(scenery, x, y + 50, -73, 6, 100, 6, "#dce2cc");
+    const flag = label("CP " + (i + 1), "#e7f5d5", "#315d50", 80, 27);
+    flag.position.set(x + 38, y + 91, -70);
+    scene.add(flag);
+  }
+  const start = label("GiG  /  MONSTER TRAILS", "#fff1ce", "#355354", 240, 55);
+  start.position.set(175, 155, -90);
+  scene.add(start);
+  batchScenery(scenery);
   coinMeshes = track.coins.map((c) => {
     const m = box(scene, c.x, -c.y, 0, 12, 18, 5, "#ebcb73");
+    m.userData.dynamic = true;
     return m;
   });
   const end = track.length;
@@ -215,6 +410,14 @@ function initialize() {
     });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = !isTouchDevice;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    screen.addEventListener("webglcontextlost", (e) => {
+      e.preventDefault();
+      failed = true;
+    });
     camera = new THREE.OrthographicCamera(-450, 450, 255, -255, 1, 7000);
   } catch {
     failed = true;
@@ -237,18 +440,29 @@ function sample(id) {
   if (!pa || !pb) return pb;
   const t = clamp((target - a.at) / Math.max(1, b.at - a.at), 0, 1),
     out = { ...pb };
-  for (const key of ["x", "y", "angle"])
-    out[key] = pa[key] + (pb[key] - pa[key]) * t;
+  if (pa.resets !== pb.resets || Math.hypot(pb.x - pa.x, pb.y - pa.y) > 300)
+    return pb;
+  for (const key of ["x", "y"]) out[key] = pa[key] + (pb[key] - pa[key]) * t;
+  out.angle =
+    pa.angle +
+    Math.atan2(Math.sin(pb.angle - pa.angle), Math.cos(pb.angle - pa.angle)) *
+      t;
   out.wheels = pb.wheels.map((w, i) => ({
     x: pa.wheels[i].x + (w.x - pa.wheels[i].x) * t,
     y: pa.wheels[i].y + (w.y - pa.wheels[i].y) * t,
-    angle: w.angle,
+    angle: pa.wheels[i].angle + (w.angle - pa.wheels[i].angle) * t,
   }));
   if (id === myId && !out.out && !out.finished) {
     const lead = (clamp(serverNow() - b.at, 0, 65) / 1000) * 60;
     out.x += out.vx * lead;
     out.y += out.vy * lead;
-    out.wheels.forEach((w) => {
+    out.wheels.forEach((w, i) => {
+      w.angle +=
+        ((((pb.wheels[i].angle - pa.wheels[i].angle) /
+          Math.max(1, b.at - a.at)) *
+          lead) /
+          60) *
+        1000;
       w.x += out.vx * lead;
       w.y += out.vy * lead;
     });
@@ -256,46 +470,7 @@ function sample(id) {
   return out;
 }
 function fallback() {
-  const p = state.players[viewId()],
-    scale = 1.1,
-    ox = 280 - p.x * scale,
-    oy = H * 0.56;
-  ctx.fillStyle = track.sky;
-  ctx.fillRect(0, 0, W, H);
-  ctx.save();
-  ctx.translate(ox, oy);
-  ctx.scale(scale, scale);
-  for (const s of track.pieces) {
-    ctx.save();
-    ctx.translate(s.x, s.y + 25);
-    ctx.rotate(s.a);
-    ctx.fillStyle = track.ground;
-    ctx.fillRect(-s.w / 2, -25, s.w, 50);
-    ctx.restore();
-  }
-  for (const player of roster()) {
-    const v = sample(player.id);
-    if (!v) continue;
-    ctx.globalAlpha = player.id === viewId() ? 1 : 0.35;
-    ctx.save();
-    ctx.translate(v.x, v.y);
-    ctx.rotate(v.angle);
-    for (const part of GiGVehicles.parts(player.car).sort(
-      (a, b) => a.z - b.z,
-    )) {
-      ctx.fillStyle = part.color;
-      ctx.fillRect(part.x - part.w / 2, -part.y - part.h / 2, part.w, part.h);
-    }
-    ctx.restore();
-    for (const w of v.wheels) {
-      ctx.beginPath();
-      ctx.arc(w.x, w.y, 23, 0, Math.PI * 2);
-      ctx.fillStyle = "#273039";
-      ctx.fill();
-    }
-  }
-  ctx.restore();
-  ctx.globalAlpha = 1;
+  GiGPremium.monsterFallback(track);
 }
 renderers.monster = function () {
   initialize();
@@ -314,10 +489,10 @@ renderers.monster = function () {
       size = key;
       renderer.setSize(Math.max(1, r.width), Math.max(1, r.height), false);
       const aspect = r.width / Math.max(1, r.height);
-      camera.left = -250 * aspect;
-      camera.right = 250 * aspect;
-      camera.top = 250;
-      camera.bottom = -250;
+      camera.left = -205 * aspect;
+      camera.right = 205 * aspect;
+      camera.top = 205;
+      camera.bottom = -205;
       camera.updateProjectionMatrix();
     }
     for (const player of roster()) {
@@ -326,6 +501,13 @@ renderers.monster = function () {
       if (!v || !m) continue;
       m.g.position.set(v.x, -v.y, 0);
       m.g.rotation.z = -v.angle;
+      m.g.visible = !v.out;
+      const shadow = shadows.get(player.id);
+      shadow.position.set(v.x, -GiGMonster.height(v.x, track.id) + 2, 0);
+      shadow.visible = !v.out && v.grounded;
+      m.g.traverse((o) => {
+        if (o.isMesh) o.castShadow = player.id === viewId();
+      });
       m.wheels.forEach((w, i) => {
         w.position.set(v.wheels[i].x, -v.wheels[i].y, 0);
         w.rotation.z = -v.wheels[i].angle;
@@ -342,10 +524,19 @@ renderers.monster = function () {
       }
     }
     const t = 1 - Math.exp(-frameDt * 7);
-    cameraX += (own.x + 170 - cameraX) * t;
-    cameraY += (-own.y + 20 - cameraY) * t;
-    camera.position.set(cameraX + 180, cameraY + 230, 620);
+    const focus = sample(viewId()) || own;
+    const lookAhead = 95 + Math.min(80, Math.max(0, focus.vx) * 9);
+    if (Math.abs(focus.x - cameraX) > 850) {
+      cameraX = focus.x + lookAhead;
+      cameraY = -focus.y + 20;
+    }
+    cameraX += (focus.x + lookAhead - cameraX) * t;
+    cameraY += (-focus.y + 20 - cameraY) * t;
+    camera.position.set(cameraX + 100, cameraY + 155, 680);
     camera.lookAt(cameraX, cameraY, 0);
+    const sun = scene.getObjectByName("sun");
+    sun.position.set(focus.x - 300, 700, 400);
+    sun.target.position.set(focus.x, 0, 0);
     const plank = scene.getObjectByName("seesaw");
     if (plank && own.planks?.[0]) {
       plank.position.x = own.planks[0].x;
@@ -354,42 +545,16 @@ renderers.monster = function () {
     }
     coinMeshes.forEach((m, i) => {
       m.visible = !own.picked?.includes(i);
-      m.rotation.y = performance.now() / 500 + i;
+      m.rotation.y = (reducedMotion ? 0 : serverNow() / 500) + i;
     });
     renderer.render(scene, camera);
   } else fallback();
-  rect(24, H - 115, 285, 90, "#17212be6", 13);
-  text(Math.floor(own.progress / 20) + " m", 42, H - 69, 29, "#f5f0dc");
-  text(
-    Math.round(own.speed) + " km/h · " + own.coins + " Marker",
-    42,
-    H - 43,
-    13,
-    "#bfccd1",
+  if (!failed) GiGPremium.driveHUD("monster", own, track);
+  Sound.engine(
+    active() && !own.out && serverNow() >= own.recoveringUntil
+      ? clamp(own.speed / 60, 0.05, 1)
+      : 0,
   );
-  const levels = state.levels;
-  text(
-    "MOTOR " +
-      levels.power +
-      "  GRIP " +
-      levels.grip +
-      "  GEWICHT " +
-      levels.weight,
-    W - 28,
-    35,
-    12,
-    "#273d43",
-    "right",
-  );
-  text(
-    "GAS DOSIEREN · BRÜCKEN AUSROLLEN",
-    W / 2,
-    H - 25,
-    12,
-    "#273d43",
-    "center",
-  );
-  Sound.engine(active() && !own.out ? clamp(own.speed / 60, 0.05, 1) : 0);
 };
 const oldRender = renderRoom;
 renderRoom = function (next) {

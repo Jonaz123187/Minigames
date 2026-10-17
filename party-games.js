@@ -546,6 +546,7 @@ const onebutton = {
     g.results[id] = {
       points: score,
       error: Number.isFinite(error) ? Math.round(error) : null,
+      elapsed: Math.round(elapsed),
     };
     return true;
   },
@@ -568,7 +569,7 @@ const onebutton = {
     }
     return false;
   },
-  view: (g, now) => ({
+  view: (g, now, id) => ({
     players: publicPlayers(g),
     phase: g.phase,
     index: g.index,
@@ -578,6 +579,7 @@ const onebutton = {
     target: g.mode === "wait" ? null : g.target,
     green: g.mode === "wait" && now >= g.readyAt,
     results: g.phase === "reveal" ? g.results : {},
+    ownResult: g.results[id] || null,
   }),
   score: (g, id) => g.players[id].score,
   detail: (g, id) =>

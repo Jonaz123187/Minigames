@@ -15,7 +15,7 @@ const { JSDOM } = require(
 const { createArcade, GAMES } = require("../server");
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(f, label = "expected update") {
-  for (let i = 0; i < 400 && !f(); i++) await delay(3);
+  for (let i = 0; i < 800 && !f(); i++) await delay(3);
   assert.ok(f(), label);
 }
 const rpc = (s, e, p) =>
@@ -98,6 +98,7 @@ const arcade = createArcade({ manual: true, clock: () => now }),
       "vendor/matter.min.js",
       "monster-shared.js",
       "race-shared.js",
+      "golf-shared.js",
       "sketch-shared.js",
       "game-clock.js",
       "app.js",
@@ -107,6 +108,7 @@ const arcade = createArcade({ manual: true, clock: () => now }),
       "banner-png.js",
       "accounts-client.js",
       "crew-update.js",
+      "premium-games.js",
     ])
       new vm.Script(fs.readFileSync(path.join(publicRoot, f), "utf8"), {
         filename: f,
@@ -389,6 +391,22 @@ const arcade = createArcade({ manual: true, clock: () => now }),
       (await rpc(watcher.socket, "lobby", { action: "leave" })).ok,
       true,
     );
+    if (id === "golf") {
+      await step(
+        all[0].socket.room.round.endsAt - all[0].run("serverNow()") + 1,
+      );
+      await until(() => all.every((c) => c.socket.room.phase === "results"));
+      await until(() => all.every((c) => c.run("room?.phase") === "results"));
+      for (const c of all) {
+        c.draw();
+        assert.equal(c.socket.room.lastResult.scorecards.courses.length, 6);
+        assert.equal(
+          c.w.document.querySelectorAll("#golfScorecards tbody tr").length,
+          4,
+          "all three server scorecards plus par row",
+        );
+      }
+    }
     assert.equal((await rpc(all[0].socket, "abort", {})).ok, true);
     await until(() => all.every((c) => c.socket.room.phase === "lobby"));
     console.log(

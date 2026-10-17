@@ -60,16 +60,19 @@ const game = {
           g.track.checkpointIndices.length
       ];
     const s = g.track.segments[p.checkpoints ? index : 0];
+    const angle = Math.atan2(s.dx, s.dz);
     Object.assign(p, {
-      x: s.x,
-      z: s.z,
-      heading: Math.atan2(s.dx, s.dz),
+      // Before the first start-line crossing, reset behind the line, not directly on it.
+      x: s.x - (p.checkpoints ? 0 : Math.sin(angle) * 7),
+      z: s.z - (p.checkpoints ? 0 : Math.cos(angle) * 7),
+      heading: angle,
       vx: 0,
       vz: 0,
       speed: 0,
       drift: 0,
       boostUntil: 0,
       resetAt: now,
+      resetUntil: now + 800,
     });
     p.resets++;
     return true;
@@ -115,7 +118,8 @@ const game = {
     }
     if (g.collisions) {
       const all = Object.entries(g.players).filter(
-        ([id, p]) => r.connected.has(id) && !p.finished,
+        ([id, p]) =>
+          r.connected.has(id) && !p.finished && now >= (p.resetUntil || 0),
       );
       for (let i = 0; i < all.length; i++)
         for (let j = i + 1; j < all.length; j++) {

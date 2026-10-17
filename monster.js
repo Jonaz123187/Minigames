@@ -4,13 +4,13 @@ const T = require("./public/monster-shared"),
 module.exports = {
   title: "GiG Monster Trails",
   icon: "20",
-  seconds: 150,
+  seconds: 180,
   category: "Skill",
   difficulty: "Experte",
   description:
-    "Blockige Trucks, wackelige Brücken und echte Federung. Dosiere das Gas, halte die Balance und jage die Geister deiner Freunde.",
+    "Dein Truck, drei Landschaften und eine Strecke voller Sprünge. Echte Federung, Balance in der Luft und faire Checkpoints statt sofortigem Ausscheiden.",
   controls:
-    "D / → / W / ↑: Gas · A / ← / S / ↓: Bremsen & rückwärts · In der Luft dosieren · Touch: zwei große Pedale",
+    "W / ↑: Gas · S / ↓: Bremsen & rückwärts · A / ←: Nase hoch · D / →: Nase runter · R: zum Checkpoint (+3 s) · Überschläge setzen dich automatisch zurück · Touch: Pedale und Balance",
   init(ids, startsAt, options = {}) {
     const track = T.course(options.settings?.monster?.track),
       all = ids
@@ -37,6 +37,11 @@ module.exports = {
     levels: g.levels,
     length: g.track.length,
   }),
+  input(g, id, input, now) {
+    return input.action === "reset" && g.players[id]
+      ? T.reset(g.players[id], g.track, now)
+      : false;
+  },
   tick(g, dt, now, round) {
     for (const [id, p] of Object.entries(g.players)) {
       if (!round.connected.has(id)) {
@@ -62,19 +67,23 @@ module.exports = {
   }),
   score: (g, id) =>
     g.players[id].finished
-      ? 1e8 - (g.players[id].finishAt - g.startsAt)
-      : g.players[id].best,
+      ? 1e8 - (g.players[id].finishAt - g.startsAt) - g.players[id].penalty
+      : Math.max(0, g.players[id].best - g.players[id].resets * 60),
   detail: (g, id) => {
     const p = g.players[id];
     return (
       (p.finished
-        ? "Ziel · " + ((p.finishAt - g.startsAt) / 1000).toFixed(1) + " s"
+        ? "Ziel · " +
+          ((p.finishAt - g.startsAt + p.penalty) / 1000).toFixed(1) +
+          " s"
         : Math.floor(p.best / 20) + " m") +
       " · " +
       p.coins.length +
       " Streckenmarker · " +
       p.airtime.toFixed(1) +
-      " s Airtime"
+      " s Airtime · " +
+      p.resets +
+      " Rücksetzer"
     );
   },
   dispose: (g) =>

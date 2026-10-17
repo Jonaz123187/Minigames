@@ -362,7 +362,11 @@ function renderResults() {
 }
 
 function send(data, ack) {
-  if (active() && socket.connected)
+  if (
+    active() &&
+    socket.connected &&
+    (data.kind === "controls" || !document.querySelector("dialog[open]"))
+  )
     socket.emit("input", { ...data, roundId: room.round.id }, ack);
 }
 function hit() {
@@ -426,7 +430,11 @@ document.addEventListener("keydown", (e) => {
     ["click", "reaction"].includes(room.round.game)
   )
     hit();
-  if (e.code === "KeyR" && !e.repeat && room.round.game === "race")
+  if (
+    e.code === "KeyR" &&
+    !e.repeat &&
+    ["race", "monster"].includes(room.round.game)
+  )
     send({ action: "reset" });
 });
 document.addEventListener("keyup", (e) => keys.delete(e.code));
@@ -669,245 +677,17 @@ function smooth(key, target, angle = false) {
   poses.set(key, value);
   return value;
 }
-function renderRace() {
-  text("3D-Rennstrecke wird geladen …", W / 2, H / 2, 20, "#d7e7fa", "center");
+// Play surfaces are installed by premium-games.js and the two 3D modules.
+// A partial network load stays readable instead of running an incompatible old renderer.
+function renderGameLoading() {
+  text("Spielfeld wird vorbereitet …", W / 2, H / 2, 22, "#bdd5d3", "center");
 }
-function renderSnake() {
-  const meta = room.round.meta,
-    cell = Math.min((W - 70) / meta.width, (H - 95) / meta.height),
-    left = (W - cell * meta.width) / 2,
-    top = 65;
-  text("EIN FELD. KEIN PLATZ FÜR FEHLER.", left, 34, 12, "#a4ad9d");
-  roster().forEach((p, i) =>
-    text(
-      p.id === myId ? "DU" : p.name.slice(0, 10),
-      left + (i * (meta.width * cell)) / roster().length,
-      54,
-      11,
-      p.color,
-    ),
-  );
-  rect(
-    left - 3,
-    top - 3,
-    meta.width * cell + 6,
-    meta.height * cell + 6,
-    "#59694a",
-    6,
-  );
-  rect(left, top, meta.width * cell, meta.height * cell, "#10170e", 3);
-  state.food.forEach((f) => {
-    circle(
-      left + (f.x + 0.5) * cell,
-      top + (f.y + 0.5) * cell,
-      cell * 0.22,
-      "#f0bc76",
-    );
-  });
-  roster().forEach((p) => {
-    const s = state.players[p.id];
-    if (!s) return;
-    ctx.globalAlpha = s.alive ? 1 : 0.2;
-    s.body.forEach((b, i) => {
-      const x = smooth(p.id + "sx" + i, b.x * cell),
-        y = smooth(p.id + "sy" + i, b.y * cell);
-      rect(left + x + 1, top + y + 1, cell - 2, cell - 2, p.color, cell * 0.22);
-      if (i === 0) {
-        const hx = left + x + cell * 0.5,
-          hy = top + y + cell * 0.5,
-          dx = s.dir.x,
-          dy = s.dir.y;
-        circle(
-          hx + dx * cell * 0.21 - dy * cell * 0.2,
-          hy + dy * cell * 0.21 + dx * cell * 0.2,
-          cell * 0.095,
-          "#17220e",
-        );
-        circle(
-          hx + dx * cell * 0.21 + dy * cell * 0.2,
-          hy + dy * cell * 0.21 - dx * cell * 0.2,
-          cell * 0.095,
-          "#17220e",
-        );
-      }
-    });
-    ctx.globalAlpha = 1;
-  });
-}
-function renderClick() {
-  const max = Math.max(
-    20,
-    ...Object.values(state.players).map((p) => p.clicks),
-  );
-  text("10 SEKUNDEN. ALLES GEBEN.", 50, 50, 13, "#a4ad9d");
-  const step = Math.min(61, 450 / roster().length);
-  roster().forEach((p, i) => {
-    const score = state.players[p.id]?.clicks || 0,
-      y = 100 + i * step;
-    text(playerName(p), 50, y + 24, 16, p.color);
-    rect(255, y, 740, 32, "#263020", 6);
-    rect(255, y, smooth(p.id + "click", (score / max) * 740), 32, p.color, 6);
-    text(score, 1055, y + 24, 24, p.color, "right");
-  });
-  if (pulse > 0) {
-    ctx.globalAlpha = pulse * 0.12;
-    rect(0, 0, W, H, "#b5f36a");
-    ctx.globalAlpha = 1;
-  }
-  text(
-    "Dein Rhythmus. Dein Highscore.",
-    W / 2,
-    H - 30,
-    14,
-    "#a4ad9d",
-    "center",
-  );
-}
-function renderTyping() {
-  const total = room.round.meta.words.length,
-    step = Math.min(64, 465 / roster().length);
-  text("WORT FÜR WORT RICHTUNG ZIEL.", 45, 45, 13, "#a4ad9d");
-  roster().forEach((p, i) => {
-    const index = state.players[p.id]?.index || 0,
-      y = 100 + i * step;
-    text(playerName(p), 45, y + 19, 15, p.color);
-    line(240, y + 12, 995, y + 12, "#33412b", 2);
-    const x = smooth(p.id + "type", 240 + (index / total) * 755);
-    rect(x - 15, y - 1, 30, 18, p.color, 4);
-    circle(x - 8, y + 19, 5, "#bac9ae");
-    circle(x + 8, y + 19, 5, "#bac9ae");
-    text(index + "/" + total, 1065, y + 18, 16, p.color, "right");
-  });
-  text(
-    "Das markierte Wort steht unter dem Spielfeld. Leertaste oder Enter bestätigt.",
-    W / 2,
-    H - 24,
-    13,
-    "#a4ad9d",
-    "center",
-  );
-}
-function renderPong() {
-  const boxes = pongBoxes();
-  boxes.forEach((box) => {
-    const p = roster().find((v) => v.id === box.id),
-      b = state.players[box.id];
-    if (!b) return;
-    text(
-      playerName(p),
-      box.x,
-      box.y - 14,
-      Math.min(15, 13 + box.scale),
-      p.color,
-    );
-    ctx.save();
-    ctx.translate(box.x, box.y);
-    ctx.scale(box.scale, box.scale);
-    rect(-2, -2, 304, 404, p.id === myId ? "#b5f36a" : "#46543c", 5);
-    rect(0, 0, 300, 400, "#10170e", 3);
-    ctx.setLineDash([6, 8]);
-    line(0, 200, 300, 200, "#34422d", 1);
-    ctx.setLineDash([]);
-    const x = smooth(p.id + "px", b.x),
-      y = smooth(p.id + "py", b.y),
-      paddle = smooth(p.id + "pad", b.paddle);
-    rect(paddle - 36, 368, 72, 10, p.color, 4);
-    circle(x, y, 8, "#f0f5e7");
-    text(
-      String(Math.max(0, b.hits * 10 - b.misses * 3)),
-      150,
-      65,
-      34,
-      p.color,
-      "center",
-    );
-    text(
-      b.hits + " Treffer · " + b.misses + " verpasst",
-      150,
-      91,
-      12,
-      "#a4ad9d",
-      "center",
-    );
-    ctx.restore();
-  });
-  text(
-    "DEINE BAHN IST GRÜN UMRANDET · JEDER SPIELT SEINEN BALL",
-    W / 2,
-    H - 10,
-    11,
-    "#a4ad9d",
-    "center",
-  );
-}
-function renderReaction() {
-  const mine = state.players[myId],
-    done = mine?.current !== null;
-  text("SIGNAL " + state.trial + " / 5", W / 2, 49, 13, "#a4ad9d", "center");
-  const lit = state.go && !done;
-  const color = done
-    ? mine.current < 0
-      ? "#ff8e9f"
-      : "#a998ff"
-    : lit
-      ? "#b5f36a"
-      : "#57352c";
-  circle(W / 2, 240, 128, color + "18");
-  circle(W / 2, 240, 104, color);
-  text(
-    done
-      ? mine.current < 0
-        ? "ZU FRÜH!"
-        : mine.current + " ms"
-      : lit
-        ? "JETZT!"
-        : "WARTEN",
-    W / 2,
-    251,
-    32,
-    lit ? "#17220e" : done ? "#17220e" : "#d9a48b",
-    "center",
-  );
-  text(
-    state.intermission
-      ? "Nächstes Signal …"
-      : done
-        ? "Versuch gewertet. Warte auf die anderen."
-        : "Erst drücken, wenn das Signal grün leuchtet.",
-    W / 2,
-    410,
-    17,
-    "#a4ad9d",
-    "center",
-  );
-  roster().forEach((p, i) => {
-    const player = state.players[p.id],
-      x = 65 + (i * (W - 130)) / Math.max(1, roster().length - 1),
-      y = 500;
-    circle(x, y, 5, p.color);
-    text(p.name.slice(0, 12), x, y + 28, 12, p.color, "center");
-    text(
-      player?.current === null
-        ? "…"
-        : player?.current < 0
-          ? "Frühstart"
-          : player?.current + " ms",
-      x,
-      y + 51,
-      12,
-      "#a4ad9d",
-      "center",
-    );
-  });
-}
-const renderers = {
-  race: renderRace,
-  snake: renderSnake,
-  click: renderClick,
-  typing: renderTyping,
-  pong: renderPong,
-  reaction: renderReaction,
-};
+const renderers = Object.fromEntries(
+  ["race", "snake", "click", "typing", "pong", "reaction"].map((id) => [
+    id,
+    renderGameLoading,
+  ]),
+);
 function frame(now) {
   frameDt = Math.min((now - lastFrame) / 1000, 0.1);
   lastFrame = now;

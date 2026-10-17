@@ -1,6 +1,6 @@
 {
   "name": "multiplayergames-gig",
-  "version": "7.4.0",
+  "version": "8.0.0",
   "description": "26 Multiplayer-Spiele mit Konten, Pixelart-Profilen, GiG-Coins und Geister-Trials",
   "main": "server.js",
   "scripts": {
