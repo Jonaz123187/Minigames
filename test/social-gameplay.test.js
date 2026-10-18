@@ -19,8 +19,8 @@ test("Pixel Relay: RGB freehand drawings arrive at the next author for 2, 3 and 
         if (step > 0) {
           assert.ok(v.task, "previous step exists");
           assert.notEqual(v.task.author, id);
-          if (step % 2 === 0 && v.task.value.strokes)
-            assert.equal(v.task.value.strokes[0][4], "#1263ab");
+          if (step % 2 === 0 && v.task.value?.strokes)
+            assert.equal(v.task.value?.strokes[0][4], "#1263ab");
         }
         if (count === 8 && step === 1 && i === 2) continue;
         const drawing = {

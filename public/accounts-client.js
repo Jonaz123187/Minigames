@@ -1465,6 +1465,7 @@
         b.title = sound.name;
         b.setAttribute("aria-label", sound.name);
         b.dataset.tooltip = sound.name;
+        b.dataset.userContent = "";
         box.append(b);
         count++;
       }

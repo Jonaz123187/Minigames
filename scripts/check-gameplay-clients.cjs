@@ -118,6 +118,8 @@ const arcade = createArcade({ manual: true, clock: () => now }),
       "controls-client.js",
       "community-client.js",
       "shop-preview.js",
+      "feedback-client.js",
+      "savings-client.js",
     ])
       new vm.Script(fs.readFileSync(path.join(publicRoot, f), "utf8"), {
         filename: f,

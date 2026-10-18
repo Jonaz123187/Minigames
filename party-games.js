@@ -76,6 +76,7 @@ const telephone = {
       until: at + 35000,
       chains: ids.map((owner) => ({ owner, entries: [], votes: 0 })),
       votes: {},
+      drafts: {},
     };
   },
   duration: (g) => g.steps * 35 + 30,
@@ -95,24 +96,50 @@ const telephone = {
     if (
       g.phase !== "create" ||
       g.players[id].submitted ||
-      v.action !== "submit"
+      now >= g.until ||
+      !["submit", "draft"].includes(v.action) ||
+      (v.step !== undefined && v.step !== g.step)
     )
       return false;
     const index =
       (g.ids.indexOf(id) - (g.step % g.ids.length) + g.ids.length) %
       g.ids.length;
-    const value =
-      g.step % 2
-        ? v.drawing
+    let value;
+    if (g.step % 2) {
+      const empty =
+        v.drawing &&
+        v.drawing.width === Sketch.width &&
+        v.drawing.height === Sketch.height &&
+        Array.isArray(v.drawing.strokes) &&
+        v.drawing.strokes.length === 0;
+      value = empty
+        ? null
+        : v.drawing
           ? Sketch.validate(v.drawing)
-          : pixels(v.pixels)
-        : text(v.text);
+          : pixels(v.pixels);
+      if (!empty && !value) return false;
+    } else value = text(v.text);
+    if (v.action === "draft") {
+      if (
+        v.step !== g.step ||
+        !Number.isSafeInteger(v.revision) ||
+        v.revision < 1
+      )
+        return false;
+      const previous = g.drafts[id];
+      if (previous && v.revision <= previous.revision)
+        return v.revision === previous.revision;
+      if (previous && now - previous.at < 250) return false;
+      g.drafts[id] = { step: g.step, revision: v.revision, value, at: now };
+      return true;
+    }
     if (!value || (Array.isArray(value) && !value.some(Boolean))) return false;
     g.chains[index].entries[g.step] = {
       author: id,
       kind: g.step % 2 ? "drawing" : "text",
       value,
     };
+    delete g.drafts[id];
     g.players[id].submitted = true;
     g.players[id].score += 100;
     return true;
@@ -124,13 +151,22 @@ const telephone = {
       !(now - g.at >= 3000 && all(g, r, (id) => g.players[id].submitted))
     )
       return false;
-    for (let i = 0; i < g.chains.length; i++)
-      if (g.chains[i].entries.length <= g.step)
-        g.chains[i].entries.push({
-          author: g.ids[(i + g.step) % g.ids.length],
-          kind: g.step % 2 ? "drawing" : "text",
-          value: g.step % 2 ? Array(256).fill(0) : "Keine Abgabe",
-        });
+    for (let i = 0; i < g.chains.length; i++) {
+      if (g.chains[i].entries[g.step]) continue;
+      const author = g.ids[(i + g.step) % g.ids.length],
+        draft = g.drafts[author];
+      const value = draft?.step === g.step ? draft.value : null;
+      const valid = !!value && (!Array.isArray(value) || value.some(Boolean));
+      g.chains[i].entries[g.step] = {
+        author,
+        kind: g.step % 2 ? "drawing" : "text",
+        value: valid ? value : null,
+        missing: !valid,
+        automatic: valid,
+      };
+      if (valid) g.players[author].score += 100;
+    }
+    g.drafts = {};
     if (++g.step >= g.steps) {
       g.phase = "gallery";
       g.until = now + 30000;
@@ -157,6 +193,8 @@ const telephone = {
           ? g.chains[index].entries[g.step - 1] || null
           : null,
       gallery: g.phase === "gallery" ? g.chains : [],
+      ownDraft:
+        g.players[id] && g.phase === "create" ? g.drafts[id] || null : null,
       ownDrawing:
         g.phase === "create" && g.step % 2 && g.players[id]?.submitted
           ? g.chains[index].entries[g.step]?.value || null

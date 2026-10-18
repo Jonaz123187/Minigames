@@ -18,13 +18,22 @@ class Store {
     const store = this;
     let lo = "",
       hi = "\uffff",
-      max = 100;
+      max = 100,
+      descending = false,
+      after = null;
     const q = {
       doc: (id) => ({
         key: name + "/" + id,
         get: async () => store.snapshot(name + "/" + id),
       }),
-      orderBy: () => q,
+      orderBy: (field, direction) => {
+        descending = direction === "desc";
+        return q;
+      },
+      startAfter: (v) => {
+        after = v;
+        return q;
+      },
       startAt: (v) => ((lo = v), q),
       endAt: (v) => ((hi = v), q),
       limit: (v) => ((max = v), q),
@@ -34,9 +43,15 @@ class Store {
             (k) =>
               k.startsWith(name + "/") &&
               k.slice(name.length + 1) >= lo &&
-              k.slice(name.length + 1) <= hi,
+              k.slice(name.length + 1) <= hi &&
+              (after === null ||
+                (descending
+                  ? k.slice(name.length + 1) < after
+                  : k.slice(name.length + 1) > after)),
           )
-          .sort()
+          .sort((a, b) =>
+            descending ? b.localeCompare(a) : a.localeCompare(b),
+          )
           .slice(0, max)
           .map((k) => store.snapshot(k)),
       }),

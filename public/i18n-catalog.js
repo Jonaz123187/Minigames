@@ -1,4 +1,4 @@
-/* Shared, local translations. User content is never sent to a translation service. */
+/* Shared local UI translations; user content stays original. */
 (function (root) {
   const en = {
     Motorleistung: "Engine power",
@@ -30,7 +30,6 @@
     Hochladen: "Upload",
     Lautstärke: "Volume",
     Jeden: "Each",
-
     Verbinden: "Connecting",
     Verbunden: "Connected",
     "Verbindung weg": "Disconnected",
@@ -1922,6 +1921,134 @@
     "Dein Freund hat die Lobby verlassen.": "Your friend has left the lobby.",
     "Keine Abgabe": "No submission",
     Löcher: "holes",
+    Eingegangen: "Received",
+    Geplant: "Planned",
+    Erledigt: "Completed",
+    "Feedback konnte nicht geladen werden.": "Could not load feedback.",
+    "Feedback senden": "Send feedback",
+    "Meine Meldungen": "My reports",
+    "Ersteller-Postfach": "Creator inbox",
+    "Dein Feedback-Postfach": "Your feedback inbox",
+    "Deine Rückmeldung zählt.": "Your feedback matters.",
+    "Der Screenshot ist zu groß. Bitte einen kleineren Ausschnitt wählen.":
+      "The screenshot is too large. Please choose a smaller crop.",
+    "Art der Rückmeldung": "Feedback type",
+    "Fehler melden": "Report a bug",
+    "Verbesserung vorschlagen": "Suggest an improvement",
+    "Kurzer Titel": "Short title",
+    "Was möchtest du uns mitteilen?": "What would you like to tell us?",
+    "Spiel, Phase, Version und Verbindung werden ergänzt. Namen, Chats und Raumcode werden nicht automatisch übertragen.":
+      "Game, phase, version and connection are included. Names, chats and room codes are not sent automatically.",
+    "Screenshot hinzufügen (optional)": "Add a screenshot (optional)",
+    "Dein ausgewählter Screenshot": "Your selected screenshot",
+    "Screenshot entfernen": "Remove screenshot",
+    Absenden: "Send",
+    "Feedback-Versand ist gerade nicht verfügbar. Du kannst deinen Text kopieren und es später erneut versuchen.":
+      "Feedback is unavailable right now. Copy your text and try again later.",
+    "✓ Deine Meldung ist angekommen.": "✓ Your report has been received.",
+    "Du findest den Status unter „Meine Meldungen“.":
+      "Find its status under “My reports”.",
+    "Meldung ansehen": "View report",
+    "Weitere Rückmeldung": "Send more feedback",
+    Idee: "Idea",
+    "Mit Screenshot": "With screenshot",
+    "Meldungen werden geladen …": "Loading reports …",
+    "Dieses Postfach ist nur für den Ersteller verfügbar.":
+      "This inbox is only available to the creator.",
+    "Hier gibt es noch keine Meldungen.": "There are no reports here yet.",
+    "Neueste Meldungen": "Latest reports",
+    "Ältere Meldungen": "Older reports",
+    "Meldung wird geladen …": "Loading report …",
+    "← Zur Übersicht": "← Back to overview",
+    "Antwort vom Ersteller": "Reply from the creator",
+    "Screenshot konnte nicht geladen werden.": "Could not load the screenshot.",
+    "Screenshot zur Meldung": "Report screenshot",
+    "Antwort an den Absender (optional)": "Reply to the sender (optional)",
+    "Status der Meldung": "Report status",
+    "Idee vorschlagen": "Suggest an idea",
+    Sparfortschritt: "Savings progress",
+    "DEIN SPARZIEL": "YOUR SAVINGS GOAL",
+    "✓ Du hast genug Coins gesammelt.": "✓ You've collected enough coins.",
+    "Coins bis zu deinem Wunsch.": "coins until your wish.",
+    "Im Shop ansehen": "View in shop",
+    "Sparziel entfernen": "Remove savings goal",
+    "✓ Mein Sparziel": "✓ My savings goal",
+    "Darauf sparen": "Save up for this",
+    "Feedback kann gerade nicht gesendet werden. Bitte den Bericht kopieren und später erneut versuchen.":
+      "Feedback cannot be sent right now. Please copy the report and try again later.",
+    "Meldung nicht gefunden.": "Report not found.",
+    "Bitte einen PNG-Screenshot bis 220 KB verwenden.":
+      "Please use a PNG screenshot up to 220 KB.",
+    "Ungültiger Screenshot.": "Invalid screenshot.",
+    "Der Screenshot ist zu groß.": "The screenshot is too large.",
+    "Der Screenshot konnte nicht verarbeitet werden.":
+      "Could not process the screenshot.",
+    "Bitte warte etwas, bevor du weitere Meldungen sendest.":
+      "Please wait a while before sending more reports.",
+    "Diese Meldung ist privat.": "This report is private.",
+    "Bitte die Art der Meldung auswählen.": "Please choose the feedback type.",
+    "Bitte einen Titel und mindestens zehn Zeichen Beschreibung eingeben.":
+      "Please enter a title and a description of at least ten characters.",
+    "Diese Übermittlung wurde bereits für eine andere Meldung verwendet.":
+      "This submission has already been used for another report.",
+    "Kein Screenshot vorhanden.": "No screenshot attached.",
+    "Bitte einen gültigen Status auswählen.": "Please choose a valid status.",
+    Kreativrunde: "Creative round",
+    Zeichnen: "Drawing",
+    Abstimmen: "Voting",
+    Pixelzeichnung: "Pixel drawing",
+    "Wird während des Zeichnens gesichert.": "Saved while you draw.",
+    "Zeichnung wird gesichert …": "Saving drawing …",
+    "✓ Zeichnung gesichert · wird am Ende automatisch abgegeben.":
+      "✓ Drawing saved · It will be submitted automatically at the end.",
+    "Noch nicht gesichert · Verbindung wird erneut versucht.":
+      "Not saved yet · Retrying the connection.",
+    Radierer: "Eraser",
+    Stiftbreite: "Pen width",
+    Dick: "Thick",
+    Leeren: "Clear",
+    Abschicken: "Submit",
+    "Für diesen Schritt wurde keine Zeichnung oder Beschreibung abgegeben.":
+      "No drawing or description was submitted for this step.",
+    "Keine Abgabe in diesem Schritt.": "No submission in this step.",
+    Schritt: "Step",
+    Teamwertung: "Team standings",
+    Lila: "Purple",
+    "Spieleabend-Voreinstellung": "Game night preset",
+    "Lobby-Dekoration": "Lobby decoration",
+    "Verbindung fehlt.": "Connection unavailable.",
+    "einen Gegenstand": "an item",
+    "Online-Status": "Online status",
+    Verschenken: "Gift",
+    Geschenknachricht: "Gift message",
+    "Dieser Freund ist nicht mehr verfügbar.":
+      "This friend is no longer available.",
+    "In meine Lobby einladen": "Invite to my lobby",
+    "Nachricht schreiben": "Write a message",
+    "Profil ansehen": "View profile",
+    "Erstelle zuerst eine Lobby, um Freunde einzuladen.":
+      "Create a lobby first to invite friends.",
+    Freundesliste: "Friends list",
+    "Aktionen für": "Actions for",
+    "Freundschaftsanfrage öffnen": "Open friend request",
+    "Freund ansehen": "View friend",
+    "Beitrittsanfrage öffnen": "Open join request",
+    "Einladung öffnen": "Open invitation",
+    "Geschenk öffnen": "Open gift",
+    "Feedback-Postfach": "Feedback inbox",
+    "Soundboard im Spiel": "In-game soundboard",
+    "Eigene Sounds im GiG-Shop freischalten.":
+      "Unlock custom sounds in the GiG shop.",
+    "Mit einem Konto eigene Sounds nutzen.":
+      "Use custom sounds with an account.",
+    "FÜR EUREN SPIELEABEND": "FOR YOUR GAME NIGHT",
+    "Open Source. Für euch gemacht.": "Open source. Made for you.",
+    "100 % gratis": "100% free",
+    "Keine Werbung": "No ads",
+    "Kein Download": "No download",
+    "GiG wird offen entwickelt. Schau in den Code oder bring deine Ideen mit.":
+      "GiG is built in the open. Explore the code or share your ideas.",
+    "Auf GitHub ansehen ↗": "View on GitHub ↗",
   };
   if (typeof module === "object" && module.exports) module.exports = en;
   else root.GiGEnglish = en;

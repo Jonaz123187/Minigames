@@ -135,6 +135,8 @@ function harness(touch = false, reduced = false) {
     "controls-client.js",
     "community-client.js",
     "shop-preview.js",
+    "feedback-client.js",
+    "savings-client.js",
   ])
     new vm.Script(fs.readFileSync(path.join(base, file), "utf8"), {
       filename: file,

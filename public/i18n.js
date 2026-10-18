@@ -89,6 +89,12 @@
     } catch {}
     const select = document.getElementById("languagePicker");
     if (select) select.value = language;
+    const flag = document.getElementById("selectedLanguageFlag"),
+      label = document.getElementById("selectedLanguageLabel"),
+      menu = document.getElementById("languageMenu");
+    if (flag) flag.src = language === "en" ? "/flags/gb.svg" : "/flags/de.svg";
+    if (label) label.textContent = language === "en" ? "English" : "Deutsch";
+    if (menu) menu.open = false;
     apply();
     document.dispatchEvent(new Event("gig:language"));
   }
@@ -120,6 +126,11 @@
   function ready() {
     const p = document.getElementById("languagePicker");
     if (p) p.addEventListener("change", () => set(p.value));
+    document
+      .querySelectorAll("[data-language]")
+      .forEach((b) =>
+        b.addEventListener("click", () => set(b.dataset.language)),
+      );
     set(language);
   }
   if (document.readyState === "loading")
