@@ -500,6 +500,9 @@ function initialize() {
       alpha: false,
       powerPreference: "high-performance",
     });
+    renderer.debug.onShaderError = () => {
+      throw new Error("Grand Prix: WebGL shader compilation failed");
+    };
     renderer.setPixelRatio(
       Math.min(devicePixelRatio || 1, isTouchDevice ? 1.5 : 2),
     );
@@ -558,7 +561,7 @@ function minimap() {
   }
   ctx.restore();
 }
-renderers.race = function () {
+function renderRace() {
   initialize();
   if (roundToken !== room.round.id) {
     roundToken = room.round.id;
@@ -691,4 +694,16 @@ renderers.race = function () {
   }
   if (!failed) GiGPremium.driveHUD("race", own, worldTrack);
   minimap();
+}
+renderers.race = function () {
+  try {
+    renderRace();
+  } catch (error) {
+    failed = true;
+    canvas3D.hidden = true;
+    reportRenderError(error, "race-3d");
+    resetGameCanvas();
+    worldTrack = GiGRace.makeTrack(room.round.meta.track);
+    fallback();
+  }
 };

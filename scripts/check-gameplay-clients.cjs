@@ -535,6 +535,12 @@ const arcade = createArcade({ manual: true, clock: () => now }),
     );
   }
   assert.equal(errors.length, 0, errors.join("\n"));
+  for (const c of clients)
+    assert.equal(
+      c.run("renderErrorKeys.size"),
+      0,
+      "no masked rendering errors in normal games",
+    );
   console.log("ALL 27 CLIENT GAME CHECKS PASSED, INCLUDING LATE SPECTATORS");
 })()
   .catch((e) => {

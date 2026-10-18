@@ -58,6 +58,21 @@ function harness(touch = false, reduced = false) {
     json: async () => ({ enabled: false, uploads: false }),
   });
   w.addEventListener("error", (e) => errors.push(e.error || e.message));
+  // Browser canvas dimensions reset the drawing state, including clipping.
+  for (const name of ["width", "height"]) {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      w.HTMLCanvasElement.prototype,
+      name,
+    );
+    Object.defineProperty(w.HTMLCanvasElement.prototype, name, {
+      ...descriptor,
+      set(value) {
+        descriptor.set.call(this, value);
+        const c = canvases.get(this);
+        if (c) c[name] = descriptor.get.call(this);
+      },
+    });
+  }
   w.HTMLCanvasElement.prototype.getContext = function (type) {
     if (type !== "2d") return null;
     let c = canvases.get(this);
@@ -254,7 +269,10 @@ function harness(touch = false, reduced = false) {
     draw();
   }
   function draw() {
-    frame(clock);
+    const pending = frame;
+    frame = null;
+    assert.ok(pending, "animation callback remains scheduled");
+    pending(clock);
   }
   function tick(ms) {
     const steps = Math.max(1, Math.ceil(ms / (1000 / 60))),
@@ -457,6 +475,11 @@ async function main() {
         }
       }
       assert.equal(h.errors.length, 0, h.errors.join("\n"));
+      assert.equal(
+        h.run("renderErrorKeys.size"),
+        0,
+        id + " must render without recovered errors",
+      );
       console.log(
         "PASS",
         touch ? "portrait touch" : reduced ? "reduced motion" : "desktop",
