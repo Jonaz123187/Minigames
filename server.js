@@ -547,6 +547,13 @@ function createArcade({
   );
   app.get("/health", (req, res) => res.json({ ok: true }));
   const rooms = new Map();
+  const socialRuntime = require("./social-runtime")({
+    io,
+    rooms,
+    accounts,
+    clock,
+    games: GAMES,
+  });
 
   const gameNow = (r, now) =>
     now -
@@ -631,8 +638,10 @@ function createArcade({
   const clearReady = (room) => {
     for (const p of room.players.values()) p.ready = false;
   };
-  const broadcastRoom = (room) =>
+  const broadcastRoom = (room) => {
     io.to(room.code).emit("room", roomState(room));
+    socialRuntime.roomChanged(room);
+  };
   function disposeRound(room) {
     if (!room.round) return;
     GAMES[room.round.game].dispose?.(room.round.state);
@@ -650,6 +659,7 @@ function createArcade({
         until: clock() + 60000,
       };
     room.players.delete(socket.id);
+    socialRuntime.changed(socket.data.account?.uid);
     if (room.hostId === socket.id)
       for (const [key, request] of room.pending || []) room.pending.delete(key);
     if (room.phase === "lobby") clearReady(room);
@@ -757,6 +767,22 @@ function createArcade({
           ...eligibility,
           roundId: round.id,
           game: round.game,
+          facts: {
+            cleanTrail:
+              round.game === "monster" &&
+              round.state.players[row.id].finished &&
+              round.state.players[row.id].resets === 0,
+            birdies:
+              round.game === "golf"
+                ? round.state.players[row.id].card.filter(
+                    (n, i) => n > 0 && n < round.meta.courses[i].par,
+                  ).length
+                : 0,
+            holeInOnes:
+              round.game === "golf"
+                ? round.state.players[row.id].card.filter((n) => n === 1).length
+                : 0,
+          },
           raw: row.raw,
           detail: row.detail,
           margin:
@@ -796,6 +822,26 @@ function createArcade({
             ),
         );
     }
+    const eligibleUids = new Set(
+      rows
+        .filter(
+          (row) =>
+            row.uid &&
+            row.connected &&
+            Economy.rewardCoins({
+              rank: 1,
+              active: (round.activity[row.id] || 0) >= 2,
+              practice: round.practice,
+              participants,
+              duration: now - round.startsAt,
+            }) > 0,
+        )
+        .map((row) => row.uid),
+    );
+    if (eligibleUids.size)
+      accounts.social
+        .recordRound(round.id, round.game, rows, eligibleUids)
+        .catch(() => {});
     // A departure forfeits the round; the frozen roster still appears in results.
     rows.sort(
       (a, b) => Number(b.connected) - Number(a.connected) || b.raw - a.raw,
@@ -928,6 +974,8 @@ function createArcade({
         uid,
         car,
         trail,
+        livery,
+        ball,
         effect,
         frame,
         pet,
@@ -940,6 +988,8 @@ function createArcade({
         uid,
         car,
         trail,
+        livery,
+        ball,
         effect,
         frame,
         pet,
@@ -1051,6 +1101,7 @@ function createArcade({
     const reply = (ack, payload) => {
       if (typeof ack === "function") ack(payload);
     };
+    socialRuntime.attach(socket, reply);
     const getRoom = () => rooms.get(socket.data.roomCode);
     const identity = () =>
       socket.data.account
@@ -1060,7 +1111,10 @@ function createArcade({
       try {
         if (!rateLimit() || getRoom())
           throw new Error("Bitte vor dem Kontowechsel die Lobby verlassen.");
+        const previousUid = socket.data.account?.uid;
         const profile = await accounts.sync(socket, payload?.token);
+        if (previousUid !== profile.uid) socialRuntime.changed(previousUid);
+        socialRuntime.changed(profile.uid);
         reply(ack, { ok: true, profile });
       } catch (e) {
         reply(ack, { ok: false, error: e.message });
@@ -1098,6 +1152,8 @@ function createArcade({
             avatar: p.avatar,
             car: p.car,
             trail: p.trail,
+            livery: p.livery || "default",
+            ball: p.ball || "default",
             effect: p.effect,
             frame: p.frame,
             pet: p.pet,
@@ -1146,7 +1202,9 @@ function createArcade({
           ok: false,
           error: "Bitte zuerst die Lobby verlassen.",
         });
+      const previousUid = socket.data.account?.uid;
       socket.data.account = null;
+      socialRuntime.changed(previousUid);
       reply(ack, { ok: true });
     });
     socket.on("lobby:kick", (payload, ack) => {
@@ -1238,10 +1296,23 @@ function createArcade({
         leave(socket);
         return reply(ack, { ok: true });
       }
-      if (getRoom())
+      let socialGrant = null;
+      if (payload.socialToken) {
+        try {
+          socialGrant = await socialRuntime.validateJoin(
+            socket,
+            String(payload.code || "").toUpperCase(),
+            payload.socialToken,
+          );
+        } catch (e) {
+          return reply(ack, { ok: false, error: e.message });
+        }
+      }
+      if (getRoom() && !(socialGrant && payload.confirmSwitch === true))
         return reply(ack, {
           ok: false,
-          error: "Du bist bereits in einer Lobby.",
+          error:
+            "Du bist bereits in einer Lobby. Bestätige zuerst den Wechsel.",
         });
       let name =
         typeof payload.name === "string"
@@ -1279,6 +1350,7 @@ function createArcade({
           ).join("");
         } while (rooms.has(code));
         room = {
+          instance: crypto.randomUUID(),
           code,
           hostId: socket.id,
           phase: "lobby",
@@ -1356,6 +1428,29 @@ function createArcade({
           ok: false,
           error: "Dieser Name oder dieses Konto ist bereits in der Lobby.",
         });
+      if (getRoom() === room)
+        return reply(ack, {
+          ok: false,
+          error: "Du bist bereits in dieser Lobby.",
+        });
+      if (socialGrant) {
+        try {
+          await socialRuntime.validateJoin(
+            socket,
+            room.code,
+            payload.socialToken,
+          );
+        } catch (e) {
+          return reply(ack, { ok: false, error: e.message });
+        }
+        if (room.players.size >= MAX_PLAYERS)
+          return reply(ack, {
+            ok: false,
+            error: "Die Lobby ist inzwischen voll.",
+          });
+      }
+      if (getRoom()) leave(socket);
+      if (socialGrant) socialRuntime.consume(payload.socialToken);
       const used = new Set([...room.players.values()].map((p) => p.color));
       room.players.set(socket.id, {
         id: socket.id,
@@ -1373,6 +1468,8 @@ function createArcade({
         identity: identity(),
         car: socket.data.account?.car || "truck",
         trail: socket.data.account?.trail || "none",
+        livery: socket.data.account?.livery || "default",
+        ball: socket.data.account?.ball || "default",
         effect: socket.data.account?.effect || "default",
         frame: socket.data.account?.frame || "default",
         pet: socket.data.account?.pet || "none",
@@ -1499,6 +1596,52 @@ function createArcade({
       reply(ack, { ok: true });
     });
     let chatAt = -10000;
+    socket.on("avatar:emote", async (payload, ack) => {
+      try {
+        const room = getRoom(),
+          uid = socket.data.account?.uid,
+          key = payload?.key;
+        if (!rateLimit() || !room || !uid || !Economy.emotes[key])
+          throw Error("Diese Reaktion ist gerade nicht verfügbar.");
+        if (clock() - (socket.data.emoteAt || -10000) < 4000)
+          throw Error("Eine kurze Pause zwischen den Reaktionen.");
+        const r = room.round,
+          p = r?.state.players[socket.id];
+        if (
+          room.phase !== "lobby" &&
+          !(
+            room.phase === "playing" &&
+            (!r.roster.some((x) => x.id === socket.id) ||
+              !r.connected.has(socket.id) ||
+              p?.out ||
+              p?.alive === false ||
+              p?.finished)
+          )
+        )
+          throw Error(
+            "Avatar-Reaktionen gibt es in der Lobby und beim Zuschauen.",
+          );
+        const profile = await accounts.get(uid),
+          e = Economy.emotes[key];
+        if (
+          !profile?.emotes?.includes(key) &&
+          !(
+            profile &&
+            !profile.emotes &&
+            ["wave", "laugh", "facepalm", "cheer"].includes(key)
+          )
+        )
+          throw Error("Rüste diese Reaktion zuerst unter Aussehen aus.");
+        if (e.item && !Economy.owns(profile, e.item))
+          throw Error("Diese Reaktion ist noch gesperrt.");
+        if (getRoom() !== room) throw Error("Die Lobby hat sich geändert.");
+        socket.data.emoteAt = clock();
+        io.to(room.code).emit("avatar:emote", { id: socket.id, key });
+        reply(ack, { ok: true });
+      } catch (e) {
+        reply(ack, { ok: false, error: e.message });
+      }
+    });
     socket.on("reaction", (payload, ack) => {
       const room = getRoom(),
         now = clock(),
@@ -1660,7 +1803,7 @@ function createArcade({
         return reply(ack, {
           ok: false,
           error:
-            "Ein Mitspieler fehlt. Teile den Code oder aktiviere Training unter Erweitert.",
+            "Ein Mitspieler fehlt. Teile den Code oder aktiviere das Solo-Training.",
         });
       if (
         room.settings.mode !== "party" &&
@@ -1678,10 +1821,14 @@ function createArcade({
           ok: false,
           error: "Wähle das Spiel zuerst für die Lobby aus.",
         });
-      if (!practice && [...room.players.values()].some((p) => !p.ready))
+      if (
+        !practice &&
+        [...room.players.values()].some((p) => p.id !== room.hostId && !p.ready)
+      )
         return reply(ack, {
           ok: false,
-          error: "Alle Spieler müssen zuerst Bereit drücken.",
+          error:
+            "Die Mitspieler müssen zuerst Bereit drücken. Der Host startet direkt.",
         });
       if (room.settings.teams) {
         const ids = [...room.players.keys()];
@@ -1822,18 +1969,19 @@ function createArcade({
         !["playing", "countdown"].includes(room.phase)
       )
         return reply(ack, { ok: false });
-      r.connected.delete(socket.id);
-      r.menu.delete(socket.id);
-      room.players.get(socket.id).sittingOut = true;
-      r.controls[socket.id] = freshControls();
-      if (r.state.players[socket.id]) {
-        const p = r.state.players[socket.id];
-        if ("alive" in p) p.alive = false;
-        if ("out" in p) p.out = true;
-      }
-      updatePause(room, clock());
+      // Leaving through the game menu ends this round for the entire lobby.
+      // Dispose the authoritative state, rather than only hiding the local game.
+      disposeRound(room);
+      room.phase = "lobby";
+      room.returnAt = null;
+      room.party = null;
+      clearReady(room);
+      io.to(room.code).emit(
+        "notice",
+        "Die Runde wurde über das Spielmenü ohne Wertung beendet.",
+      );
       broadcastRoom(room);
-      reply(ack, { ok: true });
+      return reply(ack, { ok: true });
     });
     socket.on("rematch", (_, ack) => {
       const room = getRoom();
@@ -1847,13 +1995,34 @@ function createArcade({
       )
         return reply(ack, { ok: false });
       const id = room.lastResult.game;
+      const practice =
+        room.lastResult.practice === true && room.players.size === 1;
+      if (
+        room.players.size <
+        (practice ? 1 : Math.max(2, GAMES[id].minPlayers || 1))
+      )
+        return reply(ack, {
+          ok: false,
+          error: "Für die Revanche fehlen Mitspieler.",
+        });
+      if (id === "dub") {
+        const available = room.clips.filter(
+          (c) => c.enabled && !room.usedClips.has(c.id),
+        );
+        if (available.length < room.settings.dub.rounds)
+          return reply(ack, {
+            ok: false,
+            error:
+              "Für die Revanche fehlen ungespielte Clips. Gib den Clip-Pool in der Lobby erneut frei.",
+          });
+      }
       disposeRound(room);
       room.phase = "lobby";
       room.party = null;
       room.returnAt = null;
       room.selected = id;
       clearReady(room);
-      broadcastRoom(room);
+      start(room, id, clock(), practice);
       reply(ack, { ok: true });
     });
     socket.on("clock", (_, ack) => {

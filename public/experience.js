@@ -341,7 +341,7 @@ renderPremiumLobby = function () {
     party = settings.mode === "party",
     g = catalog.find((x) => x.id === selected),
     me = room.players.find((p) => p.id === myId),
-    waiting = room.players.filter((p) => !p.ready);
+    waiting = room.players.filter((p) => p.id !== room.hostId && !p.ready);
   if (!g) return;
   $("players").replaceChildren(
     ...room.players.map((p) => {
@@ -350,8 +350,11 @@ renderPremiumLobby = function () {
         sub = el(
           "small",
           p.ready ? "is-ready" : "",
-          (p.id === room.hostId ? "Host · " : "") +
-            (p.ready ? "Bereit" : "Noch nicht bereit"),
+          p.id === room.hostId
+            ? "Host · Startet die Runde"
+            : p.ready
+              ? "Bereit"
+              : "Noch nicht bereit",
         ),
         wish = catalog.find((g) => g.id === p.wish);
       if (wish) sub.textContent += " · " + wish.title;
@@ -372,7 +375,13 @@ renderPremiumLobby = function () {
     ? "✓ Du bist bereit"
     : "Jetzt bereit machen";
   $("readyButton").setAttribute("aria-pressed", String(!!me?.ready));
-  $("readyButton").disabled = solo || practice;
+  $("readyButton").hidden = host;
+  $("readyButton").disabled = host || solo || practice;
+  const training = $("practice").closest("label");
+  training.classList.add("solo-training-card");
+  $("readyButton").before(training);
+  training.hidden = !solo || !host;
+  $("advanced").hidden = !solo || !host;
   if (solo)
     $("readyButton").textContent = practice
       ? "Solo-Training · Direkt starten"
@@ -424,8 +433,9 @@ renderPremiumLobby = function () {
       : practice
         ? "Einzeltraining · ohne Session-Punkte"
         : "Alle sind bereit. Drei Sekunden Countdown, dann geht’s los.");
-  $("hostHint").textContent =
-    "Bereitschaft gilt für die aktuelle Auswahl. Spiel- und Einstellungsänderungen setzen sie zurück.";
+  $("hostHint").textContent = host
+    ? "Du startest direkt. Nur deine Mitspieler bestätigen ihre Bereitschaft."
+    : "Mach dich bereit, sobald du loslegen kannst. Änderungen der Auswahl setzen die Bereitschaft zurück.";
   const status = $("lobbyStatus");
   status.classList.toggle("ready", !reason);
   status.replaceChildren(
@@ -435,7 +445,7 @@ renderPremiumLobby = function () {
       solo && !practice
         ? "Ein Platz ist noch frei"
         : waiting.length && !practice
-          ? `${room.players.length - waiting.length} / ${room.players.length} bereit`
+          ? `${room.players.length - 1 - waiting.length} / ${room.players.length - 1} Mitspieler bereit`
           : "Alle am Start",
     ),
     el(
@@ -739,6 +749,7 @@ renderRoom = function (next) {
     }, 1250);
     return;
   }
+  if (next.phase !== "results") clearTimeout(endDelay);
   oldRenderRoom(next);
   if (next.phase === "results") decorateResults();
   if (next.phase === "lobby") {

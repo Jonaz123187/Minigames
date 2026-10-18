@@ -11,21 +11,21 @@
       sky: "#b9d8d2",
       ground: "#74aa79",
       edge: "#c6dba4",
-      length: 9000,
+      length: 42000,
     },
     canyon: {
       name: "Canyon Club",
       sky: "#dfc4ae",
       ground: "#cb8a65",
       edge: "#eec08b",
-      length: 10000,
+      length: 48000,
     },
     frost: {
       name: "Frosty Run",
       sky: "#bdd0e6",
       ground: "#89acbe",
       edge: "#e2e8eb",
-      length: 9500,
+      length: 45000,
     },
   };
   function height(x, id) {
@@ -51,8 +51,18 @@
       const blend = Math.min(1, (x - 4000) / 200, (4640 - x) / 200);
       y += (0 - y) * Math.max(0, blend);
     }
+    // Additional long sectors: broad climbs and descents rather than repeated flat road.
+    for (let center = 7600; center < tracks[id].length; center += 6100) {
+      const v = Math.abs(x - center) / 1200;
+      if (v < 1)
+        y -=
+          ((1 + Math.cos(v * Math.PI)) *
+            (55 + (Math.floor(center / 6100) % 3) * 16)) /
+          2;
+    }
     return y;
   }
+  const icy = (x) => x > 2200 && x % 7000 < 2700 && x % 7000 > 2200;
   function course(id = "meadow") {
     id = tracks[id] ? id : "meadow";
     const def = tracks[id],
@@ -71,7 +81,7 @@
         y: (y + y2) / 2,
         w: Math.hypot(60, y2 - y) + 3,
         a: Math.atan2(y2 - y, 60),
-        kind: id === "frost" && x > 2200 && x < 2700 ? "ice" : "ground",
+        kind: id === "frost" && icy(x) ? "ice" : "ground",
       });
     }
     return {
@@ -79,16 +89,57 @@
       id,
       pieces,
       checkpoints: [
-        140, 1250, 2050, 3150, 3950, 4700, 5700, 6900, 8100, 9150,
-      ].filter((x) => x < def.length),
-      coins: Array.from({ length: 36 }, (_, i) => ({
-        x: 650 + (i * (def.length - 1100)) / 35,
-        y: height(650 + (i * (def.length - 1100)) / 35, id) - 76,
+        ...new Set([
+          140,
+          ...Array.from(
+            { length: Math.floor((def.length - 800) / 1250) },
+            (_, i) => 1000 + i * 1250,
+          ),
+          def.length - 800,
+        ]),
+      ]
+        .sort((a, b) => a - b)
+        .filter(
+          (x) =>
+            !(x > 1650 && x < 1900) &&
+            !(x > 3650 && x < 3850) &&
+            !(x > 4050 && x < 4650),
+        ),
+      sectors: Array.from({ length: Math.ceil(def.length / 7000) }, (_, i) => ({
+        from: i * 7000,
+        to: Math.min(def.length, (i + 1) * 7000),
+        name:
+          [
+            "Starttal",
+            "Höhenweg",
+            "Waldpass",
+            "Weite Hänge",
+            "Gipfelpfad",
+            "Fernblick",
+            "Zielregion",
+          ][i] || "Finale",
+      })),
+      coins: Array.from({ length: Math.floor(def.length / 260) }, (_, i) => ({
+        x: 650 + (i * (def.length - 1100)) / (Math.floor(def.length / 260) - 1),
+        y:
+          height(
+            650 +
+              (i * (def.length - 1100)) / (Math.floor(def.length / 260) - 1),
+            id,
+          ) - 76,
       })),
       obstacles: [
         { x: 2350, y: height(2350, id) + 4, type: "log" },
         { x: 4320, y: -12, type: "seesaw" },
         { x: 5100, y: height(5100, id) + 2, type: "log" },
+        ...Array.from(
+          { length: Math.floor((def.length - 8000) / 4200) },
+          (_, i) => ({
+            x: 8200 + i * 4200,
+            y: height(8200 + i * 4200, id) + 2,
+            type: "log",
+          }),
+        ),
       ],
     };
   }
@@ -97,22 +148,16 @@
     E.gravity.y = 1;
     E.positionIterations = 8;
     E.velocityIterations = 8;
-    const ground = [];
-    for (const s of track.pieces) {
-      ground.push(
-        M.Bodies.rectangle(s.x, s.y + 25, s.w, 50, {
-          isStatic: true,
-          angle: s.a,
-          friction: s.kind === "ice" ? 0.025 : 1,
-          restitution: 0,
-          label: "ground",
-        }),
-      );
-    }
-    ground.push(
+    // Stream nearby collision segments, keeping long tracks affordable for eight trucks.
+    const terrainBodies = new Map();
+    M.Composite.add(
+      E.world,
       M.Bodies.rectangle(-310, -30, 30, 300, { isStatic: true, label: "wall" }),
     );
-    M.Composite.add(E.world, ground);
+    syncTerrain(
+      { engine: E, body: { position: { x: 140 } }, terrainBodies },
+      track,
+    );
     for (const o of track.obstacles) {
       if (o.type === "log") {
         M.Composite.add(
@@ -202,6 +247,7 @@
     M.Composite.add(E.world, [body, ...wheels, ...links]);
     return {
       engine: E,
+      terrainBodies,
       body,
       wheels,
       levels,
@@ -224,11 +270,36 @@
       planks: [],
     };
   }
+  function syncTerrain(w, track) {
+    const sector = Math.floor(w.body.position.x / 600);
+    if (sector === w.terrainSector) return;
+    w.terrainSector = sector;
+    const lo = sector * 600 - 1200,
+      hi = sector * 600 + 2400;
+    for (const [i, b] of w.terrainBodies)
+      if (track.pieces[i].x < lo || track.pieces[i].x > hi) {
+        M.Composite.remove(w.engine.world, b);
+        w.terrainBodies.delete(i);
+      }
+    track.pieces.forEach((s, i) => {
+      if (s.x < lo || s.x > hi || w.terrainBodies.has(i)) return;
+      const b = M.Bodies.rectangle(s.x, s.y + 25, s.w, 50, {
+        isStatic: true,
+        angle: s.a,
+        friction: s.kind === "ice" ? 0.025 : 1,
+        restitution: 0,
+        label: "ground",
+      });
+      w.terrainBodies.set(i, b);
+      M.Composite.add(w.engine.world, b);
+    });
+  }
   function reset(w, track, now) {
     if (w.finished || w.out || now - w.resetAt < 1800) return false;
     const x = track.checkpoints[w.checkpoint] || 140,
       y = height(x, track.id);
     M.Body.setPosition(w.body, { x, y: y - 67 });
+    syncTerrain(w, track);
     M.Body.setAngle(w.body, 0);
     M.Body.setVelocity(w.body, { x: 0, y: 0 });
     M.Body.setAngularVelocity(w.body, 0);
@@ -264,6 +335,7 @@
   }
   function step(w, input, dt, track, now) {
     if (w.out || w.finished) return;
+    syncTerrain(w, track);
     const recovering = now < w.recoveringUntil;
     const gas = recovering
         ? 0
@@ -291,11 +363,7 @@
         wheel.torque += gas * (0.045 + w.levels.power * 0.005);
       if (grounded[i]) {
         const traction =
-          track.id === "frost" &&
-          wheel.position.x > 2200 &&
-          wheel.position.x < 2700
-            ? 0.3
-            : 1;
+          track.id === "frost" && icy(wheel.position.x) ? 0.3 : 1;
         M.Body.applyForce(wheel, wheel.position, {
           x: gas * 0.0045 * (1 + w.levels.power * 0.08) * traction,
           y: 0,

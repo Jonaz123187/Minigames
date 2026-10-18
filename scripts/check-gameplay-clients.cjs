@@ -94,9 +94,11 @@ const arcade = createArcade({ manual: true, clock: () => now }),
     };
     for (const f of [
       "economy.js",
+      "control-settings.js",
       "vehicle-models.js",
       "vendor/matter.min.js",
       "monster-shared.js",
+      "monster-motion.js",
       "race-shared.js",
       "golf-shared.js",
       "sketch-shared.js",
@@ -109,6 +111,9 @@ const arcade = createArcade({ manual: true, clock: () => now }),
       "accounts-client.js",
       "crew-update.js",
       "premium-games.js",
+      "social-client.js",
+      "rewards-client.js",
+      "controls-client.js",
     ])
       new vm.Script(fs.readFileSync(path.join(publicRoot, f), "utf8"), {
         filename: f,
@@ -234,6 +239,100 @@ const arcade = createArcade({ manual: true, clock: () => now }),
     first.jumpClock(3000);
     assert.equal(first.run("serverNow()"), before, id + " wall clock jump");
     first.jumpClock(-3000);
+    if (id === "telephone") {
+      async function submitted(c) {
+        for (
+          let i = 0;
+          i < 40 && !c.socket.snapshot.data.players[c.socket.id].submitted;
+          i++
+        ) {
+          await delay(5);
+          await step(0);
+        }
+        assert.ok(
+          c.socket.snapshot.data.players[c.socket.id].submitted,
+          "Relay submission accepted",
+        );
+      }
+      for (const [i, c] of all.entries()) {
+        const form = c.w.document.querySelector("#partyGame form"),
+          input = form.querySelector("input");
+        input.value = "Ein Pinguin mit Hut " + i;
+        form.dispatchEvent(
+          new c.w.Event("submit", { bubbles: true, cancelable: true }),
+        );
+        await submitted(c);
+      }
+      await step(3001);
+      for (const [i, c] of all.entries()) {
+        assert.equal(c.socket.snapshot.data.kind, "drawing");
+        assert.notEqual(
+          c.socket.snapshot.data.task.author,
+          c.socket.id,
+          "sentence came from someone else",
+        );
+        const d = c.w.document,
+          cv = d.querySelector(".suspect-editor"),
+          picker = d.querySelector('input[type="color"]');
+        assert.ok(cv && picker, "Relay freehand and color picker");
+        picker.value = ["#1463b2", "#b21463", "#148352"][i];
+        picker.dispatchEvent(new c.w.Event("input", { bubbles: true }));
+        const point = (type, x, y) => {
+          const e = new c.w.MouseEvent(type, {
+            clientX: x,
+            clientY: y,
+            bubbles: true,
+          });
+          Object.defineProperty(e, "pointerId", { value: 7 });
+          cv.dispatchEvent(e);
+        };
+        point("pointerdown", 50, 100);
+        point("pointermove", 400, 100);
+        point("pointerup", 450, 100);
+        [...d.querySelectorAll("#partyGame button")]
+          .find((b) => b.textContent === "Zeichnung abgeben")
+          .click();
+        await submitted(c);
+      }
+      await step(3001);
+      for (const c of all) {
+        const task = c.socket.snapshot.data.task;
+        assert.equal(task.kind, "drawing");
+        assert.notEqual(task.author, c.socket.id, "another player's drawing");
+        assert.equal(
+          task.value.strokes[0][4],
+          ["#1463b2", "#b21463", "#148352"][
+            all.findIndex((x) => x.socket.id === task.author)
+          ],
+        );
+        const cv = c.w.document.querySelector("#partyGame canvas");
+        assert.ok(cv, "drawing is actually displayed before the guess field");
+        const rgba = c
+            .canvas(cv)
+            .getContext("2d")
+            .getImageData(200, 100, 1, 1).data,
+          hex = task.value.strokes[0][4];
+        assert.deepEqual(
+          [...rgba].slice(0, 3),
+          [1, 3, 5].map((n) => parseInt(hex.slice(n, n + 2), 16)),
+          "actual remote pixels match the chosen custom color",
+        );
+        const form = c.w.document.querySelector("#partyGame form");
+        form.querySelector("input").value = "Ich sehe den Pinguin";
+        form.dispatchEvent(
+          new c.w.Event("submit", { bubbles: true, cancelable: true }),
+        );
+        await submitted(c);
+      }
+      await step(3001);
+      for (const c of all) {
+        assert.equal(c.socket.snapshot.data.phase, "gallery");
+        assert.equal(
+          c.w.document.querySelectorAll(".story-entry canvas").length,
+          1,
+        );
+      }
+    }
     // Real form submits and both remote galleries, including canvas pixels.
     if (id === "faker") {
       for (const [i, c] of all.entries()) {
@@ -414,6 +513,9 @@ const arcade = createArcade({ manual: true, clock: () => now }),
       id,
       "3 real clients: countdown, phase timer, clock jump, shared pause/resume" +
         (id === "faker" ? ", remote freehand gallery and vote buttons" : "") +
+        (id === "telephone"
+          ? ", full sentence/drawing/guess relay with remote RGB canvas pixels"
+          : "") +
         (id === "onebutton" ? ", six reachable keyboard timing trials" : ""),
     );
   }

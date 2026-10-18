@@ -1,4 +1,4 @@
-/* Bounded vector drawings shared by Sketch Suspect's server and canvas UI. */
+/* Bounded vector drawings shared by the drawing games and their canvas UI. */
 (function (root, factory) {
   const s = factory();
   if (typeof module === "object" && module.exports) module.exports = s;
@@ -37,16 +37,22 @@
       if (
         !Array.isArray(s) ||
         s.length !== 6 ||
-        !s.every(Number.isFinite) ||
+        !s.slice(0, 4).every(Number.isFinite) ||
+        !Number.isFinite(s[5]) ||
         s.slice(0, 4).some((n, i) => n < 0 || n > (i % 2 ? height : width)) ||
-        !Number.isInteger(s[4]) ||
-        s[4] < 0 ||
-        s[4] >= colors.length ||
+        !(
+          (Number.isInteger(s[4]) && s[4] >= 0 && s[4] < colors.length) ||
+          (typeof s[4] === "string" && /^#[0-9a-f]{6}$/i.test(s[4]))
+        ) ||
         s[5] < 2 ||
         s[5] > 24
       )
         return null;
-      strokes.push(s.map(Math.round));
+      strokes.push(
+        s.map((v, i) =>
+          i === 4 && typeof v === "string" ? v.toLowerCase() : Math.round(v),
+        ),
+      );
     }
     return { width, height, strokes };
   }
@@ -57,7 +63,8 @@
     ctx.fillRect(0, 0, width, height);
     ctx.lineCap = ctx.lineJoin = "round";
     for (const [x, y, xx, yy, color, size] of drawing.strokes) {
-      ctx.strokeStyle = ctx.fillStyle = colors[color];
+      ctx.strokeStyle = ctx.fillStyle =
+        typeof color === "string" ? color : colors[color];
       ctx.lineWidth = size;
       ctx.beginPath();
       ctx.moveTo(x, y);
@@ -85,10 +92,20 @@
             15,
             Math.floor(((y + ((yy - y) * i) / steps) / height) * 16),
           );
-        out[b * 16 + a] = c;
+        out[b * 16 + a] = typeof c === "string" ? nearestColor(c) : c;
       }
     }
     return out;
+  }
+  function nearestColor(hex) {
+    const rgb = (v) => [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16));
+    const c = rgb(hex);
+    return colors
+      .map((v, i) => ({
+        i,
+        d: rgb(v).reduce((n, x, j) => n + (x - c[j]) ** 2, 0),
+      }))
+      .sort((a, b) => a.d - b.d)[0].i;
   }
   return { width, height, limit, colors, validate, paint, thumbnail };
 });

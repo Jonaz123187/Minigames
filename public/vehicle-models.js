@@ -23,9 +23,9 @@
     glass = "#53778b",
     light = "#f5e6b9";
   // x points forward, y points up, z spans the width; same axle positions for every skin.
-  function parts(id) {
+  function parts(id, livery = "default") {
     if (!names[id]) id = "truck";
-    const color = colors[id],
+    const color = livery === "obsidian" ? "#484366" : colors[id],
       p = [];
     const b = (x, y, z, w, h, d, c = color) =>
       p.push({ x, y, z, w, h, d, color: c });
@@ -88,16 +88,21 @@
     }
     return p;
   }
-  function svg(id, trail = "none") {
+  function svg(id, trail = "none", livery = "default") {
     if (!names[id]) id = "truck";
     const esc = (s) => String(s).replace(/[&<>"']/g, "");
     let content = '<ellipse cx="108" cy="107" rx="86" ry="8" fill="#080e18"/>';
-    if (["gold", "mint", "pink"].includes(trail)) {
-      const c = { gold: "#eed786", mint: "#8ed6b7", pink: "#e29ec1" }[trail];
+    if (["gold", "mint", "pink", "comet"].includes(trail)) {
+      const c = {
+        gold: "#eed786",
+        mint: "#8ed6b7",
+        pink: "#e29ec1",
+        comet: "#b1acff",
+      }[trail];
       for (let i = 0; i < 7; i++)
         content += `<rect class="vehicle-trail" style="--trail-delay:${i * -0.13}s" x="${5 + i * 6}" y="${100 - (i % 2) * 5}" width="4" height="4" fill="${c}" opacity="${0.25 + i * 0.09}"/>`;
     }
-    for (const p of parts(id).sort((a, b) => a.z - b.z)) {
+    for (const p of parts(id, livery).sort((a, b) => a.z - b.z)) {
       const x = 108 + p.x * 1.45 - p.w * 0.725,
         y = 80 - p.y * 1.05 - p.h * 0.525;
       content += `<rect x="${x}" y="${y}" width="${p.w * 1.45}" height="${p.h * 1.05}" rx="1" fill="${p.color}"/>`;

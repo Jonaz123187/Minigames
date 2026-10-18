@@ -120,10 +120,12 @@
       }
     }
     paintBar();
+    document.dispatchEvent(new Event("gig:account"));
     paintCustomSounds();
     paintGuestOpportunity();
     if (room?.phase === "lobby") refreshCrew(room);
   }
+  A.adopt = adopt;
   A.save = async (changes) => {
     const r = await api("/api/profile", "POST", { ...A.profile, ...changes });
     await adopt(r.profile);
@@ -146,7 +148,13 @@
         "aria-label",
         "Konto und Profil von " + A.profile.username,
       );
-      bar.append(coins, b);
+      const friends = button(
+        "Freunde",
+        () => window.GiGSocial?.open(),
+        "friends-button quiet",
+      );
+      friends.id = "friendsButton";
+      bar.append(friends, coins, b);
     } else {
       bar.append(
         button("Login", () => A.open("login"), "quiet"),
@@ -209,6 +217,9 @@
       else if (tab === "settings") settings();
       else if (tab === "atelier") atelier();
       else profileEditor();
+      document.dispatchEvent(
+        new CustomEvent("gig:account-view", { detail: { tab, panel } }),
+      );
     }
     if (!dialog.open) dialog.showModal();
     panel.scrollTop = 0;
@@ -860,6 +871,7 @@
       ["appearance", "Aussehen"],
       ["shelf", "Vitrine & Sammlung"],
       ["library", "Meine Arcade"],
+      ["goals", "Ziele & Belohnungen"],
     ])
       nav.append(
         button(
@@ -872,6 +884,12 @@
         ),
       );
     panel.append(nav);
+    if (A.profileSection === "goals") {
+      document.dispatchEvent(
+        new CustomEvent("gig:rewards", { detail: { panel } }),
+      );
+      return;
+    }
     if (A.profileSection === "appearance") return appearance();
     if (A.profileSection === "shelf") return collection();
     if (A.profileSection === "library") return arcadeLibrary();
@@ -1058,6 +1076,7 @@
       for (const item of GiG.items.filter((i) => i.category === cat)) {
         const owned = GiG.owns(A.profile, item.id),
           card = el("article", "shop-item" + (owned ? " owned" : ""));
+        card.dataset.item = item.id;
         const glyph = el("div", "shop-glyph");
         if (item.id.startsWith("avatar-") || item.id === "custom-avatar")
           glyph.innerHTML = GiG.svg({
@@ -1083,7 +1102,7 @@
             ? "✓ Freigeschaltet"
             : item.ownerOnly
               ? "Ersteller exklusiv"
-              : item.achievement
+              : item.achievement || item.mastery
                 ? item.description
                 : item.price + " GiG-Coins",
           () =>
@@ -1098,6 +1117,7 @@
           owned ||
           !!item.ownerOnly ||
           !!item.achievement ||
+          !!item.mastery ||
           A.profile.coins < item.price;
         card.append(buy);
         if (owned && item.id.startsWith("site-"))
@@ -1130,6 +1150,8 @@
     );
     let chosenCar = A.profile.car || "truck",
       chosenTrail = A.profile.trail || "none";
+    let chosenLivery = A.profile.livery || "default",
+      chosenBall = A.profile.ball || "default";
     const preview = el("div", "garage-preview"),
       gridCars = el("div", "vehicle-grid");
     const cards = [],
@@ -1143,13 +1165,13 @@
       "none",
     );
     function refreshGarage() {
-      preview.innerHTML = GiGVehicles.svg(chosenCar, chosenTrail);
+      preview.innerHTML = GiGVehicles.svg(chosenCar, chosenTrail, chosenLivery);
       preview.append(el("strong", "", GiGVehicles.names[chosenCar]));
       for (const { b, id } of cards)
         b.setAttribute("aria-pressed", String(chosenCar === id));
       for (const { b, id, art } of trailCards) {
         b.setAttribute("aria-pressed", String(chosenTrail === id));
-        art.innerHTML = GiGVehicles.svg(chosenCar, id);
+        art.innerHTML = GiGVehicles.svg(chosenCar, id, chosenLivery);
       }
     }
     for (const [id, name] of Object.entries(GiGVehicles.names)) {
@@ -1186,6 +1208,7 @@
       ["gold", "Goldstaub"],
       ["mint", "Mint-Spur"],
       ["pink", "Pink-Pixel"],
+      ["comet", "Kometenspur · erspielbar"],
     ]) {
       const b = button(
           "",
@@ -1198,7 +1221,7 @@
         ),
         art = el("span", "trail-art");
       b.disabled = id !== "none" && !GiG.owns(A.profile, "trail-" + id);
-      art.innerHTML = GiGVehicles.svg(chosenCar, id);
+      art.innerHTML = GiGVehicles.svg(chosenCar, id, chosenLivery);
       b.append(
         art,
         el("strong", "", name),
@@ -1215,8 +1238,41 @@
       chosenTrail = trail.sel.value;
       refreshGarage();
     };
+    const livery = el("select"),
+      ball = el("select");
+    livery.setAttribute("aria-label", "Fahrzeuglackierung");
+    ball.setAttribute("aria-label", "Golfball-Design");
+    for (const [id, name] of [
+      ["default", "Original-Lackierung"],
+      ["obsidian", "Obsidian · 5 saubere Trail-Ziele"],
+    ]) {
+      const o = new Option(name, id);
+      o.disabled = id !== "default" && !GiG.owns(A.profile, "livery-" + id);
+      livery.append(o);
+    }
+    for (const [id, name] of [
+      ["default", "Klassischer Golfball"],
+      ["aurora", "Aurora · 10 Bahnen unter Par"],
+    ]) {
+      const o = new Option(name, id);
+      o.disabled = id !== "default" && !GiG.owns(A.profile, "ball-" + id);
+      ball.append(o);
+    }
+    livery.value = chosenLivery;
+    ball.value = chosenBall;
+    livery.onchange = () => {
+      chosenLivery = livery.value;
+      refreshGarage();
+    };
+    ball.onchange = () => {
+      chosenBall = ball.value;
+    };
     panel.append(
       preview,
+      el("h3", "", "Deine Lackierung"),
+      livery,
+      el("h3", "", "Dein Golfball"),
+      ball,
       el("h3", "", "Dein Fahrzeug"),
       gridCars,
       el("h3", "", "Deine Fahrzeugspur"),
@@ -1231,7 +1287,12 @@
         "Fahrzeug & Spur speichern",
         () =>
           attempt(async () => {
-            await A.save({ car: chosenCar, trail: chosenTrail });
+            await A.save({
+              car: chosenCar,
+              trail: chosenTrail,
+              livery: chosenLivery,
+              ball: chosenBall,
+            });
             toast("Fahrzeug und Spur gespeichert.");
           }),
         "primary",
@@ -1826,7 +1887,11 @@
               (room?.lastResult?.title || "Meine Zeichnung") +
               " · " +
               new Date().toLocaleDateString("de-DE"),
-            entries: chain.entries,
+            entries: chain.entries.map((e) =>
+              e.kind === "drawing" && !Array.isArray(e.value)
+                ? { ...e, value: GiGSketch.thumbnail(e.value) }
+                : e,
+            ),
           },
         ],
         galleryPublic: [],
@@ -2349,6 +2414,7 @@
       await GiGFirebase.signOut(A.auth);
       A.user = null;
       A.profile = null;
+      document.dispatchEvent(new Event("gig:account"));
       $("name").value = "";
       applySiteTheme(null);
       paintBar();
@@ -2371,6 +2437,7 @@
       if (r.welcome) toast("Willkommen! +50 GiG-Coins sind auf deinem Konto.");
     } else {
       A.profile = null;
+      document.dispatchEvent(new Event("gig:account"));
       paintBar();
     }
   }
@@ -2382,6 +2449,9 @@
       const data = await r.json();
       if (!r.ok) throw new Error(data.error);
       profileCard(data.profile, p);
+      document.dispatchEvent(
+        new CustomEvent("gig:profile-open", { detail: { uid, parent: p } }),
+      );
       if (!p.open) p.showModal();
     } catch (e) {
       toast(e.message || "Profil nicht verfügbar.", true);
@@ -2718,6 +2788,7 @@
   socket.on("account:reward", async (result) => {
     if (result.profile?.uid !== A.user?.uid) return;
     A.profile = result.profile;
+    document.dispatchEvent(new Event("gig:account"));
     crew.at = 0;
     paintBar();
     toast("+" + result.coins + " GiG-Coins · Fortschritt gespeichert");
@@ -2781,6 +2852,7 @@
               if (user) await refreshAccount();
               else {
                 A.profile = null;
+                document.dispatchEvent(new Event("gig:account"));
                 paintBar();
               }
             } catch (e) {

@@ -41,13 +41,8 @@
   ];
   const menu = $("gameMenu");
   $("play").append(menu);
-  let confirmAll = false,
-    uiKey = "",
-    draft = Array(256).fill(0),
-    drawing = false,
-    ink = 2,
+  let uiKey = "",
     galleryIndex = 0,
-    returnLobby = false,
     resumeRoom = null;
   const store = (k, v) => {
     try {
@@ -130,7 +125,7 @@
     if (open) {
       releaseKeys();
       $("leaveConfirmation").hidden = true;
-      $("requestAbort").hidden = room.hostId !== myId;
+      $("requestAbort").hidden = true;
       const g = game();
       $("helpTitle").textContent = g?.title || "";
       $("helpDescription").textContent = g?.description || "";
@@ -178,67 +173,37 @@
     resizeCanvas();
     if (
       !document.fullscreenElement &&
-      !returnLobby &&
       !room?.players.find((p) => p.id === myId)?.sittingOut &&
       room?.round &&
       ["playing", "countdown"].includes(room.phase)
     )
       setMenu(true);
   });
-  function confirmLeave(all) {
-    confirmAll = all;
+  function confirmLeave() {
     $("leaveConfirmation").hidden = false;
-    $("leaveQuestion").textContent = all
-      ? "Runde wirklich für alle ohne Wertung beenden?"
-      : "Möchtest du die laufende Runde wirklich verlassen? Du gibst diese Runde auf und wartest in der Lobby.";
-    $("confirmWithdraw").textContent = all
-      ? "Für alle beenden"
-      : "Runde verlassen";
+    $("leaveQuestion").textContent =
+      "Die laufende Runde für alle beenden und gemeinsam zurück zur Lobby? Es werden keine Punkte oder Coins vergeben.";
+    $("confirmWithdraw").textContent = "Für alle zurück zur Lobby";
     $("confirmWithdraw").focus();
   }
-  $("requestWithdraw").onclick = () => confirmLeave(false);
-  $("requestAbort").onclick = () => confirmLeave(true);
+  $("requestWithdraw").textContent = "Zurück zur Lobby …";
+  $("requestWithdraw").onclick = confirmLeave;
+  $("requestAbort").hidden = true;
   $("cancelWithdraw").onclick = () => ($("leaveConfirmation").hidden = true);
   $("confirmWithdraw").onclick = async () => {
-    const result = await rpc(confirmAll ? "abort" : "round:withdraw", {
+    const result = await rpc("round:withdraw", {
       roundId: room?.round?.id,
       confirm: true,
     });
     if (!result.ok)
-      return toast("Die Runde konnte gerade nicht verlassen werden.", true);
-    menu.close();
-    if (!confirmAll) returnLobby = true;
+      return toast(
+        result.error || "Die Runde konnte gerade nicht verlassen werden.",
+        true,
+      );
+    if (menu.open) menu.close();
     if (document.fullscreenElement)
       await document.exitFullscreen().catch(() => {});
-    if (!confirmAll) {
-      returnLobby = true;
-      showWaitingLobby();
-    }
   };
-  function showWaitingLobby() {
-    showScreen("lobby");
-    $("leave").hidden = false;
-    $("roomCode").textContent = window.codeVisible ? room.code : "••••••";
-    $("start").disabled = true;
-    $("readyButton").disabled = true;
-    $("launchTitle").textContent = "Die Runde läuft noch";
-    $("launchHint").textContent =
-      "Du hast diese Runde verlassen. Beim nächsten Spiel bist du wieder dabei.";
-    let b = $("watchAgain");
-    if (!b) {
-      b = makeButton(
-        "Wieder zuschauen",
-        () => {
-          returnLobby = false;
-          renderRoom(room);
-        },
-        "primary",
-      );
-      b.id = "watchAgain";
-      $("launchHint").after(b);
-    }
-    b.hidden = false;
-  }
   const previousRoom = renderRoom;
   renderRoom = function (next) {
     const old = room?.round?.id;
@@ -246,7 +211,6 @@
     resumeRoom = next.code;
     store("gig-resume-room", next.code);
     if (next.phase === "lobby" || (old && old !== next.round?.id)) {
-      returnLobby = false;
       $("watchAgain")?.remove();
     }
     if (!next.round || !["countdown", "playing"].includes(next.phase)) {
@@ -285,14 +249,11 @@
     if (["lobby", "results"].includes(next.phase) && document.fullscreenElement)
       document.exitFullscreen().catch(() => {});
     if (next.phase === "results") paintResults();
-    if (returnLobby && ["countdown", "playing"].includes(next.phase))
-      showWaitingLobby();
   };
   const previousReset = resetLocal;
   resetLocal = function () {
     if (menu.open) menu.close();
     uiKey = "";
-    returnLobby = false;
     resumeRoom = null;
     store("gig-resume-room", null);
     previousReset();
@@ -453,51 +414,18 @@
       "Mitspieler"
     );
   }
-  function board(values, editable = false) {
+  function board(values) {
     const c = el("canvas", "party-pixels");
     c.width = c.height = 256;
-    c.setAttribute(
-      "aria-label",
-      editable ? "Pixel-Zeichenfläche" : "Pixelzeichnung",
-    );
-    c.style.touchAction = "none";
+    c.setAttribute("aria-label", "Pixelzeichnung");
     const cx = c.getContext("2d");
-    function redraw() {
-      cx.clearRect(0, 0, 256, 256);
-      (editable ? draft : values || []).forEach((n, i) => {
-        if (n) {
-          cx.fillStyle = palette[n];
-          cx.fillRect((i % 16) * 16, Math.floor(i / 16) * 16, 16, 16);
-        }
-      });
-    }
-    redraw();
-    if (editable) {
-      function dot(e) {
-        const r = c.getBoundingClientRect(),
-          x = Math.floor(((e.clientX - r.left) / r.width) * 16),
-          y = Math.floor(((e.clientY - r.top) / r.height) * 16);
-        if (x >= 0 && y >= 0 && x < 16 && y < 16) {
-          draft[y * 16 + x] = ink;
-          redraw();
-        }
+    cx.fillStyle = "#f5f0df";
+    cx.fillRect(0, 0, 256, 256);
+    for (const [i, n] of (values || []).entries())
+      if (n) {
+        cx.fillStyle = palette[n];
+        cx.fillRect((i % 16) * 16, Math.floor(i / 16) * 16, 16, 16);
       }
-      c.onpointerdown = (e) => {
-        if (!active() || menu.open) return;
-        e.preventDefault();
-        drawing = true;
-        c.setPointerCapture(e.pointerId);
-        dot(e);
-      };
-      c.onpointermove = (e) => {
-        if (drawing) dot(e);
-      };
-      c.onpointerup =
-        c.onpointercancel =
-        c.onlostpointercapture =
-          () => (drawing = false);
-      c.redraw = redraw;
-    }
     return c;
   }
   async function input(v, b) {
@@ -520,7 +448,7 @@
     GiGSketch.paint(c.getContext("2d"), drawing);
     return c;
   }
-  function freePaintTools(parent) {
+  function freePaintTools(parent, relay = false) {
     const drawing = {
         width: GiGSketch.width,
         height: GiGSketch.height,
@@ -531,10 +459,17 @@
       notice = el(
         "p",
         "small muted",
-        "Zeichne mit Maus oder Finger. Deine Zeichnung bleibt bis zur gemeinsamen Galerie verborgen.",
+        relay
+          ? "Zeichne den Satz mit Maus oder Finger. Im nächsten Schritt bekommt jemand anderes dein Bild."
+          : "Zeichne mit Maus oder Finger. Deine Zeichnung bleibt bis zur gemeinsamen Galerie verborgen.",
       );
     c.classList.add("suspect-editor");
-    c.setAttribute("aria-label", "Zeichenfläche für Sketch Suspect");
+    c.setAttribute(
+      "aria-label",
+      relay
+        ? "Zeichenfläche für Pixel Relay"
+        : "Zeichenfläche für Sketch Suspect",
+    );
     c.style.touchAction = "none";
     let color = 0,
       size = 8,
@@ -555,6 +490,16 @@
       b.setAttribute("aria-label", b.title);
       tools.append(b);
     }
+    const colorLabel = el("label", "drawing-color-picker", "Eigene Farbe"),
+      picker = el("input");
+    picker.type = "color";
+    picker.value = GiGSketch.colors[0];
+    picker.setAttribute("aria-label", "Freier Farbwähler");
+    picker.oninput = () => {
+      color = picker.value;
+    };
+    colorLabel.append(picker);
+    tools.append(colorLabel);
     const width = el("select");
     width.setAttribute("aria-label", "Stiftbreite");
     for (const [value, label] of [
@@ -643,35 +588,6 @@
     );
     parent.append(tools, c, notice, submit);
   }
-  function paintTools(parent) {
-    draft = Array(256).fill(0);
-    const c = board(draft, true),
-      tools = el("div", "pixel-tools");
-    palette.forEach((color, i) => {
-      const b = makeButton(
-        i === 0 ? "⌫" : "",
-        () => {
-          ink = i;
-        },
-        "paint-swatch",
-      );
-      b.style.background = color;
-      b.setAttribute("aria-label", i === 0 ? "Radierer" : "Farbe " + i);
-      tools.append(b);
-    });
-    tools.append(
-      makeButton("Leeren", () => {
-        draft.fill(0);
-        c.redraw();
-      }),
-    );
-    const submit = makeButton(
-      "Zeichnung abgeben",
-      () => input({ action: "submit", pixels: draft }, submit),
-      "primary",
-    );
-    parent.append(tools, c, submit);
-  }
   function textForm(parent, label, action, key, type = "text") {
     const form = el("form", "party-answer"),
       lab = el("label", "account-field", label),
@@ -718,6 +634,7 @@
         state.index,
         state.turn,
         state.step,
+        state.taskRevision,
         me?.submitted,
         state.submitted,
         state.voted,
@@ -755,11 +672,15 @@
         );
         if (state.task) {
           if (state.task.kind === "drawing")
-            box.append(board(state.task.value));
+            box.append(
+              Array.isArray(state.task.value)
+                ? board(state.task.value)
+                : sketchBoard(state.task.value),
+            );
           else box.append(el("blockquote", "", state.task.value));
         }
         if (can && !me.submitted) {
-          if (state.kind === "drawing") paintTools(box);
+          if (state.kind === "drawing") freePaintTools(box, true);
           else textForm(box, "Dein Satz", "submit", "text");
         } else if (me?.submitted)
           box.append(
@@ -1018,7 +939,11 @@
         const card = el("article", "story-entry");
         card.append(el("small", "", name(e.author)));
         card.append(
-          e.kind === "drawing" ? board(e.value) : el("p", "", e.value),
+          e.kind === "drawing"
+            ? Array.isArray(e.value)
+              ? board(e.value)
+              : sketchBoard(e.value)
+            : el("p", "", e.value),
         );
         wrap.append(card);
       }
@@ -1048,7 +973,10 @@
     $("rematch").onclick = async () => {
       const result = await rpc("rematch", {});
       if (!result.ok)
-        toast("Revanche kann gerade nicht vorbereitet werden.", true);
+        toast(
+          result.error || "Die Revanche kann gerade nicht gestartet werden.",
+          true,
+        );
     };
     const gallery = $("roundGallery");
     gallery.hidden = !r.gallery;
@@ -1111,11 +1039,14 @@
     const me = room.players.find((p) => p.id === myId),
       host = room.hostId === myId;
     $("readyButton").classList.toggle("ready-confirmed", !!me?.ready);
-    $("readyButton").classList.toggle("ready-needed", !me?.ready);
+    $("readyButton").classList.toggle("ready-needed", !host && !me?.ready);
     $("players")
       .querySelectorAll(".player")
       .forEach((row, i) => {
-        row.classList.toggle("player-ready", !!room.players[i]?.ready);
+        row.classList.toggle(
+          "player-ready",
+          room.players[i]?.id === room.hostId || !!room.players[i]?.ready,
+        );
         const t = room.settings.assignments?.[room.players[i]?.id];
         if (room.settings.teams && [0, 1].includes(t))
           row.append(el("small", "team-label", t === 0 ? "Mint" : "Lila"));

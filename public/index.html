@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="/quality-ui.css" />
     <link rel="icon" href="/favicon.svg?v=7.3" type="image/svg+xml" />
     <link rel="stylesheet" href="/premium-games.css" />
+    <link rel="stylesheet" href="/social.css" />
   </head>
   <body>
     <div class="shell">
@@ -180,14 +181,14 @@
               ></div>
               <div id="lastRound" class="panel last-round" hidden></div>
               <details id="advanced" class="advanced">
-                <summary>Erweitert</summary>
+                <summary>Hinweise zum Training</summary>
                 <label class="practice-label"
                   ><input id="practice" type="checkbox" /> Solo-Training
                   aktivieren</label
                 >
                 <p>
-                  Übe allein ohne Session-Punkte. Sketch & Guess und Hot Potato
-                  brauchen Mitspieler.
+                  Übe allein ohne Session-Punkte. Spiele, die mehrere Personen
+                  benötigen, bleiben gesperrt.
                 </p>
               </details>
             </aside>
@@ -471,7 +472,7 @@
           </div>
           <div id="guestAccountHint" class="guest-account-hint" hidden></div>
           <button id="rematch" class="primary" hidden>
-            Revanche vorbereiten ↻
+            Revanche starten ↻
           </button>
           <div id="roundGallery" class="panel" hidden></div>
           <div id="teamResults" class="panel" hidden></div>
@@ -602,9 +603,11 @@
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/economy.js"></script>
+    <script src="/control-settings.js"></script>
     <script src="/vehicle-models.js"></script>
     <script src="/vendor/matter.min.js"></script>
     <script src="/monster-shared.js"></script>
+    <script src="/monster-motion.js"></script>
     <script src="/race-shared.js"></script>
     <script src="/golf-shared.js"></script>
     <script src="/sketch-shared.js"></script>
@@ -618,6 +621,9 @@
     <script src="/accounts-client.js"></script>
     <script src="/crew-update.js"></script>
     <script src="/premium-games.js"></script>
+    <script src="/social-client.js"></script>
+    <script src="/rewards-client.js"></script>
+    <script src="/controls-client.js"></script>
     <script type="module" src="/race-3d.js"></script>
     <script type="module" src="/monster-3d.js"></script>
   </body>

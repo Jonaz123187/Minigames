@@ -4,7 +4,7 @@ const T = require("./public/monster-shared"),
 module.exports = {
   title: "GiG Monster Trails",
   icon: "20",
-  seconds: 180,
+  seconds: 720,
   category: "Skill",
   difficulty: "Experte",
   description:
@@ -49,7 +49,7 @@ module.exports = {
         continue;
       }
       T.step(p, round.controls[id] || {}, dt, g.track, now);
-      if (p.finished && !g.finishDeadline) g.finishDeadline = now + 15000;
+      if (p.finished && !g.finishDeadline) g.finishDeadline = now + 45000;
     }
     return (
       Object.values(g.players).every((p) => p.out || p.finished) ||

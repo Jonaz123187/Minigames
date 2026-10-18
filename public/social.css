@@ -1,0 +1,601 @@
+/* GiG Social: a stable account drawer, compact presence and earned cosmetics. */
+.social-dialog {
+  width: min(590px, calc(100vw - 28px));
+  height: min(780px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid #ffffff22;
+  border-radius: 22px;
+  background: #151e2b;
+  color: #edf1e8;
+  box-shadow: 0 32px 100px #0009;
+  overflow: hidden;
+}
+.social-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.social-dialog::backdrop {
+  background: #07101bb8;
+  backdrop-filter: blur(6px);
+}
+.social-header {
+  padding: 28px 28px 18px;
+  border-bottom: 1px solid #ffffff0c;
+  position: relative;
+}
+.social-header > div {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: #a4caba;
+}
+.social-header h2 {
+  font-size: 26px;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  margin: 10px 32px 0 0;
+}
+.social-tabs {
+  display: flex;
+  gap: 5px;
+  padding: 12px 18px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #ffffff12;
+}
+.social-tabs button {
+  font-size: 11px;
+  padding: 9px 11px;
+}
+.social-tabs .active {
+  background: #b8dfcf;
+  color: #18312e;
+}
+.social-content {
+  padding: 20px 24px 28px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  flex: 1;
+}
+.social-content h3 {
+  margin: 4px 0 10px;
+}
+.social-content > p {
+  line-height: 1.6;
+}
+.social-content > select,
+.social-search {
+  width: 100%;
+  margin: 8px 0 18px;
+  min-height: 44px;
+}
+.social-person {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 9px 12px;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid #ffffff10;
+}
+.social-person .avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+.social-person-copy {
+  min-width: 0;
+}
+.social-name {
+  display: block;
+  max-width: 100%;
+  padding: 2px 0;
+  font-weight: 700;
+  text-align: left;
+  overflow-wrap: anywhere;
+  color: #edf1e8;
+}
+.social-presence {
+  display: block;
+  line-height: 1.5;
+  margin-top: 3px;
+  font-size: 11px;
+  color: #9aa9b7;
+}
+.social-person.online .social-presence {
+  color: #add5bd;
+}
+.social-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  grid-column: 2/-1;
+}
+.social-actions button {
+  padding: 8px 10px;
+  font-size: 11px;
+}
+.social-more {
+  grid-column: 2/-1;
+  font-size: 11px;
+}
+.social-more summary {
+  cursor: pointer;
+  color: #a8b5c3;
+}
+.social-more button {
+  margin: 8px 6px 0 0;
+  font-size: 11px;
+}
+.social-empty {
+  padding: 24px 0;
+  color: #abb6c1;
+  line-height: 1.65;
+}
+.social-recent {
+  margin-top: 24px;
+}
+.social-recent summary {
+  cursor: pointer;
+  color: #b7c4d0;
+}
+.social-invitation,
+.social-gift,
+.social-gift-choice,
+.social-confirm {
+  padding: 18px;
+  border: 1px solid #ffffff18;
+  border-radius: 14px;
+  margin: 12px 0;
+  background: #ffffff04;
+}
+.social-invitation button,
+.social-confirm button {
+  margin: 8px 8px 0 0;
+}
+.social-confirm {
+  background: #2b3440;
+  border-color: #e6cf9166;
+}
+.social-confirm input {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+}
+.social-gift-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.social-gift-choice strong {
+  flex: 1 1 160px;
+}
+.social-gift-choice button {
+  margin-left: auto;
+}
+.social-gift p {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.private-messages {
+  height: clamp(180px, 35dvh, 330px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+}
+.private-message {
+  max-width: 85%;
+  align-self: flex-start;
+  background: #263444;
+  border: 1px solid #ffffff09;
+  padding: 10px 13px;
+  border-radius: 13px 13px 13px 3px;
+}
+.private-message.mine {
+  align-self: flex-end;
+  background: #274b46;
+  border-radius: 13px 13px 3px 13px;
+}
+.private-message p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+.private-message time {
+  display: block;
+  font-size: 9px;
+  color: #b4c2c8;
+  text-align: right;
+  margin-top: 5px;
+}
+.private-compose {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.private-compose textarea {
+  resize: vertical;
+  min-width: 0;
+  flex: 1;
+}
+.private-comparison {
+  margin: 24px 30px 0;
+  padding: 16px;
+  border: 1px solid #ffffff13;
+  border-radius: 12px;
+}
+.private-comparison summary {
+  font-size: 12px;
+  color: #a8b6c4;
+  cursor: pointer;
+}
+.private-comparison p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.friends-button {
+  white-space: nowrap;
+}
+.solo-training-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 17px;
+  background: linear-gradient(135deg, #29473e, #253442);
+  border: 1px solid #9bccad5e;
+  border-radius: 13px;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 12px 0;
+}
+.solo-training-card input {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  accent-color: #b7e6b4;
+}
+.solo-training-card[hidden] {
+  display: none !important;
+}
+.drawing-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.drawing-color-picker input {
+  width: 46px;
+  height: 36px;
+  padding: 3px;
+  border-radius: 8px;
+}
+.mastery-collection {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.mastery-collection > h3,
+.mastery-collection > p {
+  grid-column: 1/-1;
+}
+.mastery-card {
+  position: relative;
+  padding: 20px;
+  background: linear-gradient(135deg, #253246, #1b2c35);
+  border: 1px solid #b3a5ec38;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+.mastery-card.complete {
+  border-color: #a7d0b35c;
+}
+.mastery-card h4 {
+  margin: 0;
+  font-size: 16px;
+}
+.mastery-card p {
+  line-height: 1.55;
+  margin: 0;
+  flex: 1;
+}
+.mastery-glyph {
+  font-size: 30px;
+  color: #c8b7ef;
+}
+.mastery-card progress {
+  width: 100%;
+  height: 7px;
+  accent-color: #b8a5e5;
+  margin: 10px 0 0;
+}
+.mastery-card button {
+  font-size: 12px;
+}
+.mastery-unlocked {
+  font-size: 11px;
+  color: #c1ddbc;
+}
+.mastery-goal {
+  margin-top: 14px;
+}
+.mastery-goal strong {
+  display: block;
+  margin-top: 9px;
+}
+.mastery-goal p {
+  line-height: 1.6;
+}
+.mastery-goal button {
+  font-size: 11px;
+}
+.theme-champion .profile-banner {
+  background:
+    radial-gradient(ellipse at 70% 20%, #9d81c9, transparent 60%),
+    linear-gradient(135deg, #302e4d, #284955);
+}
+.frame-atelier {
+  outline: 3px double #b8a3de;
+  box-shadow: 0 0 0 6px #6fc8c31a;
+}
+.emote-settings,
+.control-settings {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #ffffff14;
+}
+.emote-slot-grid,
+.binding-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.emote-slot-grid select {
+  width: 100%;
+  min-width: 0;
+}
+.control-binding {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  background: #ffffff05;
+  padding: 10px;
+  border-radius: 9px;
+}
+.control-binding button {
+  font-size: 11px;
+}
+.control-settings > button {
+  margin: 8px 8px 0 0;
+}
+.control-settings output {
+  font-variant-numeric: tabular-nums;
+  color: #bbdfca;
+}
+.avatar-emote-bar {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: #172332ee;
+  border: 1px solid #ffffff20;
+  padding: 7px 10px;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px #0004;
+}
+.avatar-emote-bar[hidden] {
+  display: none;
+}
+.avatar-emote-bar button {
+  padding: 8px;
+  font-size: 20px;
+  background: #ffffff06;
+  min-width: 38px;
+}
+.avatar-emote-bar > span {
+  color: #a9bac6;
+  font-size: 10px;
+}
+.avatar[data-emote] {
+  overflow: visible;
+  position: relative;
+}
+.avatar-emote-bubble {
+  position: absolute;
+  right: -14px;
+  top: -20px;
+  font-size: 23px;
+  z-index: 3;
+  background: #243343;
+  border-radius: 12px;
+  padding: 2px 5px;
+}
+.avatar[data-emote="wave"] > .avatar-art,
+.avatar[data-emote="wave"] > .custom-pixel-animation {
+  animation: gig-wave 0.4s ease-in-out 4;
+}
+.avatar[data-emote="laugh"] > .avatar-art,
+.avatar[data-emote="laugh"] > .custom-pixel-animation {
+  animation: gig-laugh 0.2s ease-in-out 8;
+}
+.avatar[data-emote="facepalm"] > .avatar-art,
+.avatar[data-emote="facepalm"] > .custom-pixel-animation {
+  animation: gig-facepalm 1.6s ease-in-out;
+}
+.avatar[data-emote="cheer"] > .avatar-art,
+.avatar[data-emote="cheer"] > .custom-pixel-animation,
+.avatar[data-emote="dance"] > .avatar-art,
+.avatar[data-emote="dance"] > .custom-pixel-animation {
+  animation: gig-dance 0.4s ease-in-out 4;
+}
+.avatar[data-emote="spin"] > .avatar-art,
+.avatar[data-emote="spin"] > .custom-pixel-animation {
+  animation: gig-spin 1.4s ease-in-out;
+}
+.avatar[data-emote="bow"] > .avatar-art,
+.avatar[data-emote="bow"] > .custom-pixel-animation {
+  animation: gig-facepalm 1.6s ease-in-out;
+}
+@keyframes gig-wave {
+  50% {
+    transform: rotate(-13deg) translateY(-3px);
+  }
+}
+@keyframes gig-laugh {
+  50% {
+    transform: translateY(-3px) rotate(3deg);
+  }
+}
+@keyframes gig-facepalm {
+  40%,
+  65% {
+    transform: rotate(15deg) translateY(4px);
+  }
+}
+@keyframes gig-dance {
+  25% {
+    transform: rotate(-12deg) translateY(-6px);
+  }
+  75% {
+    transform: rotate(12deg) translateY(-2px);
+  }
+}
+@keyframes gig-spin {
+  to {
+    transform: rotateY(720deg);
+  }
+}
+#touchControls {
+  padding-left: var(--touch-control-inset, 0px);
+  padding-right: var(--touch-control-inset, 0px);
+  margin-bottom: var(--touch-control-lift, 0px);
+}
+#touchControls button {
+  zoom: var(--touch-control-scale, 1);
+}
+.left-handed-controls #touchControls {
+  flex-direction: row-reverse;
+}
+.left-handed-controls #touchControls .race-controls {
+  flex-direction: row-reverse;
+}
+@media (max-width: 600px) {
+  .social-header {
+    padding: 22px 20px 16px;
+  }
+  .social-header h2 {
+    font-size: 23px;
+  }
+  .social-content {
+    padding: 16px 18px 24px;
+  }
+  .social-person {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 9px;
+  }
+  .social-person .avatar {
+    width: 36px;
+    height: 36px;
+  }
+  .social-person > button {
+    grid-column: 2;
+  }
+  .social-tabs {
+    padding: 9px 12px;
+    gap: 3px;
+  }
+  .social-tabs button {
+    font-size: 10px;
+    padding: 8px;
+  }
+  .mastery-collection {
+    grid-template-columns: 1fr;
+  }
+  .binding-grid {
+    grid-template-columns: 1fr;
+  }
+  .avatar-emote-bar {
+    bottom: 10px;
+    max-width: calc(100vw - 24px);
+  }
+  .avatar-emote-bar > span {
+    display: none;
+  }
+  .private-comparison {
+    margin: 20px 16px 0;
+  }
+  .account-bar {
+    gap: 5px;
+  }
+  .friends-button {
+    padding: 9px;
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar[data-emote] > .avatar-art,
+  .avatar[data-emote] > .custom-pixel-animation {
+    animation: none !important;
+  }
+}
+/* Built-in characters articulate their limbs; static uploaded images are excluded. */
+.avatar[data-emote="wave"] .avatar-art .avatar-arm-right,
+.avatar[data-emote="cheer"] .avatar-art .avatar-arm-right,
+.avatar[data-emote="dance"] .avatar-art .avatar-arm-right {
+  animation: joint-cheer-arm-right 0.6s steps(1, end) 3;
+}
+.avatar[data-emote="wave"] .avatar-art .avatar-forearm-right,
+.avatar[data-emote="cheer"] .avatar-art .avatar-forearm-right {
+  animation: joint-cheer-forearm-right 0.6s steps(1, end) 3;
+}
+.avatar[data-emote="cheer"] .avatar-art .avatar-arm-left,
+.avatar[data-emote="dance"] .avatar-art .avatar-arm-left {
+  animation: joint-cheer-arm-left 0.6s steps(1, end) 3;
+}
+.avatar[data-emote="laugh"] .avatar-art .avatar-mouth {
+  transform-origin: 19px 22px;
+  animation: gig-emote-mouth 0.25s steps(2, end) 6;
+}
+.avatar[data-emote="facepalm"] .avatar-art .avatar-arm-right {
+  transform-origin: 29px 24px;
+  animation: gig-emote-palm-arm 1.8s ease-in-out;
+}
+.avatar[data-emote="facepalm"] .avatar-art .avatar-forearm-right {
+  transform-origin: 29px 28px;
+  animation: gig-emote-palm-hand 1.8s ease-in-out;
+}
+@keyframes gig-emote-mouth {
+  50% {
+    transform: scale(1.4, 1.3);
+  }
+}
+@keyframes gig-emote-palm-arm {
+  30%,
+  75% {
+    transform: rotate(120deg);
+  }
+}
+@keyframes gig-emote-palm-hand {
+  30%,
+  75% {
+    transform: rotate(80deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar[data-emote] .avatar-art [class^="avatar-"] {
+    animation: none !important;
+  }
+}

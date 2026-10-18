@@ -315,28 +315,29 @@ test("Pause during countdown freezes start and spectator menus do not block or f
   await until(() => a.room.round.pause.at != null);
   assert.equal(a.room.round.pauseEligible.includes(c.id), false);
 });
-test("Withdraw is explicit, forfeits only own points and cannot turn a spectator into a player", async (t) => {
+test("Menu return requires confirmation, ends the round for everyone and cannot produce a delayed podium", async (t) => {
   const h = await harness(t),
     all = await h.lobby(3),
     [a, b] = all,
     id = await h.start(all, "click");
   assert.equal((await call(b, "round:withdraw", { roundId: id })).ok, false);
   assert.equal(
+    (await call(b, "round:withdraw", { roundId: "stale", confirm: true })).ok,
+    false,
+  );
+  assert.equal(
     (await call(b, "round:withdraw", { roundId: id, confirm: true })).ok,
     true,
   );
+  await until(() => all.every((s) => s.room.phase === "lobby"));
+  assert.ok(all.every((s) => s.room.round === null));
   assert.equal(
     (await call(b, "input", { roundId: id, action: "hit" })).ok,
     false,
   );
-  h.step(10001);
-  await until(() => a.room.phase === "results");
-  assert.equal(a.room.lastResult.rows.find((p) => p.id === b.id).points, 0);
-  assert.equal((await call(b, "rematch", {})).ok, false);
-  assert.equal((await call(a, "rematch", {})).ok, true);
-  await until(() => a.room.phase === "lobby");
-  assert.equal(a.room.selected, "click");
-  assert.ok(a.room.players.every((p) => !p.ready));
+  h.step(100000);
+  assert.ok(all.every((s) => s.room.phase === "lobby"));
+  assert.ok(all.every((s) => s.room.lastResult === null));
 });
 test("Playlist and teams: host-only bounded order, resets ready, balanced assignments and final totals", async (t) => {
   const h = await harness(t),

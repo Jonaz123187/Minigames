@@ -1271,6 +1271,7 @@ function premiumFrame(time) {
             copy = el("div"),
             score = el("strong");
           copy.append(el("small", "", playerName(player)), score);
+          box.dataset.livePlayer = player.id;
           box.append(avatarNode(player.avatar), copy);
           liveScoreNodes.set(player.id, score);
           return box;
