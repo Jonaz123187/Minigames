@@ -711,7 +711,7 @@ function createAccounts(
       const profile = await mutate(u.uid, (p) => {
         const level = p.upgrades[key];
         if (level >= 5 || p.owner) return;
-        const cost = 60 * 2 ** level;
+        const cost = G.upgradeCost(level);
         if (p.coins < cost) throw fail("Dafür fehlen dir noch GiG-Coins.");
         p.coins -= cost;
         p.upgrades[key]++;
@@ -1050,6 +1050,7 @@ function createAccounts(
       practice,
       participants,
       duration,
+      rewardFactor = 1,
       raw,
       detail,
       margin,
@@ -1063,6 +1064,7 @@ function createAccounts(
       active,
       duration,
       rank,
+      rewardFactor,
     });
     if (!coins) return null;
     return mutate(uid, (p) => {
@@ -1154,6 +1156,7 @@ function createAccounts(
     fail,
     clean,
   });
+  require("./community")({ app, db, api, user, get, decorate, fail, clean });
   app.use("/api", (err, req, res, next) => {
     if (!err) return next();
     res.status(err.status || 400).json({

@@ -312,6 +312,15 @@ test("Socket v3: clip pool without repeats, exhaustion, reset, multi-upload and 
     a = await h.connect();
   await call(a, "lobby", { action: "create", name: "A" });
   await until(() => a.room);
+  assert.equal(
+    (
+      await call(a, "dub:clip", {
+        pcm: voice.defaultClip.pcm,
+        name: "Erster Clip",
+      })
+    ).ok,
+    true,
+  );
   step(200);
   const pcm = Buffer.from(voice.defaultClip.pcm);
   for (let i = 0; i < pcm.length; i += 2)

@@ -1,6 +1,7 @@
 "use strict";
 const crypto = require("node:crypto");
 const { dub } = require("./voice");
+const english = require("./public/i18n-catalog");
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rand = (a, b) => crypto.randomInt(a, b + 1);
 const rows = (ids, make) =>
@@ -173,7 +174,10 @@ const draw = {
       p.lastGuess = now;
       const text = input.text.trim().slice(0, 70);
       if (!text) return false;
-      if (normalize(text) === normalize(g.secret)) {
+      if (
+        normalize(text) === normalize(g.secret) ||
+        normalize(text) === normalize(english[g.secret] || g.secret)
+      ) {
         const points = Math.max(
           100,
           Math.round(500 - (32000 - (g.turnEnds - now)) / 90),

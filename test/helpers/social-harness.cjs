@@ -86,7 +86,7 @@ const call = (s, event, payload = {}) =>
       .timeout(4000)
       .emit(event, payload, (e, r) => (e ? reject(e) : resolve(r))),
   );
-async function setup(t) {
+async function setup(t, accountOptions = {}) {
   let now = 100000;
   const store = new Store();
   for (const [id, name] of [
@@ -100,6 +100,7 @@ async function setup(t) {
     manual: true,
     clock: () => now,
     accountOptions: {
+      ...accountOptions,
       testStore: store,
       testVerify: async (token) => {
         if (!["alice", "bob", "charlie"].includes(token)) throw Error();

@@ -4,6 +4,7 @@ import {
   createVehicle,
   groundShadow,
   label,
+  identityBadge,
   disposeScene,
   skyBackdrop,
   surfaceTexture,
@@ -447,7 +448,14 @@ function buildScene(meta) {
   trailSystems.clear();
   carPoses.clear();
   for (const p of roster()) {
-    cars.set(p.id, makeCar(p.color, p.car, p.livery));
+    const model = makeCar(p.color, p.car, p.livery),
+      badge = identityBadge(
+        roster().findIndex((x) => x.id === p.id),
+        p.color,
+      );
+    badge.position.set(0, 3, 0);
+    model.add(badge);
+    cars.set(p.id, model);
     if (p.trail && p.trail !== "none") {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute(

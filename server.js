@@ -750,8 +750,9 @@ function createArcade({
         rank: rows.filter((x) => x.connected && x.raw > row.raw).length + 1,
         active: (round.activity[row.id] || 0) >= 2,
         practice: round.practice,
+        rewardFactor: Economy.rewardFactor(round.game),
         participants,
-        duration: now - round.startsAt,
+        duration: gameNow(round, now) - round.startsAt,
       };
       if (!row.uid) {
         const coins = Economy.rewardCoins(eligibility);
@@ -833,7 +834,7 @@ function createArcade({
               active: (round.activity[row.id] || 0) >= 2,
               practice: round.practice,
               participants,
-              duration: now - round.startsAt,
+              duration: gameNow(round, now) - round.startsAt,
             }) > 0,
         )
         .map((row) => row.uid),
@@ -964,6 +965,11 @@ function createArcade({
 
   function start(room, gameId, now, practice) {
     const game = GAMES[gameId];
+    if (
+      gameId === "dub" &&
+      !room.clips.some((c) => c.enabled && !room.usedClips.has(c.id))
+    )
+      return false;
     for (const p of room.players.values()) p.sittingOut = false;
     const roster = [...room.players.values()].map(
       ({
@@ -1249,13 +1255,11 @@ function createArcade({
         if (
           !rateLimit() ||
           !room ||
-          room.phase !== "lobby" ||
+          !["lobby", "countdown", "playing", "results"].includes(room.phase) ||
           !p ||
           now - soundAt < 5500
         )
-          throw new Error(
-            "Eigene Sounds sind alle 5,5 Sekunden in der Lobby möglich.",
-          );
+          throw new Error("Eigene Sounds sind alle 5,5 Sekunden möglich.");
         soundAt = now;
         const fresh = await accounts.get(p.uid),
           slot = Number(payload?.slot);
@@ -1361,22 +1365,10 @@ function createArcade({
           lastResult: null,
           returnAt: null,
           selected: "dub",
-          dubClip: defaultClip,
+          dubClip: null,
           settings: structuredClone(DEFAULT_SETTINGS),
           party: null,
-          clips: defaultClip
-            ? [
-                {
-                  ...defaultClip,
-                  id: "demo",
-                  enabled: true,
-                  hash: crypto
-                    .createHash("sha256")
-                    .update(defaultClip.pcm)
-                    .digest("hex"),
-                },
-              ]
-            : [],
+          clips: [],
           usedClips: new Set(),
         };
         rooms.set(code, room);
@@ -1855,6 +1847,11 @@ function createArcade({
             (id !== "dub" || available.length),
         );
         const requested = room.settings.playlist || [];
+        if (requested.filter((id) => id === "dub").length > available.length)
+          return reply(ack, {
+            ok: false,
+            error: "Bitte lade genügend MP3-Dateien für die Playlist hoch.",
+          });
         if (requested.some((id) => !pool.includes(id)))
           return reply(ack, {
             ok: false,
@@ -1883,7 +1880,9 @@ function createArcade({
         )
           return reply(ack, {
             ok: false,
-            error: `Für ${room.settings.dub.rounds} Runden fehlen ungespielte Clips (${available.length} verfügbar). Lade Clips hoch oder reduziere die Rundenanzahl.`,
+            error: available.length
+              ? `Für ${room.settings.dub.rounds} Runden fehlen MP3-Dateien (${available.length} verfügbar). Lade weitere MP3-Dateien hoch oder reduziere die Rundenanzahl.`
+              : "Bitte lade zuerst MP3-Dateien für die Runde hoch.",
           });
         start(room, payload.game, clock(), practice);
       }

@@ -13,31 +13,31 @@ const round = (ids) => ({
 // Actual strokes, found by route search, replayed through the authoritative game adapter.
 const golfSolutions = [
   [
-    { dx: -0.9238795, dy: -0.3826834 },
-    { dx: 0.5, dy: 0.8660254 },
-    { dx: -0.562841, dy: -0.3760783 },
+    { dx: -0.647644765, dy: -0.268263232 },
+    { dx: 0.35050283, dy: 0.607088707 },
+    { dx: -0.436557544, dy: -0.2916984 },
   ],
   [
-    { dx: 0.9807853, dy: 0.1950903 },
-    { dx: 0.562841, dy: 0.3760783 },
+    { dx: 0.687536043, dy: 0.136759404 },
+    { dx: 0.436557544, dy: 0.2916984 },
   ],
   [
-    { dx: 1, dy: 0 },
-    { dx: 0.2230769, dy: 0 },
+    { dx: 0.701005659, dy: 0.0 },
+    { dx: 0.230725344, dy: 0.0 },
   ],
   [
-    { dx: 0.9807853, dy: 0.1950903 },
-    { dx: 0.258819, dy: -0.9659258 },
-    { dx: -0.521957, dy: 0.0342109 },
+    { dx: 0.687536043, dy: 0.136759404 },
+    { dx: 0.181433585, dy: -0.677119459 },
+    { dx: -0.432833363, dy: 0.028369423 },
   ],
   [
-    { dx: 1, dy: 0 },
-    { dx: 0.2230769, dy: 0 },
+    { dx: 0.701005659, dy: 0.0 },
+    { dx: 0.230725344, dy: 0.0 },
   ],
   [
-    { dx: 0.3214395, dy: -0.9469301 },
-    { dx: 0.3826834, dy: 0.9238795 },
-    { dx: -0.7327907, dy: -0.4230769 },
+    { dx: 0.22533091, dy: -0.663803362 },
+    { dx: 0.268263232, dy: 0.647644765 },
+    { dx: -0.536427347, dy: -0.309706467 },
   ],
 ];
 test("Golf: all six designed courses are playable within par using actual strokes", () => {
@@ -125,9 +125,11 @@ test("Golf: preview uses the same bounce path; invalid power cannot corrupt the 
     path = G.preview(p, 1, 0, c, 0),
     ball = { ...p, ...G.launch(1, 0) };
   const actual = [{ x: p.x, y: p.y }];
-  for (let i = 0; i < 75; i++) {
-    G.stepBall(ball, 1 / 30, c, i / 30);
-    if (i % 2 === 0) actual.push({ x: ball.x, y: ball.y });
+  for (let i = 0; i < 180; i++) {
+    const result = G.stepBall(ball, 1 / 30, c, i / 30);
+    if (i % 2 === 0 || result.cup || result.water)
+      actual.push({ x: ball.x, y: ball.y });
+    if (result.cup || result.water || Math.hypot(ball.vx, ball.vy) < 7) break;
   }
   assert.deepEqual(
     path.map(({ x, y }) => ({ x, y })),

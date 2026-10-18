@@ -20,6 +20,7 @@
     <link rel="icon" href="/favicon.svg?v=7.3" type="image/svg+xml" />
     <link rel="stylesheet" href="/premium-games.css" />
     <link rel="stylesheet" href="/social.css" />
+    <link rel="stylesheet" href="/community.css" />
   </head>
   <body>
     <div class="shell">
@@ -30,6 +31,13 @@
           ><span>MultiplayerGames<span class="brand-gig">-GiG</span></span></a
         >
         <div class="header-right">
+          <label class="language-picker"
+            ><span class="screen-reader">Sprache / Language</span
+            ><select id="languagePicker" aria-label="Sprache / Language">
+              <option value="de">Deutsch</option>
+              <option value="en">English</option>
+            </select></label
+          >
           <div id="accountBar" class="account-bar">
             <button id="loginButton" class="quiet">Login</button
             ><button id="registerButton">Konto erstellen</button>
@@ -45,7 +53,7 @@
           <div id="network" class="network">
             <span class="dot"></span><span id="networkText">Verbinden</span>
           </div>
-          <button id="leave" class="quiet" hidden>Verlassen ↗</button>
+          <button id="leave" class="quiet" hidden>Lobby verlassen ↗</button>
         </div>
       </header>
       <main>
@@ -115,6 +123,15 @@
               </p>
             </form>
           </div>
+          <p class="open-source-note">
+            GiG ist ein Open-Source-Projekt.
+            <a
+              href="https://github.com/Jonaz123187/Minigames"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Schau auf GitHub rein oder mach mit ↗</a
+            >
+          </p>
           <div class="home-feature-strip">
             <span><b>01</b> Lobby öffnen</span
             ><span><b>02</b> Freunde einladen</span
@@ -165,7 +182,7 @@
               </div>
               <div id="lobbyStatus" class="lobby-status" role="status"></div>
               <div class="panel soundboard-panel">
-                <div class="panel-title">Wartezimmer-Sounds</div>
+                <div class="panel-title">Soundboard</div>
                 <div id="customSounds" class="soundboard"></div>
                 <button id="manageSounds" class="quiet">
                   Eigene Sounds & Slots →</button
@@ -430,7 +447,7 @@
             <div id="gamePanel" class="game-panel" hidden></div>
           </div>
           <div id="typingPanel" class="typing-panel" hidden>
-            <div id="words" class="words"></div>
+            <div id="words" class="words" translate="no"></div>
             <form id="typingForm" class="typing-form">
               <label for="typingInput" class="screen-reader"
                 >Aktuelles Wort</label
@@ -487,8 +504,9 @@
             Gleichstände teilen den Platz. Training zählt nicht. Nach einer
             Runde geht es automatisch zurück in die Lobby; eine Party-Playlist
             spielt eure ausgewählten Spiele nacheinander. Vor dem ersten Start
-            müssen alle bereit sein. Änderungen an Spiel oder Einstellungen
-            setzen den Bereitschaftsstatus zurück.
+            müssen die Mitspieler bereit sein. Der Host startet direkt.
+            Änderungen an Spiel oder Einstellungen setzen den
+            Bereitschaftsstatus zurück.
           </p>
           <p>
             Die Sitzung und der Clip-Pool bleiben im Arbeitsspeicher. Verlassen
@@ -588,10 +606,35 @@
         ✕</button
       ><span class="eyebrow">DEIN PLATZ IN DER ARCADE</span>
       <h2>Aus Mitspielen<br />wird dein Profil.</h2>
-      <p>
-        Starte mit 50 GiG-Coins nach deiner E-Mail-Bestätigung. Sammle weitere
-        Coins in Multiplayer-Runden. Bau deinen Pixel-Charakter, deine Garage
-        und dein eigenes Soundboard auf.
+      <ul class="welcome-benefits">
+        <li>
+          <strong>Deine Freunde, ein Klick entfernt.</strong
+          ><span
+            >Freunde hinzufügen, ihren Spielstatus sehen und euch in die Lobby
+            einladen.</span
+          >
+        </li>
+        <li>
+          <strong>Dein eigener Look.</strong
+          ><span
+            >Pixelavatar gestalten, Profil einrichten und deine Garage
+            ausbauen.</span
+          >
+        </li>
+        <li>
+          <strong>Jede Runde zählt.</strong
+          ><span
+            >Coins verdienen, Abzeichen erspielen und Fortschritt
+            behalten.</span
+          >
+        </li>
+        <li>
+          <strong>Dein Soundboard.</strong
+          ><span>Eigene MP3s hochladen und in allen Spielen abspielen.</span>
+        </li>
+      </ul>
+      <p class="welcome-bonus">
+        ✦ 50 Start-Coins nach deiner E-Mail-Bestätigung.
       </p>
       <button id="welcomeRegister" class="primary">
         Kostenloses Konto erstellen →</button
@@ -601,6 +644,8 @@
     <canvas id="celebration" aria-hidden="true"></canvas>
     <div id="lobbyReactions" class="lobby-reactions" aria-live="polite"></div>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script src="/i18n-catalog.js"></script>
+    <script src="/i18n.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/economy.js"></script>
     <script src="/control-settings.js"></script>
@@ -624,6 +669,8 @@
     <script src="/social-client.js"></script>
     <script src="/rewards-client.js"></script>
     <script src="/controls-client.js"></script>
+    <script src="/community-client.js"></script>
+    <script src="/shop-preview.js"></script>
     <script type="module" src="/race-3d.js"></script>
     <script type="module" src="/monster-3d.js"></script>
   </body>

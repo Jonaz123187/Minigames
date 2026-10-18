@@ -1270,7 +1270,19 @@ function premiumFrame(time) {
             ),
             copy = el("div"),
             score = el("strong");
-          copy.append(el("small", "", playerName(player)), score);
+          const name = el("small", "", playerName(player)),
+            symbol = el(
+              "span",
+              "player-symbol",
+              ["◆", "●", "▲", "■", "★", "✚", "⬟", "✦"][
+                Math.max(
+                  0,
+                  people.findIndex((p) => p.id === player.id),
+                ) % 8
+              ],
+            );
+          symbol.setAttribute("aria-hidden", "true");
+          copy.append(symbol, name, score);
           box.dataset.livePlayer = player.id;
           box.append(avatarNode(player.avatar), copy);
           liveScoreNodes.set(player.id, score);

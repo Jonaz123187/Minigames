@@ -77,6 +77,10 @@ module.exports = function socialRuntime({ io, rooms, accounts, clock, games }) {
         rooms.get(entry.code)?.round?.game || rooms.get(entry.code)?.selected
       ]?.title || "Lobby",
     players: rooms.get(entry.code)?.players.size || 0,
+    phase: rooms.get(entry.code)?.phase || "lobby",
+    members: [...(rooms.get(entry.code)?.players.values() || [])].map(
+      (p) => p.name,
+    ),
     until: entry.until,
   });
   function visible(socket, entry) {

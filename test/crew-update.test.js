@@ -53,6 +53,11 @@ async function harness(t) {
     return all;
   }
   async function start(all, id) {
+    if (id === "dub")
+      await call(all[0], "dub:clip", {
+        pcm: require("../voice").defaultClip.pcm,
+        name: "Uploaded test reference",
+      });
     await call(all[0], "wish", { game: id });
     for (const s of all) await call(s, "ready", { ready: true });
     assert.equal((await call(all[0], "start", { game: id })).ok, true);

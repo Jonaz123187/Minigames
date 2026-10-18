@@ -5,6 +5,7 @@ import {
   batchScenery,
   groundShadow,
   label,
+  identityBadge,
   skyBackdrop,
 } from "./premium-scene.js";
 const screen = document.createElement("canvas");
@@ -60,6 +61,13 @@ function truck(p) {
   car.rotation.y = Math.PI / 2;
   car.position.y = -33;
   g.add(car);
+  const identity = identityBadge(
+    roster().findIndex((x) => x.id === p.id),
+    p.color,
+    28,
+  );
+  identity.position.set(0, 55, 0);
+  g.add(identity);
   const shadow = groundShadow(70);
   shadow.scale.y = 0.55;
   scene.add(shadow);

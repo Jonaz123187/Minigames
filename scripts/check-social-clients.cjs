@@ -41,13 +41,16 @@ const assert = require("node:assert/strict"),
     button(doc(b).querySelector(".social-content"), "Annehmen").click();
     await until(async () => (await h.api("/api/social")).friends.length === 1);
     await a.w.GiGSocial.open("friends");
-    assert.equal(doc(a).querySelectorAll(".social-person").length, 1);
+    assert.equal(
+      doc(a).querySelectorAll("#socialDialog .social-person").length,
+      1,
+    );
     assert.match(
       doc(a).querySelector(".social-presence").textContent,
       /Online/,
     );
     assert.doesNotMatch(
-      doc(a).querySelector(".social-person").textContent,
+      doc(a).querySelector("#socialDialog .social-person").textContent,
       /Vergleich|Siege|Runden/,
     );
     console.log(
@@ -60,7 +63,10 @@ const assert = require("node:assert/strict"),
     assert.equal(doc(a).getElementById("readyButton").hidden, true);
     assert.equal(doc(a).querySelector(".solo-training-card").hidden, false);
     await a.w.GiGSocial.open("friends");
-    button(doc(a).querySelector(".social-person"), "Einladen").click();
+    button(
+      doc(a).querySelector("#socialDialog .social-person"),
+      "Einladen",
+    ).click();
     await until(
       async () => (await call(b.socket, "social:pending")).entries.length === 1,
     );
@@ -85,7 +91,10 @@ const assert = require("node:assert/strict"),
       "PASS actual UI: equipped avatar emote reaches another player's avatar",
     );
     await a.w.GiGSocial.open("friends");
-    button(doc(a).querySelector(".social-person"), "Nachricht").click();
+    button(
+      doc(a).querySelector("#socialDialog .social-person"),
+      "Nachricht",
+    ).click();
     await until(() => doc(a).querySelector(".private-compose"));
     input = doc(a).querySelector(".private-compose textarea");
     input.value = "Noch eine Runde?";
@@ -115,11 +124,11 @@ const assert = require("node:assert/strict"),
     button(more, "Wunschliste ansehen").click();
     await until(() => button(doc(a), "Verschenken"));
     button(doc(a), "Verschenken").click();
-    button(doc(a), "Für 200 Coins verschenken").click();
+    button(doc(a), "Für 1000 Coins verschenken").click();
     await until(() =>
       h.store.data.get("gigPlayers/bob").owned.includes("pet-cat"),
     );
-    assert.equal(h.store.data.get("gigPlayers/alice").coins, 850);
+    assert.equal(h.store.data.get("gigPlayers/alice").coins, 50);
     await until(
       () => b.w.Account.profile.owned.includes("pet-cat"),
       "gift entitlement refreshes in the recipient UI",

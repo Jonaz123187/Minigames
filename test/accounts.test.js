@@ -141,7 +141,7 @@ test("Website themes require purchased entitlements and validate custom color va
   const { api, store } = await setup(t);
   await api("/api/register", "POST", { username: "Alice" });
   let p = store.data.get("gigPlayers/alice");
-  p.coins = 500;
+  p.coins = 1500;
   store.data.set("gigPlayers/alice", p);
   const blocked = await api("/api/profile", "POST", {
     siteTheme: "custom",
@@ -155,7 +155,7 @@ test("Website themes require purchased entitlements and validate custom color va
   });
   assert.equal(saved.data.profile.siteTheme, "custom");
   assert.equal(saved.data.profile.siteColor, "#abcdef");
-  assert.equal(saved.data.profile.coins, 240);
+  assert.equal(saved.data.profile.coins, 200);
   const unsafe = await api("/api/profile", "POST", {
     siteTheme: "plum",
     siteColor: "url(https://example.test)",
@@ -310,11 +310,11 @@ test("Sound slots require coins, preserve emoji metadata, and reject unauthorize
   await api("/api/register", "POST", { username: "Alice" });
   assert.equal((await api("/api/buy", "POST", { id: "sound-1" })).status, 400);
   const p = store.data.get("gigPlayers/alice");
-  p.coins = 300;
+  p.coins = 700;
   store.data.set("gigPlayers/alice", p);
   assert.equal((await api("/api/buy", "POST", { id: "sound-2" })).status, 400);
   await api("/api/buy", "POST", { id: "sound-1" });
-  assert.equal(store.data.get("gigPlayers/alice").coins, 210);
+  assert.equal(store.data.get("gigPlayers/alice").coins, 200);
   const bytes = require("fs").readFileSync(
     __dirname + "/fixtures/one-second.mp3",
   );
@@ -362,7 +362,7 @@ test("Account registration: verified emails, unique case-insensitive names, priv
     400,
   );
   let p = store.data.get("gigPlayers/alice");
-  p.coins = 250;
+  p.coins = 1000;
   p.email = "should-not-leak@private.test";
   store.data.set("gigPlayers/alice", p);
   const r = await Promise.all([
@@ -371,7 +371,7 @@ test("Account registration: verified emails, unique case-insensitive names, priv
   ]);
   assert.ok(r.every((x) => x.status === 200));
   p = store.data.get("gigPlayers/alice");
-  assert.equal(p.coins, 110);
+  assert.equal(p.coins, 300);
   assert.equal(p.owned.filter((x) => x === "avatar-fantasy").length, 1);
   const view = (await api("/api/profiles/alice")).data.profile;
   for (const key of ["email", "coins", "receipts", "owned", "sounds"])
@@ -383,7 +383,7 @@ test("Account registration: verified emails, unique case-insensitive names, priv
     coins: 999999,
     owner: true,
   });
-  assert.equal(saved.data.profile.coins, 110);
+  assert.equal(saved.data.profile.coins, 300);
   assert.equal(saved.data.profile.avatar.kind, 3);
   assert.equal(saved.data.profile.avatar.hat, 0);
   assert.equal(saved.data.profile.theme, "default");

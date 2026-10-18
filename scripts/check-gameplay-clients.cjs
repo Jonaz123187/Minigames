@@ -93,6 +93,8 @@ const arcade = createArcade({ manual: true, clock: () => now }),
       this.dispatchEvent(new w.Event("close"));
     };
     for (const f of [
+      "i18n-catalog.js",
+      "i18n.js",
       "economy.js",
       "control-settings.js",
       "vehicle-models.js",
@@ -114,6 +116,8 @@ const arcade = createArcade({ manual: true, clock: () => now }),
       "social-client.js",
       "rewards-client.js",
       "controls-client.js",
+      "community-client.js",
+      "shop-preview.js",
     ])
       new vm.Script(fs.readFileSync(path.join(publicRoot, f), "utf8"), {
         filename: f,
@@ -170,6 +174,11 @@ const arcade = createArcade({ manual: true, clock: () => now }),
   }
   async function start(id) {
     const s = all[0].socket;
+    if (id === "dub")
+      await rpc(s, "dub:clip", {
+        pcm: require("../voice").defaultClip.pcm,
+        name: "Uploaded test reference",
+      });
     assert.equal((await rpc(s, "wish", { game: id })).ok, true);
     for (const c of all)
       assert.equal((await rpc(c.socket, "ready", { ready: true })).ok, true);
