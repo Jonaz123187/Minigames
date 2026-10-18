@@ -1,6 +1,6 @@
 "use strict";
 (function () {
-  const C = (window.GiGCommunity = { version: "11.0.0" }),
+  const C = (window.GiGCommunity = { version: "12.0.0" }),
     $id = (id) => document.getElementById(id);
   const button = (s, fn, cls = "quiet") => {
     const b = makeButton(s, fn, cls);
@@ -52,13 +52,13 @@
       }).catch(() => {});
   }
   const builtIn = {
-    id: "update-11",
+    id: "update-12",
     at: 1792281600000,
-    title: "Zeichnungen, Freunde und eure Ideen.",
-    titleEn: "Drawings, friends and your ideas.",
-    body: "Pixel Relay sichert deine Zeichnungen automatisch. Lade Freunde direkt ein, spiele Sounds während der Runde und spare auf deinen Wunsch im Shop. Probleme und Ideen kannst du jetzt direkt einreichen und meine Antwort später nachlesen.",
+    title: "Wie gut ist dein Augenmaß?",
+    titleEn: "How good is your eye for size?",
+    body: "Size It Up ist da: Fünf gemeinsame Größenvergleiche pro Tag, verdeckte Schätzungen und nur ein gewerteter Versuch. Deine Begleiter sind jetzt auch in der Lobby und auf dem Podium dabei. Außerdem öffnen sich private Nachrichten wieder zuverlässig.",
     bodyEn:
-      "Pixel Relay saves your drawings automatically. Invite friends directly, play sounds during a round and save for your next shop item. Send problems and ideas directly and check back for my reply.",
+      "Size It Up is here: five shared size comparisons per day, private estimates and one ranked attempt. Your companions now join you in the lobby and on the podium. Private messages also open reliably again.",
     coins: 0,
   };
   function entries() {

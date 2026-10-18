@@ -1,4 +1,4 @@
-/* Shared local UI translations; user content stays original. */
+"use strict";
 (function (root) {
   const en = {
     Motorleistung: "Engine power",
@@ -1527,7 +1527,7 @@
     Kleidungsfarbe: "Clothing colour",
     Hintergrund: "Background",
     Speichern: "Save",
-    Gesperrt: "Locked",
+    Gesperrt: "Banned",
     Freigeschaltet: "Unlocked",
     Bereit: "Ready",
     "Nicht bereit": "Not ready",
@@ -2049,6 +2049,185 @@
     "GiG wird offen entwickelt. Schau in den Code oder bring deine Ideen mit.":
       "GiG is built in the open. Explore the code or share your ideas.",
     "Auf GitHub ansehen ↗": "View on GitHub ↗",
+    Entwicklerbereich: "Developer area",
+    "Dein Entwicklerbereich": "Your developer area",
+    "GiG · NUR FÜR DEN ERSTELLER": "GiG · CREATOR ONLY",
+    Übersicht: "Overview",
+    Neuigkeiten: "News",
+    Tagesaufgaben: "Daily challenges",
+    "Konten & Sperren": "Accounts & bans",
+    Spielbetrieb: "Game operations",
+    Änderungsverlauf: "Change history",
+    "Bereich wird geladen …": "Loading area …",
+    Lobbys: "Lobbies",
+    "Laufende Runden": "Active rounds",
+    Größenvergleiche: "Size comparisons",
+    "Deine Ersteller-Vorteile": "Your creator privileges",
+    "Goldenes MAX-Level, alle kosmetischen Freischaltungen, Abzeichen und Sammlung. Dazu Neuigkeiten, Feedback, Aufgaben-Vorschau, Kontosperren und Wartungssteuerung – ausschließlich für dein Konto.":
+      "Golden MAX level, all cosmetic unlocks, badges and collection items. Plus news, feedback, challenge previews, account bans and maintenance controls — exclusive to your account.",
+    "Feedback-Postfach öffnen": "Open feedback inbox",
+    "Eure Rückmeldungen": "Player feedback",
+    "Fehler und Ideen lesen, Screenshots ansehen, Status ändern und antworten.":
+      "Read issues and ideas, view screenshots, change status and reply.",
+    "Noch keine Änderungen.": "No changes yet.",
+    Erstellerprofil: "Creator profile",
+    "Datum · Wechsel um 00:00 Uhr Europe/Berlin":
+      "Date · Changes at 00:00 Europe/Berlin",
+    "Vorschauen sind privat. Veröffentlichen ersetzt das Set für diesen Tag. Laufende Runden und bereits verbrauchte Tagesversuche bleiben bestehen.":
+      "Previews are private. Publishing replaces that day's set. Active rounds and already used daily attempts stay as they are.",
+    "Vergleich suchen": "Find a comparison",
+    Vergleich: "Comparison",
+    "Datum ansehen": "View date",
+    "Nächstes Set vorschauen": "Preview next set",
+    "Set für alle veröffentlichen": "Publish set for everyone",
+    "Dieses Set am": "Publish this set on",
+    "für alle Spieler veröffentlichen? Bereits gespielte Tagesversuche werden nicht zurückgesetzt.":
+      "for everyone? Used daily attempts will not be reset.",
+    "Tagesaufgaben veröffentlicht.": "Daily challenges published.",
+    "Änderung bestätigen": "Confirm change",
+    "GiG-Coins pro Konto · 0–500": "GiG coins per account · 0–500",
+    "Sichtbar für Tage · 1–90": "Visible for days · 1–90",
+    "Veröffentlichung · lokale Uhrzeit (leer = sofort)":
+      "Publish · Local time (empty = now)",
+    "Entwurf speichern": "Save draft",
+    "Entwurf gespeichert.": "Draft saved.",
+    Vorschau: "Preview",
+    "Veröffentlichen / planen": "Publish / schedule",
+    "Diese Nachricht": "Publish this message",
+    "zum gewählten Zeitpunkt": "at the selected time",
+    sofort: "now",
+    "in der Glocke veröffentlichen?": "in the notification bell?",
+    "Neuigkeit gespeichert.": "News saved.",
+    Entwurf: "Draft",
+    "Entwurf laden": "Load draft",
+    "Diese Neuigkeit entfernen?": "Remove this news item?",
+    Erstellerkonto: "Creator account",
+    "Konto verfügbar": "Account available",
+    Begründung: "Reason",
+    "24 Stunden": "24 hours",
+    "7 Tage": "7 days",
+    "30 Tage": "30 days",
+    Dauerhaft: "Permanently",
+    "Dauer der Sperre": "Ban duration",
+    "Konto sperren": "Ban account",
+    "sperren? Aktive Sitzungen werden beendet.":
+      "ban this account? Active sessions will be ended.",
+    "Konto entsperren": "Unban account",
+    "entsperren?": "unban this account?",
+    "Benutzername suchen": "Find a username",
+    "Keine Konten gefunden.": "No accounts found.",
+    Sperrverlauf: "Ban history",
+    "Weitere Sperren": "More bans",
+    "Eine Wartung sperrt neue Starts und Revanchen. Bereits laufende Runden dürfen zu Ende spielen.":
+      "Maintenance blocks new starts and rematches. Active rounds may finish.",
+    "Wartung aktiv": "Maintenance active",
+    Verfügbar: "Available",
+    Wartungshinweis: "Maintenance message",
+    "Wartung speichern": "Save maintenance",
+    "für neue Runden sperren?": "block new rounds?",
+    "Bitte einen Wartungshinweis eingeben.":
+      "Please enter a maintenance message.",
+    "Spiel freigeben": "Enable game",
+    "wieder freigeben?": "enable again?",
+    Wartung: "Maintenance",
+    "Dein Konto wurde gesperrt:": "Your account has been banned:",
+    "Dein Konto ist gesperrt.": "Your account is banned.",
+    Bis: "Until",
+    "Dauerhaft.": "Permanently.",
+    "Nur der Ersteller hat Zugriff auf diesen Bereich.":
+      "Only the creator can access this area.",
+    "Datenbank nicht eingerichtet.": "Database not configured.",
+    "Ungültiges Datum.": "Invalid date.",
+    "Ungültige Vorschau.": "Invalid preview.",
+    "Bitte fünf gültige Vergleiche wählen und die Veröffentlichung bestätigen.":
+      "Please choose five valid comparisons and confirm publication.",
+    "Dieses Konto kann nicht gesperrt werden.":
+      "This account cannot be banned.",
+    "Bitte Begründung und Dauer wählen.":
+      "Please choose a reason and duration.",
+    "Spiel und Wartungshinweis prüfen.":
+      "Check the game and maintenance message.",
+    "Bitte beide Sprachen ausfüllen.": "Please fill in both languages.",
+    "Ungültiger Veröffentlichungszeitpunkt.": "Invalid publication time.",
+    "Dieses Spiel wird gerade überarbeitet:": "This game is being updated:",
+    "Die Tageschallenge benötigt mindestens zwei Spieler.":
+      "The daily challenge requires at least two players.",
+    "Die Lobby hat sich geändert. Bitte erneut starten.":
+      "The lobby has changed. Please start again.",
+    "Bitte starte die Tageschallenge als einzelnes Spiel.":
+      "Please start the daily challenge as a single game.",
+    "Lobby geändert.": "Lobby changed.",
+    "Ein Playlist-Spiel ist in Wartung. Bitte wähle ein anderes Spiel.":
+      "A playlist game is under maintenance. Please choose another game.",
+    "Fünf Größenvergleiche pro Tag. Alle schätzen verdeckt dieselben Objekte – wie gut ist dein Augenmaß?":
+      "Five size comparisons per day. Everyone privately estimates the same objects — how good is your eye for size?",
+    "Regler oder Ziehgriff zum Skalieren · Schätzung einloggen · Auflösung nach jeder Runde · Nur der erste Tagesdurchlauf wird gewertet":
+      "Resize with the slider or drag handle · Lock your estimate · Reveal after each round · Only your first daily attempt counts",
+    Tageschallenge: "Daily challenge",
+    "Dein Größenvergleich": "Your size comparison",
+    Referenz: "Reference",
+    Zielobjekt: "Target object",
+    Quelle: "Source",
+    "So groß ist es wirklich.": "This is its actual size.",
+    "Deine Schätzung bleibt bis zur Auflösung geheim.":
+      "Your estimate stays private until the reveal.",
+    "Dein erster Tagesversuch zählt.": "Your first daily attempt counts.",
+    "Wiederholung · Keine weiteren Belohnungen.":
+      "Replay · No further rewards.",
+    "Größe des Zielobjekts": "Target object size",
+    "Deine Schätzung": "Your estimate",
+    "✓ Eingeloggt": "✓ Locked in",
+    "Schätzung einloggen": "Lock estimate",
+    "Die Schätzung konnte nicht abgegeben werden.":
+      "Your estimate could not be submitted.",
+    "haben eingeloggt": "have locked in",
+    "Eure Größenvergleiche": "Your size comparisons",
+    "Erster Tagesversuch": "First daily attempt",
+    "Wiederholung ohne Belohnung": "Replay without rewards",
+    BEGLEITER: "COMPANION",
+    "Immer an deiner Seite. Besonders, wenn es spannend wird.":
+      "Always by your side. Especially when things get exciting.",
+    "Kleine Antenne. Große Unterstützung.": "Small antenna. Big support.",
+    "Knusprig unterwegs. Für jede Runde zu haben.":
+      "Crispy on the move. Ready for every round.",
+    "Tippe deinen Begleiter an, um ihn zu begrüßen.":
+      "Tap your companion to say hello.",
+    Begrüßen: "Say hello",
+    "NOAA: bis 110 Fuß, exakt in Meter umgerechnet. Keine durchschnittliche Tiergröße.":
+      "NOAA: up to 110 feet, converted to metres. Not the average animal size.",
+    "NOAA: bis 32 Fuß, in Meter umgerechnet.":
+      "NOAA: up to 32 feet, converted to metres.",
+    "NOAA: bis etwa 60 Fuß, in Meter umgerechnet.":
+      "NOAA: up to about 60 feet, converted to metres.",
+    "NASA: 122 Fuß, in Meter umgerechnet.":
+      "NASA: 122 feet, converted to metres.",
+    "Normbereich 6,54–6,86 cm; für dieses Spiel 6,7 cm.":
+      "Standard range 6.54–6.86 cm; this game uses 6.7 cm.",
+    "Durchmesser aus 69 cm Umfang berechnet; Normbereich des Umfangs 68–70 cm.":
+      "Diameter calculated from a 69 cm circumference; the standard circumference range is 68–70 cm.",
+    "Durchmesser aus 76 cm Umfang berechnet; Herren-Referenz.":
+      "Diameter calculated from a 76 cm circumference; men's reference.",
+    "Durchmesser aus 66 cm Umfang berechnet.":
+      "Diameter calculated from a 66 cm circumference.",
+    "Fest definierte Messstrecke.": "A defined measurement reference.",
+    "FIA-Regelreferenz: maximale Fahrzeugbreite 1.900 mm.":
+      "FIA regulation reference: maximum car width 1,900 mm.",
+    "← Vortag": "← Previous day",
+    "Folgetag →": "Next day →",
+    "Konto gesperrt": "Account banned",
+    "Konto entsperrt": "Account unbanned",
+    "Wartung gespeichert": "Maintenance saved",
+    "Neuigkeit veröffentlicht": "News published",
+    "Neuigkeit entfernt": "News removed",
+    "Feedback-Status geändert": "Feedback status changed",
+    "27 Spiele": "27 games",
+    "Größe schätzen": "Estimate size",
+    "Alle erhalten die gleichen fünf Tagesaufgaben. Der erste Start zählt – auch ein Abbruch setzt deinen Versuch nicht zurück.":
+      "Everyone gets the same five daily challenges. Your first start counts — abandoning does not reset your attempt.",
+    "Vorschau heute veröffentlichen": "Publish preview for today",
+    "Vergleich nicht gefunden.": "Comparison not found.",
+    "Bitte warte, bis die Vorschau geladen ist.":
+      "Please wait for the preview to load.",
   };
   if (typeof module === "object" && module.exports) module.exports = en;
   else root.GiGEnglish = en;

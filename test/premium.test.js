@@ -15,8 +15,8 @@ const round = (ids) => ({
   controls: controls(ids),
 });
 
-test("26 games: finite states for 1, 2 and 8 players", () => {
-  assert.equal(Object.keys(GAMES).length, 26);
+test("27 games: finite states for 1, 2 and 8 players", () => {
+  assert.equal(Object.keys(GAMES).length, 27);
   for (const [name, game] of Object.entries(GAMES))
     for (const count of [1, 2, 8]) {
       const ids = Array.from({ length: count }, (_, i) => "p" + i),
@@ -276,7 +276,7 @@ test("Code: repeated colors counted correctly and private histories", () => {
   assert.equal(g.players.a.solved, true);
 });
 test(
-  "Socket: synchronized wishes, opt-in solo, no practice points, private snapshots and all 26 lifecycles",
+  "Socket: synchronized wishes, opt-in solo, no practice points, private snapshots and all 27 lifecycles",
   { timeout: 20000 },
   async (t) => {
     let now = 1000000;
@@ -321,12 +321,12 @@ test(
     const a = await connect();
     await call(a, "lobby", { action: "create", name: "Jonas" });
     await until(() => a.room);
-    assert.equal(a.catalog.length, 26);
+    assert.equal(a.catalog.length, 27);
     assert.deepEqual(
       a.catalog.slice(0, 4).map((g) => g.id),
       ["dub", "draw", "race", "monster"],
     );
-    assert.equal(new Set(a.catalog.map((g) => g.id)).size, 26);
+    assert.equal(new Set(a.catalog.map((g) => g.id)).size, 27);
     assert.equal((await call(a, "start", { game: "click" })).ok, false);
     assert.equal(
       (await call(a, "start", { game: "draw", practice: true })).ok,
@@ -358,7 +358,7 @@ test(
     for (const id of Object.keys(GAMES))
       assert.equal(
         a.catalog.find((g) => g.id === id).preview,
-        "/previews/covers/" + id + ".webp",
+        "/previews/covers/" + id + (id === "sizeup" ? ".svg" : ".webp"),
       );
 
     step(9501);
@@ -427,7 +427,7 @@ test(
         a.room.lastResult.rows.every((p) => Number.isFinite(p.raw)),
         id + " scores",
       );
-      step(9501);
+      step(id === "sizeup" ? 30001 : 9501);
       await until(() => a.room.phase === "lobby");
     }
     for (const id of Object.keys(GAMES)) {

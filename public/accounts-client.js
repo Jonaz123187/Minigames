@@ -506,7 +506,7 @@
       );
     names.querySelector("h2").dataset.userContent = "";
     hero.append(names);
-    if (p.pet && p.pet !== "none") hero.append(petNode(p.pet));
+
     if (p.bannerFile) {
       const img = el("img", "profile-banner-image");
       img.alt = "";
@@ -526,6 +526,10 @@
     );
     if (p.bio) about.querySelector(".profile-bio").dataset.userContent = "";
     card.append(banner, hero, about);
+    if (p.pet && p.pet !== "none") {
+      const pet = window.GiGPets?.profile(p.pet);
+      if (pet) card.append(pet);
+    }
     const links = el("div", "profile-links");
     for (const link of p.links || []) {
       try {

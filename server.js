@@ -395,6 +395,7 @@ const GAMES = {
 Object.assign(GAMES, require("./games"), require("./party-games"), {
   quiz: require("./quiz"),
   monster: require("./monster"),
+  sizeup: require("./size-game").game,
 });
 // Feature-rich party highlights lead the lobby; keep this curated order in the catalog.
 const ORDER = [
@@ -402,6 +403,7 @@ const ORDER = [
   "draw",
   "race",
   "monster",
+  "sizeup",
   "quiz",
   "telephone",
   "faker",
@@ -555,6 +557,53 @@ function createArcade({
     games: GAMES,
   });
 
+  accounts.developer.attach({
+    games: ORDER,
+    stats: () => ({
+      lobbies: rooms.size,
+      players: [...rooms.values()].reduce((n, r) => n + r.players.size, 0),
+      rounds: [...rooms.values()].filter((r) => r.phase === "playing").length,
+    }),
+    ban(uid, reason) {
+      for (const sock of io.sockets.sockets.values())
+        if (sock.data.account?.uid === uid) {
+          sock.data.banned = true;
+          sock.emit("account:banned", { reason });
+          leave(sock);
+          sock.disconnect(true);
+        }
+    },
+    changed: (maintenance) => io.emit("games:maintenance", maintenance),
+  });
+  async function prepareSize(room, practice) {
+    if (practice)
+      throw Error("Die Tageschallenge benötigt mindestens zwei Spieler.");
+    const phase = room.phase,
+      ids = [...room.players.keys()].join(",");
+    const daily = await accounts.developer.getDaily(clock()),
+      roundId =
+        room.daily?.reserved && room.daily.set.date === daily.date
+          ? room.daily.roundId
+          : crypto.randomUUID();
+    room.daily = { set: daily, roundId, reserved: true };
+    const eligible = Object.fromEntries(
+      await Promise.all(
+        [...room.players.values()].map(async (p) => [
+          p.id,
+          await accounts.developer.claim(
+            p.uid ||
+              "guest:" +
+                crypto.createHash("sha256").update(p.identity).digest("hex"),
+            daily.date,
+            roundId,
+          ),
+        ]),
+      ),
+    );
+    if (room.phase !== phase || ids !== [...room.players.keys()].join(","))
+      throw Error("Die Lobby hat sich geändert. Bitte erneut starten.");
+    room.daily = { set: daily, eligible, roundId, reserved: true };
+  }
   const gameNow = (r, now) =>
     now -
     (r?.pause?.total || 0) -
@@ -740,17 +789,31 @@ function createArcade({
         Object.entries(p).filter(([k]) => k !== "identity"),
       ),
       connected: round.connected.has(p.id),
+      ...(round.game === "sizeup"
+        ? { dailyRanked: round.state.players[p.id].ranked }
+        : {}),
       raw: game.score(round.state, p.id),
       detail: game.detail(round.state, p.id),
     }));
     const participants = new Set(round.roster.map((p) => p.identity)).size;
     for (const row of rows) {
-      if (!row.connected) continue;
+      if (
+        !row.connected ||
+        (round.game === "sizeup" && !round.state.players[row.id].ranked)
+      )
+        continue;
       const eligibility = {
-        rank: rows.filter((x) => x.connected && x.raw > row.raw).length + 1,
+        rank:
+          rows.filter(
+            (x) =>
+              x.connected &&
+              x.raw > row.raw &&
+              (round.game !== "sizeup" || round.state.players[x.id].ranked),
+          ).length + 1,
         active: (round.activity[row.id] || 0) >= 2,
         practice: round.practice,
         rewardFactor: Economy.rewardFactor(round.game),
+        ...(round.game === "sizeup" ? { dailyDate: round.state.date } : {}),
         participants,
         duration: gameNow(round, now) - round.startsAt,
       };
@@ -829,6 +892,7 @@ function createArcade({
           (row) =>
             row.uid &&
             row.connected &&
+            (round.game !== "sizeup" || round.state.players[row.id].ranked) &&
             Economy.rewardCoins({
               rank: 1,
               active: (round.activity[row.id] || 0) >= 2,
@@ -845,7 +909,12 @@ function createArcade({
         .catch(() => {});
     // A departure forfeits the round; the frozen roster still appears in results.
     rows.sort(
-      (a, b) => Number(b.connected) - Number(a.connected) || b.raw - a.raw,
+      (a, b) =>
+        Number(b.connected) - Number(a.connected) ||
+        (round.game === "sizeup"
+          ? Number(b.dailyRanked) - Number(a.dailyRanked)
+          : 0) ||
+        b.raw - a.raw,
     );
     let previous = null,
       rank = 1;
@@ -853,17 +922,29 @@ function createArcade({
       if (
         !previous ||
         previous.raw !== row.raw ||
-        previous.connected !== row.connected
+        previous.connected !== row.connected ||
+        (round.game === "sizeup" && previous.dailyRanked !== row.dailyRanked)
       )
         rank = i + 1;
       row.rank = rank;
+      const rewardRank =
+        round.game === "sizeup"
+          ? rows.filter(
+              (x) =>
+                x.connected &&
+                round.state.players[x.id].ranked &&
+                x.raw > row.raw,
+            ).length + 1
+          : rank;
       row.points =
-        row.connected && !round.practice
-          ? rank === 1
+        row.connected &&
+        !round.practice &&
+        (round.game !== "sizeup" || round.state.players[row.id].ranked)
+          ? rewardRank === 1
             ? 10
-            : rank === 2
+            : rewardRank === 2
               ? 7
-              : rank === 3
+              : rewardRank === 3
                 ? 5
                 : 2
           : 0;
@@ -940,7 +1021,7 @@ function createArcade({
       }
     }
     room.phase = "results";
-    room.returnAt = clock() + RESULTS_MS;
+    room.returnAt = clock() + (round.game === "sizeup" ? 30000 : RESULTS_MS);
     broadcastSnapshot(room, clock());
     broadcastRoom(room);
   }
@@ -965,6 +1046,7 @@ function createArcade({
 
   function start(room, gameId, now, practice) {
     const game = GAMES[gameId];
+    if (!accounts.developer.isAvailable(gameId)) return false;
     if (
       gameId === "dub" &&
       !room.clips.some((c) => c.enabled && !room.usedClips.has(c.id))
@@ -1020,6 +1102,9 @@ function createArcade({
         clip: room.dubClip,
         clips,
         settings: room.settings,
+        ...(gameId === "sizeup"
+          ? { daily: room.daily?.set, dailyEligible: room.daily?.eligible }
+          : {}),
         upgrades: Object.fromEntries(
           roster.map((p) => [
             p.id,
@@ -1030,7 +1115,7 @@ function createArcade({
     );
     if (gameId === "dub" && state.clip.id) room.usedClips.add(state.clip.id);
     room.round = {
-      id: crypto.randomUUID(),
+      id: gameId === "sizeup" ? room.daily.roundId : crypto.randomUUID(),
       game: gameId,
       startsAt,
       practice,
@@ -1044,6 +1129,7 @@ function createArcade({
       meta: game.meta?.(state) || {},
       controls: Object.fromEntries(roster.map((p) => [p.id, freshControls()])),
     };
+    if (gameId === "sizeup") room.daily.reserved = false;
     room.phase = "countdown";
     room.returnAt = null;
     broadcastRoom(room);
@@ -1065,7 +1151,8 @@ function createArcade({
           category: g.category || THEMES[id]?.[0] || "Arcade",
           difficulty: g.difficulty || THEMES[id]?.[1] || "Mittel",
           minPlayers: g.minPlayers || 1,
-          preview: "/previews/covers/" + id + ".webp",
+          preview:
+            "/previews/covers/" + id + (id === "sizeup" ? ".svg" : ".webp"),
         };
       }),
     );
@@ -1775,11 +1862,11 @@ function createArcade({
       broadcastRoom(room);
       reply(ack, { ok: true });
     });
-    socket.on("start", (payload, ack) => {
+    socket.on("start", async (payload, ack) => {
       const room = getRoom();
       if (!rateLimit() || !room || room.hostId !== socket.id)
         return reply(ack, { ok: false, error: "Nur der Host darf starten." });
-      if (room.phase !== "lobby")
+      if (room.phase !== "lobby" || room.starting)
         return reply(ack, {
           ok: false,
           error: "Die aktuelle Runde läuft noch.",
@@ -1837,12 +1924,44 @@ function createArcade({
             error: "Teams müssen besetzt und möglichst gleich groß sein.",
           });
       }
+      if (payload.game === "sizeup" && room.settings.mode === "party")
+        return reply(ack, {
+          ok: false,
+          error: "Bitte starte die Tageschallenge als einzelnes Spiel.",
+        });
+      const signature = JSON.stringify([
+        room.selected,
+        room.settings,
+        [...room.players.values()].map((p) => [p.id, p.ready]),
+      ]);
+      room.starting = true;
+      try {
+        await accounts.developer.canStart(payload.game);
+        if (payload.game === "sizeup") await prepareSize(room, practice);
+      } catch (e) {
+        room.starting = false;
+        return reply(ack, { ok: false, error: e.message });
+      }
+      room.starting = false;
+      if (
+        getRoom() !== room ||
+        room.phase !== "lobby" ||
+        signature !==
+          JSON.stringify([
+            room.selected,
+            room.settings,
+            [...room.players.values()].map((p) => [p.id, p.ready]),
+          ])
+      )
+        return reply(ack, { ok: false, error: "Lobby geändert." });
       const available = room.clips.filter(
         (c) => c.enabled && !room.usedClips.has(c.id),
       );
       if (room.settings.mode === "party") {
         const pool = ORDER.filter(
           (id) =>
+            id !== "sizeup" &&
+            accounts.developer.isAvailable(id) &&
             room.players.size >= (GAMES[id].minPlayers || 1) &&
             (id !== "dub" || available.length),
         );
@@ -1983,7 +2102,7 @@ function createArcade({
       broadcastRoom(room);
       return reply(ack, { ok: true });
     });
-    socket.on("rematch", (_, ack) => {
+    socket.on("rematch", async (_, ack) => {
       const room = getRoom();
       if (
         !rateLimit() ||
@@ -2016,6 +2135,25 @@ function createArcade({
               "Für die Revanche fehlen ungespielte Clips. Gib den Clip-Pool in der Lobby erneut frei.",
           });
       }
+      if (room.starting) return reply(ack, { ok: false });
+      room.starting = true;
+      try {
+        await accounts.developer.canStart(id);
+        if (id === "sizeup") {
+          await prepareSize(room, practice);
+        }
+      } catch (e) {
+        room.starting = false;
+        return reply(ack, { ok: false, error: e.message });
+      }
+      room.starting = false;
+      if (
+        getRoom() !== room ||
+        !["lobby", "results"].includes(room.phase) ||
+        room.players.size <
+          (practice ? 1 : Math.max(2, GAMES[id].minPlayers || 1))
+      )
+        return reply(ack, { ok: false });
       disposeRound(room);
       room.phase = "lobby";
       room.party = null;
@@ -2046,12 +2184,23 @@ function createArcade({
           disposeRound(room);
           if (room.party && !room.party.complete) {
             room.party.index++;
-            start(
+            const started = start(
               room,
               room.party.order[room.party.index],
               now,
               room.players.size === 1,
             );
+            if (started === false) {
+              room.phase = "lobby";
+              room.party = null;
+              room.returnAt = null;
+              clearReady(room);
+              broadcastRoom(room);
+              io.to(room.code).emit(
+                "notice",
+                "Ein Playlist-Spiel ist in Wartung. Bitte wähle ein anderes Spiel.",
+              );
+            }
           } else {
             room.phase = "lobby";
             room.returnAt = null;

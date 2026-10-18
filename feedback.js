@@ -12,6 +12,7 @@ module.exports = function feedback({
   decorate,
   fail,
   clean,
+  audit,
 }) {
   const enabled = !!db;
   app.get("/api/feedback/config", (req, res) =>
@@ -304,7 +305,7 @@ module.exports = function feedback({
     "/api/feedback/:id",
     express.json({ limit: "4kb" }),
     api(async (req, res) => {
-      await owner(req);
+      const acting = await owner(req);
       const id = requireId(req.params.id),
         v = req.body || {};
       if (
@@ -317,6 +318,8 @@ module.exports = function feedback({
           s = await t.get(ref),
           stats = await t.get(statsRef);
         if (!s.exists) throw fail("Meldung nicht gefunden.", 404);
+        if (audit)
+          await audit(t, acting.uid, "feedback-status", id + " · " + v.status);
         const delta =
           Number(v.status === "open") - Number(s.data().status === "open");
         if (delta)

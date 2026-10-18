@@ -19,6 +19,7 @@
   });
   const newGames = new Set([
     "telephone",
+    "sizeup",
     "faker",
     "estimate",
     "onebutton",
@@ -393,6 +394,7 @@
     return (
       {
         create: "Kreativrunde",
+        estimate: "Größe schätzen",
         gallery: "Eure Geschichten",
         draw: "Zeichnen",
         discuss: "Gemeinsam diskutieren",
@@ -747,6 +749,10 @@
           "Du schaust zu · Bei der nächsten Runde bist du dabei",
         ),
       );
+    if (id === "sizeup") {
+      window.GiGSize?.render(box);
+      return;
+    }
     if (id === "telephone") {
       if (state.phase === "gallery") {
         galleryIndex = 0;
@@ -1093,7 +1099,9 @@
     gallery.replaceChildren();
     if (r.gallery) {
       galleryIndex = 0;
-      paintGallery(gallery, r.gallery);
+      if (r.gallery.kind === "sizeup")
+        window.GiGSize?.archive(gallery, r.gallery);
+      else paintGallery(gallery, r.gallery);
     }
     const teams = $("teamResults");
     teams.hidden = !r.teams;
@@ -1213,6 +1221,7 @@
       );
       const choices = el("div", "playlist-choices");
       for (const g of catalog) {
+        if (g.id === "sizeup") continue;
         const b = makeButton(
           (current.includes(g.id) ? "✓ " : "+ ") + g.title,
           () =>

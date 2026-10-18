@@ -92,6 +92,7 @@ module.exports = async function makeClient({ base, uid, now, profile }) {
     "experience.js",
     "quality-ui.js",
     "banner-png.js",
+    "companions.js",
     "accounts-client.js",
     "crew-update.js",
     "premium-games.js",
@@ -102,6 +103,8 @@ module.exports = async function makeClient({ base, uid, now, profile }) {
     "shop-preview.js",
     "feedback-client.js",
     "savings-client.js",
+    "size-client.js",
+    "developer-client.js",
   ]) {
     new vm.Script(fs.readFileSync(path.join(root, "public", file), "utf8"), {
       filename: file,
