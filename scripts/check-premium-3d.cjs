@@ -158,21 +158,8 @@ function project(scene, camera, overlay, file) {
   fs.writeFileSync(file, canvas.toBuffer("image/png"));
   return tris.length;
 }
-(async () => {
-  const h = harness();
-  await h.w.Account.ready;
-  const captures = [];
-  class CaptureRenderer {
-    constructor() {
-      this.shadowMap = {};
-    }
-    setPixelRatio() {}
-    setSize() {}
-    render(scene, camera) {
-      captures.push({ scene, camera });
-    }
-  }
-  h.w.THREE = { ...THREE, WebGLRenderer: CaptureRenderer };
+function load3D(h, Renderer) {
+  h.w.THREE = { ...THREE, WebGLRenderer: Renderer };
   h.w.mergeGeometries = mergeGeometries;
   const sceneSource = fs
     .readFileSync(path.join(base, "premium-scene.js"), "utf8")
@@ -194,59 +181,83 @@ function project(scene, camera, overlay, file) {
       { filename: file },
     ).runInContext(h.context);
   }
-  if (out) fs.mkdirSync(out, { recursive: true });
-  for (const id of ["race", "monster"])
-    for (const track of id === "race"
-      ? ["coast", "alpine", "night"]
-      : ["meadow", "canyon", "frost"]) {
-      const f = h.make(id, 5, {
-        settings: {
-          [id]:
-            id === "race" ? { track, laps: 3, collisions: true } : { track },
-        },
-      });
-      f.round.controls.p0 = { throttle: 1, axis: 0, tilt: 0 };
-      h.tick(id === "race" ? 1700 : 900);
-      for (let i = 0; i < 25; i++) {
-        h.clock += 16;
-        h.draw();
+}
+module.exports = { load3D };
+if (require.main === module)
+  (async () => {
+    const h = harness();
+    await h.w.Account.ready;
+    const captures = [];
+    class CaptureRenderer {
+      constructor() {
+        this.shadowMap = {};
+        this.debug = {};
       }
-      const { scene, camera } = captures.at(-1);
-      let meshes = 0,
-        triangles = 0;
-      scene.traverseVisible((o) => {
-        if (o.isMesh) {
-          meshes++;
-          const a = o.geometry.attributes.position;
-          assert.ok(a.count > 0);
-          for (const n of a.array) assert.ok(Number.isFinite(n));
-          triangles += (o.geometry.index?.count || a.count) / 3;
-        }
-      });
-      assert.ok(meshes < 500, "bounded draw calls " + id + ": " + meshes);
-      assert.ok(triangles < 160000, "bounded triangle count " + triangles);
-      const source = h.canvases.get(h.w.document.getElementById("canvas"));
-      if (out)
-        project(
-          scene,
-          camera,
-          source,
-          path.join(out, id + "-3d-" + track + ".png"),
-        );
-      console.log(
-        "PASS",
-        id,
-        track,
-        meshes,
-        "meshes",
-        Math.round(triangles),
-        "triangles, actual meshes/camera and CPU projection",
-      );
+      setPixelRatio() {}
+      setSize() {}
+      render(scene, camera) {
+        captures.push({ scene, camera });
+      }
     }
-  assert.equal(h.errors.length, 0, h.errors.join("\n"));
-  h.close();
-  console.log("ALL SIX 3D SCENES PASSED (NATIVE WEBGL NOT TESTED)");
-})().catch((e) => {
-  console.error(e);
-  process.exitCode = 1;
-});
+    load3D(h, CaptureRenderer);
+    if (out) fs.mkdirSync(out, { recursive: true });
+    for (const id of ["race", "monster"])
+      for (const track of id === "race"
+        ? ["coast", "alpine", "night"]
+        : ["meadow", "canyon", "frost"]) {
+        const f = h.make(id, 5, {
+          settings: {
+            [id]:
+              id === "race" ? { track, laps: 3, collisions: true } : { track },
+          },
+        });
+        f.round.controls.p0 = { throttle: 1, axis: 0, tilt: 0 };
+        h.tick(id === "race" ? 1700 : 900);
+        for (let i = 0; i < 25; i++) {
+          h.clock += 16;
+          h.draw();
+        }
+        const { scene, camera } = captures.at(-1);
+        let meshes = 0,
+          triangles = 0;
+        scene.traverseVisible((o) => {
+          if (o.isMesh) {
+            meshes++;
+            const a = o.geometry.attributes.position;
+            assert.ok(a.count > 0);
+            for (const n of a.array) assert.ok(Number.isFinite(n));
+            triangles += (o.geometry.index?.count || a.count) / 3;
+          }
+        });
+        assert.ok(meshes < 500, "bounded draw calls " + id + ": " + meshes);
+        assert.ok(triangles < 160000, "bounded triangle count " + triangles);
+        const source = h.canvases.get(h.w.document.getElementById("canvas"));
+        if (out)
+          project(
+            scene,
+            camera,
+            source,
+            path.join(out, id + "-3d-" + track + ".png"),
+          );
+        console.log(
+          "PASS",
+          id,
+          track,
+          meshes,
+          "meshes",
+          Math.round(triangles),
+          "triangles, actual meshes/camera and CPU projection",
+        );
+      }
+    assert.equal(h.errors.length, 0, h.errors.join("\n"));
+    assert.equal(
+      h.run("renderErrorKeys.size"),
+      0,
+      "healthy 3D must not silently fall back",
+    );
+    h.close();
+    console.log("ALL SIX 3D SCENES PASSED (NATIVE WEBGL NOT TESTED)");
+  })().catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  });

@@ -421,6 +421,9 @@ function initialize() {
       alpha: false,
       powerPreference: "high-performance",
     });
+    renderer.debug.onShaderError = () => {
+      throw new Error("Monster Trails: WebGL shader compilation failed");
+    };
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = !isTouchDevice;
@@ -448,7 +451,7 @@ function sample(id) {
 function fallback() {
   GiGPremium.monsterFallback(track);
 }
-renderers.monster = function () {
+function renderMonster() {
   initialize();
   if (token !== room.round.id) {
     token = room.round.id;
@@ -531,6 +534,18 @@ renderers.monster = function () {
       ? clamp(own.speed / 60, 0.05, 1)
       : 0,
   );
+}
+renderers.monster = function () {
+  try {
+    renderMonster();
+  } catch (error) {
+    failed = true;
+    screen.hidden = true;
+    reportRenderError(error, "monster-3d");
+    resetGameCanvas();
+    track = GiGMonster.course(room.round.meta.track);
+    fallback();
+  }
 };
 const oldRender = renderRoom;
 renderRoom = function (next) {

@@ -795,22 +795,7 @@ renderRoom = function (next) {
         : "BEREITMACHEN";
       $("countdownFoot").textContent = "Alle spielen dieselbe Runde.";
     }
-    if (
-      next.phase === "playing" &&
-      next.round.id === newRoundKey &&
-      serverNow() - next.round.startsAt < 700
-    ) {
-      $("countdown").hidden = ["onebutton", "reaction"].includes(
-        next.round.game,
-      );
-      $("countdown").classList.add("go");
-      $("countdownNumber").textContent = "LOS";
-      $("countdownCaption").textContent = "";
-      $("countdownFoot").textContent = "";
-      setTimeout(() => {
-        if (room?.phase === "playing") $("countdown").hidden = true;
-      }, 700);
-    }
+    updateCountdown();
   }
 };
 const oldReset = resetLocal;

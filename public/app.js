@@ -182,6 +182,8 @@ socket.on("state", (packet) => {
     packet.wallNow ?? packet.serverNow,
     clockSamples.length ? Math.min(...clockSamples.map((s) => s.rtt)) / 2 : 0,
   );
+  if (room.phase === "countdown" && packet.phase === "playing")
+    renderRoom({ ...room, phase: "playing" });
   state = packet.data;
   if (typeof receiveSnapshot === "function") receiveSnapshot(packet);
   if (room.round.game === "typing") {
@@ -687,6 +689,50 @@ function smooth(key, target, angle = false) {
 function renderGameLoading() {
   text("Spielfeld wird vorbereitet …", W / 2, H / 2, 22, "#bdd5d3", "center");
 }
+function resetGameCanvas() {
+  canvas.width = canvas.width;
+  const v =
+    typeof canvasViewport === "function"
+      ? canvasViewport()
+      : { x: 0, y: 0, w: W, h: H };
+  ctx.setTransform(
+    canvas.width / v.w,
+    0,
+    0,
+    canvas.height / v.h,
+    (-v.x * canvas.width) / v.w,
+    (-v.y * canvas.height) / v.h,
+  );
+}
+function updateCountdown() {
+  const overlay = $("countdown"),
+    r = room?.round;
+  if (!r || !["countdown", "playing"].includes(room.phase)) {
+    overlay.hidden = true;
+    return;
+  }
+  const time = serverNow(),
+    waiting = room.phase === "countdown";
+  const go =
+    !waiting &&
+    time < r.startsAt + 700 &&
+    !["onebutton", "reaction"].includes(r.game);
+  overlay.hidden = !waiting && !go;
+  overlay.classList.toggle("go", go);
+  if (waiting) {
+    $("countdownNumber").textContent = String(
+      Math.max(1, Math.min(3, Math.ceil((r.startsAt - time) / 1000))),
+    );
+    $("countdownCaption").textContent = room.party
+      ? "PARTY · " + (room.party.index + 1) + " / " + room.party.order.length
+      : "BEREITMACHEN";
+    $("countdownFoot").textContent = "Alle spielen dieselbe Runde.";
+  } else if (go) {
+    $("countdownNumber").textContent = "LOS";
+    $("countdownCaption").textContent = "";
+    $("countdownFoot").textContent = "";
+  }
+}
 const renderers = Object.fromEntries(
   ["race", "snake", "click", "typing", "pong", "reaction"].map((id) => [
     id,
@@ -694,6 +740,30 @@ const renderers = Object.fromEntries(
   ]),
 );
 function frame(now) {
+  // Schedule before painting: a failed canvas/WebGL frame must never stop every
+  // subsequent game, the countdown, or the menu in this browser tab.
+  requestAnimationFrame(frame);
+  try {
+    paintFrame(now);
+  } catch (error) {
+    resetGameCanvas();
+    reportRenderError(error, "frame");
+  }
+}
+const renderErrorKeys = new Set();
+function reportRenderError(error, source) {
+  const key = (room?.round?.id || "lobby") + ":" + source;
+  if (renderErrorKeys.has(key)) return;
+  if (renderErrorKeys.size > 50) renderErrorKeys.clear();
+  renderErrorKeys.add(key);
+  console.error("GiG render error", { game: room?.round?.game, source }, error);
+  toast(
+    "Die Spielansicht wird wiederhergestellt. Das Menü bleibt erreichbar.",
+    true,
+  );
+}
+function paintFrame(now) {
+  updateCountdown();
   frameDt = Math.min((now - lastFrame) / 1000, 0.1);
   lastFrame = now;
   pulse = Math.max(0, pulse - frameDt * 4);
@@ -704,11 +774,6 @@ function frame(now) {
       String(Math.floor(remaining / 60)).padStart(2, "0") +
       ":" +
       String(remaining % 60).padStart(2, "0");
-    if (room.phase === "countdown")
-      $("countdownNumber").textContent = Math.max(
-        1,
-        Math.ceil((room.round.startsAt - time) / 1000),
-      );
     if (room.phase === "results")
       $("backCounter").textContent =
         "Zurück in der Lobby in " +
@@ -731,8 +796,18 @@ function frame(now) {
         ctx.clearRect(0, 0, W, H);
       } else background();
       if (state) {
-        renderers[room.round.game]?.();
-        premiumFrame(time);
+        try {
+          renderers[room.round.game]?.();
+        } catch (error) {
+          resetGameCanvas();
+          reportRenderError(error, "game");
+        }
+        // HUD/audio errors must not prevent the timer and menu from updating.
+        try {
+          premiumFrame(time);
+        } catch (error) {
+          reportRenderError(error, "hud");
+        }
       } else
         text(
           "Spielfeld wird vorbereitet …",
@@ -745,6 +820,5 @@ function frame(now) {
     }
   }
   if (typeof experienceFrame === "function") experienceFrame(now);
-  requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
