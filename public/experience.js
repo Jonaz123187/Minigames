@@ -372,7 +372,7 @@ renderPremiumLobby = function () {
       ping.dataset.ping = p.id;
       paintPing(ping, p.ping);
       row.append(
-        avatarNode(p.avatar),
+        window.GiGPets?.avatar(p) || avatarNode(p.avatar),
         name,
         ping,
         el("div", "player-score mono", p.score),
@@ -1275,6 +1275,11 @@ function renderPodium(result) {
         base.append(el("small", "muted", "Lobby gesamt: " + total));
     }
     card.append(crown, avatar, base);
+    const pet = window.GiGPets?.node(
+      p.pet,
+      p.rank === 1 ? "celebrate" : "idle",
+    );
+    if (pet) card.append(pet);
     box.append(card);
   });
 }
@@ -1449,6 +1454,7 @@ function phaseClock() {
     state &&
     [
       "telephone",
+      "sizeup",
       "faker",
       "estimate",
       "onebutton",
@@ -1462,6 +1468,7 @@ function phaseClock() {
       id === "memory" && state.phase === "show" ? state.inputAt : state.until;
     const durations = {
       telephone: { create: 35, gallery: 30 },
+      sizeup: { estimate: 28, reveal: 7 },
       faker: { draw: 35, discuss: 18, vote: 12, reveal: 6.5 },
       estimate: { answer: 12, reveal: 3.5 },
       onebutton: { play: 5.5, reveal: 1.8 },
@@ -1481,6 +1488,7 @@ function phaseClock() {
         vote: "Abstimmen",
         reveal: "Auflösung",
         answer: "Schätzen",
+        estimate: "Größe schätzen",
         play: "Timing-Aufgabe",
         memorize: "Einprägen",
         cover: "Kurz merken",

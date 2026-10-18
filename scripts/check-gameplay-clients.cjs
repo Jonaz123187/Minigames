@@ -110,6 +110,7 @@ const arcade = createArcade({ manual: true, clock: () => now }),
       "experience.js",
       "quality-ui.js",
       "banner-png.js",
+      "companions.js",
       "accounts-client.js",
       "crew-update.js",
       "premium-games.js",
@@ -120,6 +121,8 @@ const arcade = createArcade({ manual: true, clock: () => now }),
       "shop-preview.js",
       "feedback-client.js",
       "savings-client.js",
+      "size-client.js",
+      "developer-client.js",
     ])
       new vm.Script(fs.readFileSync(path.join(publicRoot, f), "utf8"), {
         filename: f,
@@ -223,6 +226,7 @@ const arcade = createArcade({ manual: true, clock: () => now }),
                 ? data.at
                 : [
                       "telephone",
+                      "sizeup",
                       "faker",
                       "estimate",
                       "onebutton",
@@ -531,7 +535,7 @@ const arcade = createArcade({ manual: true, clock: () => now }),
     );
   }
   assert.equal(errors.length, 0, errors.join("\n"));
-  console.log("ALL 26 CLIENT GAME CHECKS PASSED, INCLUDING LATE SPECTATORS");
+  console.log("ALL 27 CLIENT GAME CHECKS PASSED, INCLUDING LATE SPECTATORS");
 })()
   .catch((e) => {
     console.error(e);

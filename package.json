@@ -1,7 +1,7 @@
 {
   "name": "multiplayergames-gig",
-  "version": "11.0.0",
-  "description": "26 Multiplayer-Spiele mit Freunden, Nachrichten, erspielbarer Kosmetik und eigenen Pixelavataren",
+  "version": "12.0.0",
+  "description": "27 Multiplayer-Spiele mit Freunden, Nachrichten, erspielbarer Kosmetik und eigenen Pixelavataren",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

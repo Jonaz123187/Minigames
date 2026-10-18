@@ -195,7 +195,7 @@ function createAccounts(
   }
   if (testStorage) storage = testStorage;
   const enabled = !!db;
-  let bucketPromise;
+  let bucketPromise, developer;
   async function ensureBucket() {
     if (!storage) throw fail("Uploads sind noch nicht eingerichtet.", 503);
     if (testStorage) return;
@@ -234,7 +234,7 @@ function createAccounts(
       if (!s.exists) throw fail("Bitte zuerst einen Benutzernamen festlegen.");
       const p = s.data();
       p.owner = ownerOf(uid);
-      const result = await fn(p);
+      const result = await fn(p, t);
       delete p.owner;
       t.set(r, p);
       if (result?.profile)
@@ -251,10 +251,13 @@ function createAccounts(
     if (typeof token !== "string" || token.length > 8000)
       throw fail("Bitte neu einloggen.", 401);
     try {
-      return testVerify
+      const u = testVerify
         ? await testVerify(token)
         : await auth.verifyIdToken(token, true);
+      await developer?.assertAllowed(u.uid);
+      return u;
     } catch (e) {
+      if (e.status === 403) throw e;
       throw fail("Anmeldung abgelaufen. Bitte erneut einloggen.", 401);
     }
   }
@@ -1072,6 +1075,7 @@ function createAccounts(
       margin,
       marginUnit,
       facts = {},
+      dailyDate,
     },
   ) {
     const coins = G.rewardCoins({
@@ -1083,8 +1087,21 @@ function createAccounts(
       rewardFactor,
     });
     if (!coins) return null;
-    return mutate(uid, (p) => {
+    return mutate(uid, async (p, t) => {
       if (p.receipts.includes(roundId)) return null;
+      if (game === "sizeup") {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dailyDate || "")) return null;
+        const r = developer.attemptRef(uid, dailyDate),
+          a = await t.get(r);
+        if (!a.exists || a.data().roundId !== roundId || a.data().rewarded)
+          return null;
+        t.set(r, {
+          ...a.data(),
+          rewarded: true,
+          score: raw,
+          completedAt: Date.now(),
+        });
+      }
       p.receipts.push(roundId);
       p.receipts = p.receipts.slice(-100);
       p.coins += coins;
@@ -1172,8 +1189,38 @@ function createAccounts(
     fail,
     clean,
   });
-  require("./community")({ app, db, api, user, get, decorate, fail, clean });
-  require("./feedback")({ app, db, api, user, get, decorate, fail, clean });
+  developer = require("./developer")({
+    app,
+    db,
+    api,
+    user,
+    get,
+    ownerOf,
+    fail,
+    clean,
+  });
+  require("./community")({
+    app,
+    db,
+    api,
+    user,
+    get,
+    decorate,
+    fail,
+    clean,
+    audit: developer.audit,
+  });
+  require("./feedback")({
+    app,
+    db,
+    api,
+    user,
+    get,
+    decorate,
+    fail,
+    clean,
+    audit: developer.audit,
+  });
   app.use("/api", (err, req, res, next) => {
     if (!err) return next();
     res.status(err.status || 400).json({
@@ -1187,6 +1234,7 @@ function createAccounts(
   return {
     enabled,
     social,
+    developer,
     get,
     verify,
     mutate,

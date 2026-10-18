@@ -243,6 +243,7 @@ function renderRoom(next) {
     $("games").replaceChildren(
       ...catalog.map((g) => {
         const card = document.createElement("button");
+        card.dataset.game = g.id;
         card.className = "game-card" + (g.id === selected ? " selected" : "");
         card.setAttribute("aria-pressed", String(g.id === selected));
         const top = document.createElement("div");

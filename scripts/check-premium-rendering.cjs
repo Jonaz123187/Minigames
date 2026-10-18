@@ -127,6 +127,7 @@ function harness(touch = false, reduced = false) {
     "experience.js",
     "quality-ui.js",
     "banner-png.js",
+    "companions.js",
     "accounts-client.js",
     "crew-update.js",
     "premium-games.js",
@@ -137,6 +138,8 @@ function harness(touch = false, reduced = false) {
     "shop-preview.js",
     "feedback-client.js",
     "savings-client.js",
+    "size-client.js",
+    "developer-client.js",
   ])
     new vm.Script(fs.readFileSync(path.join(base, file), "utf8"), {
       filename: file,
@@ -569,7 +572,7 @@ async function main() {
     h.close();
   }
   console.log(
-    "ALL 26 PREMIUM VIEWS PASSED " +
+    "ALL 27 PREMIUM VIEWS PASSED " +
       selectedMode +
       " LOGIC (NO NATIVE BROWSER)",
   );

@@ -944,7 +944,11 @@
   S.open = async (view = "friends") => {
     releaseKeys();
     S.view = view;
-    (document.fullscreenElement || document.body).append(dialog);
+    const parent = document.fullscreenElement || document.body;
+    if (dialog.parentNode !== parent) {
+      if (dialog.open) dialog.close();
+      parent.append(dialog);
+    }
     if (!dialog.open) dialog.showModal();
     render();
     await run(async () => {

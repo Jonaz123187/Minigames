@@ -38,3 +38,7 @@ Deutsch/English, eigene Freundespalte, Benachrichtigungsglocke mit Erstellerneui
 ## Update v11.0
 
 Automatisch gesicherte Pixel-Relay-Zeichnungen, klarere Freunde und Einladungen, direkte Soundboard-Buttons in jedem Spiel, Flaggen und ein größerer Open-Source-Bereich. Dazu echte Fehlermeldungen und Ideen mit privatem Ersteller-Postfach, Status und Antwort sowie ein persönliches Shop-Sparziel: [Bedienung, Betrieb und Prüfungen](UPDATE-v11.md).
+
+## Update v12.0
+
+Size It Up als verdeckte Multiplayer-Tageschallenge mit 625 Größenvergleichen und einem gewerteten Versuch pro Tag. Dazu ein geschützter Entwicklerbereich für Feedback, Aufgaben, Neuigkeiten, Kontosperren und Wartung, korrigierte Freundedialoge sowie sichtbarere Begleiter in Profil, Lobby und Podium: [Bedienung, Betrieb und Prüfungen](UPDATE-v12.md).

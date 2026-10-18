@@ -128,7 +128,7 @@
   }
   function snapshot() {
     return {
-      version: window.GiGCommunity?.version || "11.0.0",
+      version: window.GiGCommunity?.version || "12.0.0",
       game: game()?.title || "Lobby",
       phase: state?.phase || room?.phase || "home",
       language: window.GiGI18n?.language || "de",

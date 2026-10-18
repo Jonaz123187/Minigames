@@ -323,7 +323,15 @@ function renderPremiumLobby() {
       (p.id === room.hostId ? "HOST" : "BEREIT") +
       (wish ? " · " + wish.title : "");
   });
-  const options = ["Alle", "★ Favoriten", "Skill", "Party", "Denken", "Arcade"];
+  const options = [
+    "Alle",
+    "★ Favoriten",
+    "Skill",
+    "Party",
+    "Denken",
+    "Arcade",
+    "Daily",
+  ];
   $("filters").replaceChildren(
     ...options.map((c) =>
       makeButton(
@@ -360,6 +368,7 @@ function renderPremiumLobby() {
         "game-card" + (g.id === selected ? " selected" : ""),
       );
       b.type = "button";
+      b.dataset.game = g.id;
       b.setAttribute(
         "aria-pressed",
         String(room.players.find((p) => p.id === myId)?.wish === g.id),

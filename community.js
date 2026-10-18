@@ -10,6 +10,7 @@ module.exports = function community({
   decorate,
   fail,
   clean,
+  audit,
 }) {
   if (!db) {
     app.get("/api/community", (req, res) => res.json({ ok: true, posts: [] }));
@@ -28,7 +29,8 @@ module.exports = function community({
     at: p.at,
     until: p.until,
   });
-  const visible = (p) => !p.removed && p.until > Date.now();
+  const visible = (p) =>
+    !p.removed && p.at <= Date.now() && p.until > Date.now();
   const posts = async () =>
     list(await feed.get())
       .filter(visible)
@@ -86,7 +88,7 @@ module.exports = function community({
     "/api/community/publish",
     express.json({ limit: "8kb" }),
     api(async (req, res) => {
-      await account(req, true);
+      const uid = await account(req, true);
       const v = req.body || {},
         title = clean(v.title, 90),
         body = clean(v.body, 1200),
@@ -100,6 +102,13 @@ module.exports = function community({
         throw fail("Eine Coin-Aktion erlaubt 0 bis 500 Coins.");
       const days = Number.isInteger(v.days) ? v.days : 14;
       if (days < 1 || days > 90) throw fail("Wähle 1 bis 90 Tage Laufzeit.");
+      const at = v.at === undefined ? Date.now() : v.at;
+      if (
+        !Number.isSafeInteger(at) ||
+        at < Date.now() - 60000 ||
+        at > Date.now() + 90 * 86400000
+      )
+        throw fail("Ungültiger Veröffentlichungszeitpunkt.");
       const p = {
         id: crypto.randomUUID(),
         title,
@@ -107,12 +116,18 @@ module.exports = function community({
         titleEn,
         bodyEn,
         coins: v.coins,
-        at: Date.now(),
-        until: Date.now() + days * 86400000,
+        at,
+        until: at + days * 86400000,
       };
       await db.runTransaction(async (t) => {
         const s = await t.get(feed);
-        t.set(feed, { posts: [...list(s).filter(visible), p].slice(-60) });
+        if (audit) await audit(t, uid, "news-publish", p.title);
+        t.set(feed, {
+          posts: [
+            ...list(s).filter((p) => !p.removed && p.until > Date.now()),
+            p,
+          ].slice(-60),
+        });
       });
       res.json({ ok: true, post: publicPost(p) });
     }),
@@ -121,10 +136,11 @@ module.exports = function community({
     "/api/community/remove",
     express.json({ limit: "1kb" }),
     api(async (req, res) => {
-      await account(req, true);
+      const uid = await account(req, true);
       const id = req.body?.id;
       await db.runTransaction(async (t) => {
         const s = await t.get(feed);
+        if (audit) await audit(t, uid, "news-remove", String(id || ""));
         t.set(feed, {
           posts: list(s).map((p) =>
             p.id === id ? { ...p, removed: true } : p,

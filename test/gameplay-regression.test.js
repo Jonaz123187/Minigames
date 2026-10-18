@@ -97,7 +97,7 @@ test("One Tap: every trial has an input-safe lead-in and the displayed target is
     } else assert.equal(done, true);
   }
 });
-test("All 26 games: three clients share the start and pause clock; late spectators cannot submit inputs", async (t) => {
+test("All 27 games: three clients share the start and pause clock; late spectators cannot submit inputs", async (t) => {
   const { createArcade } = require("../server"),
     { io } = require("socket.io-client");
   let now = 100000;
