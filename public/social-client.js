@@ -136,13 +136,28 @@
       copy = el("div", "social-person-copy"),
       name = btn(
         p.username,
-        () => openPublicProfile(p.uid),
+        () => (friend(p.uid) ? S.openPerson(p.uid) : openPublicProfile(p.uid)),
         "social-name quiet",
       );
     name.dataset.userContent = "";
     copy.append(name);
     if (status) copy.append(el("small", "social-presence", status));
-    r.append(avatarNode(p.avatar), copy);
+    const icon = el("span", "presence-avatar");
+    icon.append(avatarNode(p.avatar));
+    if (p.presence?.online) {
+      const dot = el("span", "presence-dot");
+      dot.setAttribute("aria-hidden", "true");
+      icon.append(dot);
+      r.classList.add("online");
+    }
+    r.append(icon, copy);
+    r.addEventListener("click", (e) => {
+      if (
+        friend(p.uid) &&
+        !e.target.closest("button,a,input,select,details,summary")
+      )
+        S.openPerson(p.uid);
+    });
     return r;
   }
   async function friendAction(uid, actionName) {
@@ -698,6 +713,55 @@
     );
     body.prepend(section);
   }
+  function personView() {
+    const p = friend(S.selectedUid);
+    if (!p) {
+      title("Dieser Freund ist nicht mehr verfügbar.");
+      return;
+    }
+    const top = row(p, presenceLabel(p));
+    body.append(top);
+    const actions = el("div", "friend-person-actions"),
+      here = room?.players.some((x) => x.uid === p.uid);
+    const invite = action(
+      "In meine Lobby einladen",
+      async () => {
+        const r = await rpc("social:invite", { uid: p.uid });
+        if (!r.ok) throw Error(r.error);
+        toast("Einladung gesendet.");
+      },
+      "primary",
+    );
+    invite.disabled = !room || here || !p.presence.online;
+    const join = action("Beitritt anfragen", async () => {
+      const r = await rpc("social:request", { uid: p.uid });
+      if (!r.ok) throw Error(r.error);
+      toast("Der Host hat deine Beitrittsanfrage erhalten.");
+    });
+    join.disabled = !p.presence.online || !p.presence.inLobby || here;
+    actions.append(
+      invite,
+      join,
+      btn("Nachricht schreiben", () => {
+        S.chatUid = p.uid;
+        S.open("messages");
+      }),
+      btn("Profil ansehen", () => openPublicProfile(p.uid)),
+    );
+    body.append(actions);
+    if (!room)
+      body.append(
+        el(
+          "p",
+          "small muted",
+          "Erstelle zuerst eine Lobby, um Freunde einzuladen.",
+        ),
+      );
+  }
+  S.openPerson = (uid) => {
+    S.selectedUid = uid;
+    return S.open("person");
+  };
   function render() {
     if (!dialog.open) return;
     skeleton();
@@ -722,6 +786,7 @@
     }
     (
       ({
+        person: personView,
         friends: friendsView,
         search: searchView,
         requests: requestsView,
@@ -788,22 +853,47 @@
         ),
       );
     for (const p of friends) {
-      const entry = row(p, presenceLabel(p));
-      const name = entry.querySelector(".social-name");
+      const entry = el(
+          "article",
+          "friend-tile" + (p.presence.online ? " online" : ""),
+        ),
+        main = btn("", () => S.openPerson(p.uid), "friend-tile-main quiet"),
+        icon = el("span", "presence-avatar"),
+        copy = el("span", "friend-tile-copy"),
+        name = el("strong", "social-name", p.username),
+        status = el("span", "social-presence", presenceLabel(p));
       name.dataset.userContent = "";
-      const b = action("Einladen", async () => {
-        const r = await rpc("social:invite", { uid: p.uid });
-        if (!r.ok) throw Error(r.error);
-        toast("Einladung gesendet.");
-      });
-      b.disabled =
+      icon.append(avatarNode(p.avatar));
+      if (p.presence.online) {
+        const dot = el("span", "presence-dot");
+        dot.setAttribute("aria-hidden", "true");
+        icon.append(dot);
+      }
+      copy.append(name, status);
+      main.append(icon, copy);
+      main.setAttribute("aria-label", "Aktionen für " + p.username);
+      const actions = el("div", "friend-tile-actions"),
+        invite = action(
+          "Einladen",
+          async () => {
+            const r = await rpc("social:invite", { uid: p.uid });
+            if (!r.ok) throw Error(r.error);
+            toast("Einladung gesendet.");
+          },
+          "friend-invite quiet",
+        );
+      invite.disabled =
         !room ||
         room.players.some((x) => x.uid === p.uid) ||
         !p.presence.online;
-      entry.append(
-        b,
-        btn("Mehr …", () => S.open("friends")),
+      actions.append(
+        invite,
+        btn("Mehr …", () => S.openPerson(p.uid), "friend-more quiet"),
       );
+      entry.append(main, actions);
+      entry.addEventListener("click", (e) => {
+        if (!e.target.closest("button")) S.openPerson(p.uid);
+      });
       list.append(entry);
     }
   }

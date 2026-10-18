@@ -34,3 +34,7 @@ Freundesliste mit Suche und Präsenz, Lobby-Einladungen, private Nachrichten und
 ## Update v10.0
 
 Deutsch/English, eigene Freundespalte, Benachrichtigungsglocke mit Erstellerneuigkeiten und optionalen Coin-Aktionen, Soundboard in jedem Spiel, Shop-Anprobe und höhere Preise. Dazu faire feste Belohnungen für längere Spiele, kräftigere Golfschläge und Meme-Dub-Start erst mit eigener Audiospur: [Bedienung, Betrieb und Prüfungen](UPDATE-v10.md).
+
+## Update v11.0
+
+Automatisch gesicherte Pixel-Relay-Zeichnungen, klarere Freunde und Einladungen, direkte Soundboard-Buttons in jedem Spiel, Flaggen und ein größerer Open-Source-Bereich. Dazu echte Fehlermeldungen und Ideen mit privatem Ersteller-Postfach, Status und Antwort sowie ein persönliches Shop-Sparziel: [Bedienung, Betrieb und Prüfungen](UPDATE-v11.md).

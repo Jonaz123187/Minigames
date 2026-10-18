@@ -18,10 +18,16 @@ module.exports = async function makeClient({ base, uid, now, profile }) {
     context = dom.getInternalVMContext(),
     canvases = new WeakMap(),
     errors = [],
-    frames = new Map();
+    frames = new Map(),
+    playback = [];
   let socket;
   w.Date.now = () => now();
   Object.defineProperty(w.performance, "now", { value: () => now() });
+  w.HTMLMediaElement.prototype.play = function () {
+    playback.push(this.src);
+    return Promise.resolve();
+  };
+  w.HTMLMediaElement.prototype.pause = function () {};
   w.scrollTo = () => {};
   w.structuredClone = structuredClone;
   w.ImageData = ImageData;
@@ -94,6 +100,8 @@ module.exports = async function makeClient({ base, uid, now, profile }) {
     "controls-client.js",
     "community-client.js",
     "shop-preview.js",
+    "feedback-client.js",
+    "savings-client.js",
   ]) {
     new vm.Script(fs.readFileSync(path.join(root, "public", file), "utf8"), {
       filename: file,
@@ -113,6 +121,7 @@ module.exports = async function makeClient({ base, uid, now, profile }) {
     dom,
     socket,
     errors,
+    playback,
     run: (s) => new vm.Script(s).runInContext(context),
     frame: () => frames.get("frame")?.(w.performance.now()),
     controller: (at) => frames.get("controllerFrame")?.(at),

@@ -1904,7 +1904,8 @@ function createArcade({
         input.roundId !== r.id ||
         !r.connected.has(socket.id) ||
         (r.menu.has(socket.id) &&
-          !(r.game === "dub" && input.action === "record")) ||
+          !(r.game === "dub" && input.action === "record") &&
+          !(r.game === "telephone" && input.action === "draft")) ||
         r.pause.at != null ||
         now < r.startsAt ||
         now >= r.endsAt

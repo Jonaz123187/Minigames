@@ -31,13 +31,34 @@
           ><span>MultiplayerGames<span class="brand-gig">-GiG</span></span></a
         >
         <div class="header-right">
-          <label class="language-picker"
-            ><span class="screen-reader">Sprache / Language</span
-            ><select id="languagePicker" aria-label="Sprache / Language">
-              <option value="de">Deutsch</option>
-              <option value="en">English</option>
-            </select></label
-          >
+          <div class="language-picker" translate="no">
+            <select
+              id="languagePicker"
+              class="screen-reader"
+              aria-hidden="true"
+              tabindex="-1"
+            >
+              <option value="de">🇩🇪 Deutsch</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
+            <details id="languageMenu">
+              <summary aria-label="Sprache / Language">
+                <img
+                  id="selectedLanguageFlag"
+                  src="/flags/de.svg"
+                  alt=""
+                /><span id="selectedLanguageLabel">Deutsch</span
+                ><span aria-hidden="true">⌄</span>
+              </summary>
+              <div class="language-options">
+                <button type="button" data-language="de">
+                  <img src="/flags/de.svg" alt="" />Deutsch</button
+                ><button type="button" data-language="en">
+                  <img src="/flags/gb.svg" alt="" />English
+                </button>
+              </div>
+            </details>
+          </div>
           <div id="accountBar" class="account-bar">
             <button id="loginButton" class="quiet">Login</button
             ><button id="registerButton">Konto erstellen</button>
@@ -123,15 +144,29 @@
               </p>
             </form>
           </div>
-          <p class="open-source-note">
-            GiG ist ein Open-Source-Projekt.
-            <a
-              href="https://github.com/Jonaz123187/Minigames"
-              target="_blank"
-              rel="noopener noreferrer"
-              >Schau auf GitHub rein oder mach mit ↗</a
-            >
-          </p>
+          <section class="open-source-note" aria-labelledby="openSourceTitle">
+            <span class="eyebrow">FÜR EUREN SPIELEABEND</span>
+            <h2 id="openSourceTitle">Open Source. Für euch gemacht.</h2>
+            <p class="open-source-promises">
+              <span>100 % gratis</span><span>Keine Werbung</span
+              ><span>Kein Download</span>
+            </p>
+            <p>
+              GiG wird offen entwickelt. Schau in den Code oder bring deine
+              Ideen mit.
+            </p>
+            <div class="open-source-actions">
+              <a
+                class="primary"
+                href="https://github.com/Jonaz123187/Minigames"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Auf GitHub ansehen ↗</a
+              ><button type="button" id="homeSuggest" class="quiet">
+                Verbesserung vorschlagen
+              </button>
+            </div>
+          </section>
           <div class="home-feature-strip">
             <span><b>01</b> Lobby öffnen</span
             ><span><b>02</b> Freunde einladen</span
@@ -671,6 +706,8 @@
     <script src="/controls-client.js"></script>
     <script src="/community-client.js"></script>
     <script src="/shop-preview.js"></script>
+    <script src="/feedback-client.js"></script>
+    <script src="/savings-client.js"></script>
     <script type="module" src="/race-3d.js"></script>
     <script type="module" src="/monster-3d.js"></script>
   </body>

@@ -1,6 +1,6 @@
 "use strict";
 (function () {
-  const C = (window.GiGCommunity = { version: "10.0.0" }),
+  const C = (window.GiGCommunity = { version: "11.0.0" }),
     $id = (id) => document.getElementById(id);
   const button = (s, fn, cls = "quiet") => {
     const b = makeButton(s, fn, cls);
@@ -52,13 +52,13 @@
       }).catch(() => {});
   }
   const builtIn = {
-    id: "update-10",
+    id: "update-11",
     at: 1792281600000,
-    title: "Mehr Platz für deine Leute.",
-    titleEn: "More room for your people.",
-    body: "Freundesbereich, Benachrichtigungen und Englisch sind da. Golf schlägt weiter; längere Spiele geben mehr Coins. Im Shop kannst du deinen Look vor dem Kauf ausprobieren.",
+    title: "Zeichnungen, Freunde und eure Ideen.",
+    titleEn: "Drawings, friends and your ideas.",
+    body: "Pixel Relay sichert deine Zeichnungen automatisch. Lade Freunde direkt ein, spiele Sounds während der Runde und spare auf deinen Wunsch im Shop. Probleme und Ideen kannst du jetzt direkt einreichen und meine Antwort später nachlesen.",
     bodyEn:
-      "Meet the new friends panel, notifications and English support. Golf shots travel farther and longer games reward more coins. Try your look in the shop before buying.",
+      "Pixel Relay saves your drawings automatically. Invite friends directly, play sounds during a round and save for your next shop item. Send problems and ideas directly and check back for my reply.",
     coins: 0,
   };
   function entries() {
@@ -97,7 +97,13 @@
           });
     }
     for (const p of window.GiGSocial?.pending || [])
-      list.push({ ...p, id: "lobby-" + p.id, kind: "lobby", at: Date.now() });
+      list.push({
+        ...p,
+        id: "lobby-" + p.id,
+        sourceKind: p.kind,
+        kind: "lobby",
+        at: Date.now(),
+      });
     return list.sort(
       (a, b) =>
         Number(!seen.has(b.id)) - Number(!seen.has(a.id)) ||
@@ -247,14 +253,35 @@
             }[p.kind] || "Neue Nachricht",
           ),
         );
+        const label =
+          p.kind === "message"
+            ? "Nachricht öffnen"
+            : p.kind === "friend-request"
+              ? "Freundschaftsanfrage öffnen"
+              : p.kind === "friend-accepted"
+                ? "Freund ansehen"
+                : p.kind === "lobby"
+                  ? p.sourceKind === "request"
+                    ? "Beitrittsanfrage öffnen"
+                    : "Einladung öffnen"
+                  : "Geschenk öffnen";
         card.append(
-          button(p.kind === "message" ? "Nachricht öffnen" : "Ansehen", () => {
-            dialog.close();
-            window.GiGSocial?.open(
-              p.kind === "message" ? "messages" : "requests",
-            );
-            if (p.kind === "message") window.GiGSocial.chatUid = p.uid;
-          }),
+          button(
+            label,
+            () => {
+              remember([p.id]);
+              counters();
+              dialog.close();
+              if (p.kind === "message") window.GiGSocial.chatUid = p.uid;
+              if (p.kind === "friend-accepted")
+                window.GiGSocial?.openPerson(p.uid);
+              else
+                window.GiGSocial?.open(
+                  p.kind === "message" ? "messages" : "requests",
+                );
+            },
+            "primary notification-open",
+          ),
         );
       }
       if (!seen.has(p.id))
@@ -278,8 +305,20 @@
         );
       content.append(card);
     }
-    if (Account.profile?.owner)
+    if (Account.profile?.owner) {
       content.append(button("Neuigkeit veröffentlichen", publisher));
+      content.append(
+        button(
+          "Feedback-Postfach" +
+            (C.feedbackCount ? " · " + C.feedbackCount : ""),
+          () => {
+            dialog.close();
+            window.GiGFeedback?.openInbox();
+          },
+          "primary feedback-inbox-link",
+        ),
+      );
+    }
   }
   function publisher() {
     const form = el("form", "news-editor");
@@ -348,6 +387,10 @@
     refresh();
   }
   C.open = open;
+  document.addEventListener("gig:feedback-count", (e) => {
+    C.feedbackCount = e.detail.count;
+    if (dialog.open && !content.querySelector("form")) render();
+  });
   document.addEventListener("gig:social", (e) => {
     social = e.detail;
     counters();
@@ -377,91 +420,59 @@
     if (!document.hidden) refresh();
   }, 30000);
 
-  // One live soundboard is moved into a modal in games, retaining its upload and mute listeners.
-  const board = document.querySelector(".soundboard-panel"),
-    home = el("div", "soundboard-anchor"),
-    boardDialog = el("dialog", "game-soundboard");
-  board.before(home);
-  boardDialog.id = "soundboardDialog";
-  $id("play").append(boardDialog);
-  const gameButton = button(
-    "♫ Soundboard",
-    () => {
-      releaseKeys();
-      boardDialog.replaceChildren(
-        button("✕", () => boardDialog.close(), "dialog-close quiet"),
-        board,
-      );
-      (document.fullscreenElement || $id("play")).append(boardDialog);
-      if (!boardDialog.open) boardDialog.showModal();
-    },
-    "quiet compact",
-  );
-  gameButton.id = "gameSoundboard";
-  $id("fullscreenGame").before(gameButton);
-  boardDialog.addEventListener("close", () => home.after(board));
-  socket.on("room", (r) => {
-    if (r.phase === "lobby" && boardDialog.open) boardDialog.close();
-  });
-  socket.on("left", () => boardDialog.close());
-  $id("gameMenu")
-    .querySelector("#menuFullscreen")
-    .before(
-      button("♫ Soundboard", () => {
-        boardDialog.replaceChildren(
-          button("✕", () => boardDialog.close(), "dialog-close quiet"),
-          board,
+  // The game dock is always available and never opens a modal or captures game controls.
+  const dock = el("section", "game-soundboard-dock");
+  dock.id = "gameSoundboardDock";
+  dock.setAttribute("aria-label", "Soundboard im Spiel");
+  $("phaseHelp").after(dock);
+  let dockKey = "";
+  function paintDock() {
+    const p = Account.profile,
+      key = JSON.stringify([
+        p?.uid,
+        p?.sounds,
+        p?.owned,
+        p?.owner,
+        Account.muteBoards,
+      ]);
+    if (key === dockKey) return;
+    dockKey = key;
+    dock.replaceChildren();
+    const title = el("span", "soundboard-dock-title", "♫ Soundboard");
+    dock.append(title);
+    if (p) {
+      for (let slot = 1; slot <= 6; slot++) {
+        const sound = p.sounds[slot];
+        if (!sound || !GiG.owns(p, "sound-" + slot)) continue;
+        const b = button(
+          sound.emoji || "🎵",
+          () => Account.playSound(slot),
+          "sound-emoji",
         );
-        (document.fullscreenElement || $id("play")).append(boardDialog);
-        boardDialog.showModal();
-      }),
-    );
-
-  // Explicit report preview; nothing is sent or copied before the user chooses.
-  const report = el("details", "bug-report"),
-    summary = el("summary", "", "Problem melden");
-  report.append(summary);
-  $id("gameMenu").append(report);
-  report.addEventListener("toggle", () => {
-    if (!report.open) return;
-    report.replaceChildren(summary);
-    const note = el("textarea"),
-      out = el("textarea");
-    note.placeholder = "Was ist passiert? Was hätte passieren sollen?";
-    note.maxLength = 2000;
-    out.readOnly = true;
-    function build() {
-      const t = window.GiGI18n?.t || ((s) => s);
-      out.value = [
-        t("GiG · Fehlerbericht"),
-        "Version: " + C.version,
-        t("Spiel:") + " " + t(game()?.title || "Lobby"),
-        "Phase: " + (state?.phase || room?.phase || "Startseite"),
-        t("Verbindung:") + " " + (socket.connected ? "online" : "offline"),
-        t("Sprache:") + " " + (window.GiGI18n?.language || "de"),
-        "",
-        note.value,
-      ].join("\n");
+        b.title = sound.name;
+        b.setAttribute("aria-label", sound.name);
+        b.dataset.tooltip = sound.name;
+        b.dataset.soundSlot = slot;
+        b.dataset.userContent = "";
+        b.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        b.addEventListener("click", () => b.blur());
+        dock.append(b);
+      }
     }
-    note.oninput = build;
-    build();
-    report.append(
-      el(
-        "p",
-        "small muted",
-        "Der Bericht enthält keine Namen, Chats, Raumcodes oder Zugangsdaten. Du kannst ihn vor dem Kopieren prüfen.",
-      ),
-      note,
-      out,
-      button("Bericht kopieren", async () => {
-        try {
-          await navigator.clipboard.writeText(out.value);
-          toast("Bericht kopiert.");
-        } catch {
-          out.focus();
-          out.select();
-        }
-      }),
-    );
-  });
+    if (!dock.querySelector("button"))
+      dock.append(
+        el(
+          "span",
+          "small muted",
+          p
+            ? "Eigene Sounds im GiG-Shop freischalten."
+            : "Mit einem Konto eigene Sounds nutzen.",
+        ),
+      );
+  }
+  document.addEventListener("gig:account", paintDock);
+  paintDock();
 })();

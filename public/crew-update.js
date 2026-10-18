@@ -448,11 +448,18 @@
     GiGSketch.paint(c.getContext("2d"), drawing);
     return c;
   }
+  const relayDraftMemory = new Map();
   function freePaintTools(parent, relay = false) {
+    const draftKey = room.round.id + ":" + state.step + ":" + myId;
+    const saved = relay
+      ? relayDraftMemory.get(draftKey) || state.ownDraft
+      : null;
     const drawing = {
         width: GiGSketch.width,
         height: GiGSketch.height,
-        strokes: [],
+        strokes: (saved?.drawing?.strokes || saved?.value?.strokes || []).map(
+          (s) => [...s],
+        ),
       },
       c = sketchBoard(drawing),
       tools = el("div", "pixel-tools"),
@@ -476,7 +483,81 @@
       previous = null,
       pointer = null;
     const undo = [];
-    const refresh = () => GiGSketch.paint(c.getContext("2d"), drawing);
+    const savedStatus = el(
+      "p",
+      "drawing-save-status small",
+      relay ? "Wird während des Zeichnens gesichert." : "",
+    );
+    savedStatus.setAttribute("role", "status");
+    savedStatus.hidden = !relay;
+    const capturedStep = state.step,
+      capturedRound = room.round.id;
+    let revision = saved?.revision || 0,
+      dirty = false,
+      saveTimer = null,
+      saving = false,
+      lastSavedAt = -10000;
+    function remember() {
+      revision++;
+      dirty = true;
+      if (relay) {
+        relayDraftMemory.set(draftKey, { drawing, revision });
+        while (relayDraftMemory.size > 8)
+          relayDraftMemory.delete(relayDraftMemory.keys().next().value);
+        queueSave();
+      }
+    }
+    function queueSave(delay = 550) {
+      if (!relay || saveTimer) return;
+      saveTimer = setTimeout(() => {
+        saveTimer = null;
+        saveDraft();
+      }, delay);
+    }
+    async function saveDraft() {
+      if (
+        !relay ||
+        !dirty ||
+        saving ||
+        !c.isConnected ||
+        room?.round?.id !== capturedRound ||
+        state?.step !== capturedStep ||
+        state?.players?.[myId]?.submitted
+      )
+        return;
+      if (serverNow() - lastSavedAt < 350) return queueSave(400);
+      const sentRevision = revision;
+      dirty = false;
+      saving = true;
+      lastSavedAt = serverNow();
+      savedStatus.textContent = "Zeichnung wird gesichert …";
+      const result = await rpc("input", {
+        roundId: capturedRound,
+        action: "draft",
+        step: capturedStep,
+        revision: sentRevision,
+        drawing: {
+          width: drawing.width,
+          height: drawing.height,
+          strokes: drawing.strokes.map((s) => [...s]),
+        },
+      });
+      saving = false;
+      if (!c.isConnected || state?.step !== capturedStep) return;
+      if (result.ok && revision === sentRevision)
+        savedStatus.textContent =
+          "✓ Zeichnung gesichert · wird am Ende automatisch abgegeben.";
+      else if (!result.ok) {
+        dirty = true;
+        savedStatus.textContent =
+          "Noch nicht gesichert · Verbindung wird erneut versucht.";
+      }
+      if (dirty) queueSave(result.ok ? 400 : 1200);
+    }
+    const refresh = () => {
+      GiGSketch.paint(c.getContext("2d"), drawing);
+      remember();
+    };
     for (const [i, hex] of GiGSketch.colors.entries()) {
       const b = makeButton(
         i === 1 ? "⌫" : "",
@@ -573,6 +654,7 @@
       if (e.type === "pointerup" && active() && !menu.open) line(point(e));
       pointer = null;
       previous = null;
+      if (relay) saveDraft();
     };
     c.onpointerup = c.onpointercancel = c.onlostpointercapture = release;
     const submit = makeButton(
@@ -582,11 +664,18 @@
           notice.textContent = "Zeichne zuerst etwas auf die Fläche.";
           return;
         }
-        input({ action: "submit", drawing }, submit);
+        input(
+          {
+            action: "submit",
+            drawing,
+            ...(relay ? { step: capturedStep } : {}),
+          },
+          submit,
+        );
       },
       "primary",
     );
-    parent.append(tools, c, notice, submit);
+    parent.append(tools, c, notice, savedStatus, submit);
   }
   function textForm(parent, label, action, key, type = "text") {
     const form = el("form", "party-answer"),
@@ -671,13 +760,29 @@
           ),
         );
         if (state.task) {
-          if (state.task.kind === "drawing")
+          if (state.task.missing)
+            box.append(
+              el(
+                "p",
+                "missing-drawing",
+                "Für diesen Schritt wurde keine Zeichnung oder Beschreibung abgegeben.",
+              ),
+            );
+          else if (state.task.kind === "drawing")
             box.append(
               Array.isArray(state.task.value)
                 ? board(state.task.value)
                 : sketchBoard(state.task.value),
             );
-          else {const quote=el("blockquote", "story-task-value", state.task.value);quote.dataset.userContent="";box.append(quote);}
+          else {
+            const quote = el(
+              "blockquote",
+              "story-task-value",
+              state.task.value,
+            );
+            quote.dataset.userContent = "";
+            box.append(quote);
+          }
         }
         if (can && !me.submitted) {
           if (state.kind === "drawing") freePaintTools(box, true);
@@ -778,7 +883,9 @@
           el(
             "h2",
             "answer-number",
-            state.answer.toLocaleString(window.GiGI18n?.locale || "de-DE") + " " + state.unit,
+            state.answer.toLocaleString(window.GiGI18n?.locale || "de-DE") +
+              " " +
+              state.unit,
           ),
         );
         for (const [pid, r] of Object.entries(state.results))
@@ -937,14 +1044,16 @@
       wrap.append(nav);
       for (const e of chain.entries) {
         const card = el("article", "story-entry");
-        card.dataset.userContent="";
+        card.dataset.userContent = "";
         card.append(el("small", "", name(e.author)));
         card.append(
-          e.kind === "drawing"
-            ? Array.isArray(e.value)
-              ? board(e.value)
-              : sketchBoard(e.value)
-            : el("p", "", e.value),
+          e.missing
+            ? el("p", "missing-drawing", "Keine Abgabe in diesem Schritt.")
+            : e.kind === "drawing"
+              ? Array.isArray(e.value)
+                ? board(e.value)
+                : sketchBoard(e.value)
+              : el("p", "", e.value),
         );
         wrap.append(card);
       }

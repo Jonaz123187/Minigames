@@ -124,6 +124,7 @@ const fresh = (uid, username) => ({
     creativeWins: 0,
   },
   goal: "",
+  shopGoal: "",
   emotes: ["wave", "laugh", "facepalm", "cheer"],
   controls: Controls.normalize(),
   bio: "",
@@ -482,6 +483,21 @@ function createAccounts(
         a = req.body || {};
       const profile = await mutate(u.uid, (p) => {
         if (a.controls) p.controls = Controls.normalize(a.controls);
+        if (
+          typeof a.shopGoal === "string" &&
+          (a.shopGoal === "" ||
+            G.items.some(
+              (i) =>
+                i.id === a.shopGoal &&
+                Number.isFinite(i.price) &&
+                i.price > 0 &&
+                !i.ownerOnly &&
+                !i.mastery &&
+                !i.achievement &&
+                !G.owns(p, i.id),
+            ))
+        )
+          p.shopGoal = a.shopGoal;
         if (
           typeof a.goal === "string" &&
           (a.goal === "" || G.items.some((i) => i.id === a.goal && i.mastery))
@@ -1157,6 +1173,7 @@ function createAccounts(
     clean,
   });
   require("./community")({ app, db, api, user, get, decorate, fail, clean });
+  require("./feedback")({ app, db, api, user, get, decorate, fail, clean });
   app.use("/api", (err, req, res, next) => {
     if (!err) return next();
     res.status(err.status || 400).json({

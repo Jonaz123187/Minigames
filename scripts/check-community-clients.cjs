@@ -39,7 +39,7 @@ const assert = require("node:assert/strict"),
     assert.equal(
       d
         .getElementById("avatarEmotes")
-        .nextElementSibling.classList.contains("soundboard-anchor"),
+        .nextElementSibling.classList.contains("soundboard-panel"),
       true,
     );
     a.w.GiGI18n.set("en");
@@ -146,25 +146,17 @@ const assert = require("node:assert/strict"),
     h.step(3001);
     await until(() => a.run("room.phase") === "playing");
     a.frame();
-    d.getElementById("gameSoundboard").click();
-    await delay(20);
-    assert.equal(d.getElementById("soundboardDialog").open, true);
-    assert.ok(d.querySelector("#soundboardDialog #customSounds"));
-    assert.equal(a.run("currentControls().throttle"), 0);
-    d.getElementById("soundboardDialog").close();
+    assert.ok(d.getElementById("gameSoundboardDock"));
+    assert.equal(d.getElementById("soundboardDialog"), null);
     assert.ok(d.querySelector(".lobby-sidebar #customSounds"));
     d.getElementById("openGameMenu").click();
     await until(() => d.getElementById("gameMenu").open);
-    const details = d.querySelector(".bug-report");
-    details.open = true;
-    await delay(20);
-    const fields = details.querySelectorAll("textarea");
-    fields[0].value = "Timing issue";
-    fields[0].dispatchEvent(new a.w.Event("input"));
-    assert.match(fields[1].value, /Button Bash/);
-    assert.doesNotMatch(fields[1].value, /Alice|Bobby|Bearer|@/);
+    button(d.getElementById("gameMenu"), "Report a problem").click();
+    await until(() => d.getElementById("feedbackDialog").open);
+    assert.ok(d.querySelector(".feedback-form textarea"));
+    d.getElementById("feedbackDialog").close();
     console.log(
-      "PASS live-game soundboard and return to sidebar, plus reviewable diagnostic report without private data",
+      "PASS always-present game soundboard and real report form from the game menu",
     );
     d.getElementById("gameMenu").close();
     a.w.GiGI18n.set("de");
