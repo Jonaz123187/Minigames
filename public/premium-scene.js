@@ -149,12 +149,16 @@ export function createVehicle(
   skin = "truck",
   playerColor = "#b5f36a",
   ghost = false,
+  livery = "default",
 ) {
   const body = new THREE.Group(),
     wheels = [],
     roots = [],
     all = new THREE.Group();
-  const paintColor = GiGVehicles.colors[skin] || GiGVehicles.colors.truck;
+  const paintColor =
+    livery === "obsidian"
+      ? "#484366"
+      : GiGVehicles.colors[skin] || GiGVehicles.colors.truck;
   const material = (color, extra = {}) =>
     new THREE.MeshStandardMaterial({
       color,

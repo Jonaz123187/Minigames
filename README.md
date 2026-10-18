@@ -26,3 +26,7 @@ Freies Zeichnen und gemeinsame Galerie in Sketch Suspect, stabile Zeitsteuerung,
 ## Update v8.0
 
 Alle 26 Spielansichten überarbeitet, Monster Trails mit Checkpoints und getrennter Balance-Steuerung, sechs neue Golfbahnen samt gemeinsamer Scorecard, neue 3D-Fahrzeuge und Kamera sowie korrigierter Ping und weicher Bannerübergang: [Änderungen und Prüfungen](UPDATE-v8.md).
+
+## Update v9.0
+
+Freundesliste mit Suche und Präsenz, Lobby-Einladungen, private Nachrichten und Vergleiche, Wunschlisten und Geschenke, erspielbare Kosmetik, Avatar-Reaktionen und gespeicherte Steuerung. Dazu Pixel Relay mit freien Farben, direkte Revanche, gemeinsame Lobby-Rückkehr und wesentlich längere Monster Trails: [Änderungen, Betrieb und Prüfungen](UPDATE-v9.md).

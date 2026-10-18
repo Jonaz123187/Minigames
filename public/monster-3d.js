@@ -53,7 +53,7 @@ function truck(p) {
   const g = new THREE.Group(),
     ghost = p.id !== viewId(),
     color = GiGVehicles.colors[p.car] || GiGVehicles.colors.truck;
-  const car = createVehicle(p.car, p.color, ghost);
+  const car = createVehicle(p.car, p.color, ghost, p.livery);
   car.userData.roots.forEach((root) => (root.visible = false));
   car.userData.flame.visible = false;
   car.scale.setScalar(25.5);
@@ -114,7 +114,12 @@ function truck(p) {
           5,
           5,
           5,
-          { gold: "#eed786", mint: "#8ed6b7", pink: "#e29ec1" }[p.trail],
+          {
+            gold: "#eed786",
+            mint: "#8ed6b7",
+            pink: "#e29ec1",
+            comet: "#b1acff",
+          }[p.trail],
           true,
         ),
       );
@@ -346,7 +351,7 @@ function build() {
     }
   }
   // Two depth layers keep the horizon calm while the foreground moves past the truck.
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < Math.ceil(track.length / 630) + 3; i++) {
     const peak = new THREE.Mesh(
       new THREE.ConeGeometry(
         230 + (i % 4) * 35,
@@ -408,7 +413,7 @@ function initialize() {
       alpha: false,
       powerPreference: "high-performance",
     });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = !isTouchDevice;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -424,51 +429,14 @@ function initialize() {
   }
 }
 function sample(id) {
-  const list = snapshotHistory;
-  if (!list.length) return state.players[id];
-  const target = serverNow() - (id === myId ? 0 : 85);
-  let a = list[0],
-    b = list.at(-1);
-  for (let i = 1; i < list.length; i++)
-    if (list[i].at >= target) {
-      a = list[i - 1];
-      b = list[i];
-      break;
-    }
-  const pa = a.data.players[id],
-    pb = b.data.players[id];
-  if (!pa || !pb) return pb;
-  const t = clamp((target - a.at) / Math.max(1, b.at - a.at), 0, 1),
-    out = { ...pb };
-  if (pa.resets !== pb.resets || Math.hypot(pb.x - pa.x, pb.y - pa.y) > 300)
-    return pb;
-  for (const key of ["x", "y"]) out[key] = pa[key] + (pb[key] - pa[key]) * t;
-  out.angle =
-    pa.angle +
-    Math.atan2(Math.sin(pb.angle - pa.angle), Math.cos(pb.angle - pa.angle)) *
-      t;
-  out.wheels = pb.wheels.map((w, i) => ({
-    x: pa.wheels[i].x + (w.x - pa.wheels[i].x) * t,
-    y: pa.wheels[i].y + (w.y - pa.wheels[i].y) * t,
-    angle: pa.wheels[i].angle + (w.angle - pa.wheels[i].angle) * t,
-  }));
-  if (id === myId && !out.out && !out.finished) {
-    const lead = (clamp(serverNow() - b.at, 0, 65) / 1000) * 60;
-    out.x += out.vx * lead;
-    out.y += out.vy * lead;
-    out.wheels.forEach((w, i) => {
-      w.angle +=
-        ((((pb.wheels[i].angle - pa.wheels[i].angle) /
-          Math.max(1, b.at - a.at)) *
-          lead) /
-          60) *
-        1000;
-      w.x += out.vx * lead;
-      w.y += out.vy * lead;
-    });
-  }
-  return out;
+  return GiGMonsterMotion.sample(
+    snapshotHistory,
+    id,
+    serverNow(),
+    state.players[id],
+  );
 }
+
 function fallback() {
   GiGPremium.monsterFallback(track);
 }

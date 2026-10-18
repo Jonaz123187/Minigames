@@ -111,9 +111,11 @@ function harness(touch = false, reduced = false) {
   const run = (s) => new vm.Script(s).runInContext(context);
   for (const file of [
     "economy.js",
+    "control-settings.js",
     "vehicle-models.js",
     "vendor/matter.min.js",
     "monster-shared.js",
+    "monster-motion.js",
     "race-shared.js",
     "golf-shared.js",
     "sketch-shared.js",
@@ -126,6 +128,9 @@ function harness(touch = false, reduced = false) {
     "accounts-client.js",
     "crew-update.js",
     "premium-games.js",
+    "social-client.js",
+    "rewards-client.js",
+    "controls-client.js",
   ])
     new vm.Script(fs.readFileSync(path.join(base, file), "utf8"), {
       filename: file,

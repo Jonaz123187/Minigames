@@ -115,8 +115,8 @@ function ribbon(track, width, y, colors, segments = track.segments) {
   scene.add(mesh);
   return mesh;
 }
-function makeCar(color, skin) {
-  const car = createVehicle(skin, color);
+function makeCar(color, skin, livery) {
+  const car = createVehicle(skin, color, false, livery);
   const shadow = groundShadow(2.8);
   shadow.position.y = 0.09;
   car.add(shadow);
@@ -447,7 +447,7 @@ function buildScene(meta) {
   trailSystems.clear();
   carPoses.clear();
   for (const p of roster()) {
-    cars.set(p.id, makeCar(p.color, p.car));
+    cars.set(p.id, makeCar(p.color, p.car, p.livery));
     if (p.trail && p.trail !== "none") {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute(
@@ -457,8 +457,12 @@ function buildScene(meta) {
       geometry.setDrawRange(0, 0);
       const material = new THREE.PointsMaterial({
         color:
-          { gold: "#eed786", mint: "#8ed6b7", pink: "#e29ec1" }[p.trail] ||
-          p.color,
+          {
+            gold: "#eed786",
+            mint: "#8ed6b7",
+            pink: "#e29ec1",
+            comet: "#b1acff",
+          }[p.trail] || p.color,
         size: 0.16,
         transparent: true,
         opacity: 0.5,

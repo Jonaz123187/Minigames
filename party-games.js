@@ -61,7 +61,7 @@ const telephone = {
     "21",
     150,
     "Ein Satz wird zum Bild und wieder zum Satz. Am Ende schaut ihr eure ganze Geschichte an.",
-    "Satz oder 16 × 16 Pixelbild abgeben · Am Ende durch die Geschichten blättern",
+    "Satz schreiben oder frei zeichnen · Farben frei wählen · Das weitergereichte Bild beschreiben",
     2,
   ),
   private: true,
@@ -101,13 +101,18 @@ const telephone = {
     const index =
       (g.ids.indexOf(id) - (g.step % g.ids.length) + g.ids.length) %
       g.ids.length;
-    const value = g.step % 2 ? pixels(v.pixels) : text(v.text);
+    const value =
+      g.step % 2
+        ? v.drawing
+          ? Sketch.validate(v.drawing)
+          : pixels(v.pixels)
+        : text(v.text);
     if (!value || (Array.isArray(value) && !value.some(Boolean))) return false;
-    g.chains[index].entries.push({
+    g.chains[index].entries[g.step] = {
       author: id,
       kind: g.step % 2 ? "drawing" : "text",
       value,
-    });
+    };
     g.players[id].submitted = true;
     g.players[id].score += 100;
     return true;
@@ -152,6 +157,12 @@ const telephone = {
           ? g.chains[index].entries[g.step - 1] || null
           : null,
       gallery: g.phase === "gallery" ? g.chains : [],
+      ownDrawing:
+        g.phase === "create" && g.step % 2 && g.players[id]?.submitted
+          ? g.chains[index].entries[g.step]?.value || null
+          : null,
+      taskRevision:
+        g.step + ":" + (g.chains[index]?.entries[g.step - 1]?.author || ""),
       voted: !!g.votes[id],
     };
   },

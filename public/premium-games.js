@@ -453,7 +453,8 @@
         Math.hypot(ball.vx, ball.vy) > 7,
       );
       ctx.globalAlpha = player.id === viewId() ? 1 : 0.62;
-      orb(x, y, 9, player.color);
+      orb(x, y, 9, player.ball === "aurora" ? "#b2c9f9" : player.color);
+      if (player.ball === "aurora") ring(x, y, 12, 1, "#ddc2ed", 1.5);
       ctx.globalAlpha = 1;
       if (player.id === viewId()) ring(x, y, 13, 1, "#f5f4d9", 1.5);
       else if (
@@ -1691,7 +1692,16 @@
     ctx.rotate(-heading);
     ctx.scale(scale, scale);
     rect(-1.1, -2, 2.2, 4.2, "#081b2860", 0.45);
-    rect(-0.9, -1.9, 1.8, 3.8, GiGVehicles.colors[p.car] || p.color, 0.45);
+    rect(
+      -0.9,
+      -1.9,
+      1.8,
+      3.8,
+      p.livery === "obsidian"
+        ? "#484366"
+        : GiGVehicles.colors[p.car] || p.color,
+      0.45,
+    );
     rect(-0.73, -0.8, 1.46, 1.4, "#234455", 0.25);
     rect(-0.62, -0.4, 1.24, 0.45, p.color, 0.2);
     for (const xx of [-0.91, 0.91])
@@ -1748,7 +1758,12 @@
     pill("2D-STRECKENANSICHT", W / 2 - 87, 19, 174, "#d3e8de");
   }
   function monsterFallback(track) {
-    const own = me();
+    const own = GiGMonsterMotion.sample(
+      snapshotHistory,
+      viewId(),
+      serverNow(),
+      me(),
+    );
     if (!own) return;
     const scale = 1.45,
       ox = 275 - own.x * scale,
@@ -1826,13 +1841,21 @@
       label(i + 1, x + 16, y - 65, 10, "#28463d", "center");
     }
     for (const p of roster()) {
-      const v = state.players[p.id];
+      const v = GiGMonsterMotion.sample(
+        snapshotHistory,
+        p.id,
+        serverNow(),
+        state.players[p.id],
+      );
       if (!v) continue;
       ctx.save();
       ctx.globalAlpha = p.id === viewId() ? 1 : 0.35;
       ctx.translate(v.x, v.y);
       ctx.rotate(v.angle);
-      const paint = GiGVehicles.colors[p.car] || p.color;
+      const paint =
+        p.livery === "obsidian"
+          ? "#484366"
+          : GiGVehicles.colors[p.car] || p.color;
       rect(-48, -8, 96, 24, paint, 7);
       rect(-7, -35, 39, 31, "#26495a", 6);
       rect(-9, -39, 43, 6, paint, 3);
@@ -1944,7 +1967,12 @@
         );
     } else {
       label(
-        Math.floor(p.progress / 20) + " m  /  " + p.coins + " MARKER",
+        Math.floor(p.progress / 20) +
+          " / " +
+          Math.floor(track.length / 20) +
+          " m  ·  " +
+          p.coins +
+          " MARKER",
         44,
         H - 49,
         11,

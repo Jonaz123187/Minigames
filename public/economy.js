@@ -113,6 +113,86 @@
     ["ice", "Polar Station", 160],
   ])
     add("theme-" + id, name, "Profil", price);
+  const masteryItems = [
+    [
+      "trail-comet",
+      "Kometenspur",
+      "Garage",
+      "carWins",
+      5,
+      "Gewinne 5 Runden Grand Prix.",
+    ],
+    [
+      "livery-obsidian",
+      "Obsidian-Lackierung",
+      "Garage",
+      "cleanTrails",
+      5,
+      "Erreiche 5-mal das Monster-Trails-Ziel ohne Rücksetzer.",
+    ],
+    [
+      "ball-aurora",
+      "Aurora-Golfball",
+      "Golf",
+      "birdies",
+      10,
+      "Schließe 10 Golfbahnen mit weniger Schlägen als Par ab.",
+    ],
+    [
+      "frame-atelier",
+      "Atelier-Meisterrahmen",
+      "Profil",
+      "creativeWins",
+      5,
+      "Gewinne 5 Runden in Sketch & Guess, Sketch Suspect oder Pixel Relay.",
+    ],
+    [
+      "theme-champion",
+      "Champions Lounge",
+      "Profil",
+      "wins",
+      25,
+      "Gewinne 25 Multiplayer-Runden.",
+    ],
+    [
+      "emote-dance",
+      "Siegestanz",
+      "Emotes",
+      "wins",
+      10,
+      "Gewinne 10 Multiplayer-Runden.",
+    ],
+  ];
+  for (const [id, name, category, key, target, description] of masteryItems)
+    add(id, name, category, null, { mastery: { key, target }, description });
+  add("emote-spin", "Wirbelwind", "Emotes", 120);
+  add("emote-bow", "Verbeugung", "Emotes", 140);
+  const emotes = {
+    wave: { name: "Winken", icon: "👋" },
+    laugh: { name: "Lachen", icon: "😂" },
+    facepalm: { name: "Facepalm", icon: "🤦" },
+    cheer: { name: "Jubeln", icon: "🙌" },
+    spin: { name: "Wirbelwind", icon: "💫", item: "emote-spin" },
+    bow: { name: "Verbeugung", icon: "🎩", item: "emote-bow" },
+    dance: { name: "Siegestanz", icon: "🕺", item: "emote-dance" },
+  };
+  function progress(p, item) {
+    const rule = item?.mastery;
+    if (!rule) return null;
+    const current = p?.owner
+      ? rule.target
+      : Math.max(
+          0,
+          Number(
+            rule.key === "wins" ? p?.stats?.wins : p?.mastery?.[rule.key],
+          ) || 0,
+        );
+    return {
+      current: Math.min(current, rule.target),
+      target: rule.target,
+      complete: current >= rule.target,
+    };
+  }
   const siteThemes = {
     default: { name: "GiG Nacht", color: "#111316" },
     midnight: { name: "Mitternacht", color: "#111b30", price: 160 },
@@ -335,6 +415,10 @@
       !id ||
       !!p?.owner ||
       p?.owned?.includes(id) ||
+      !!progress(
+        p,
+        items.find((item) => item.id === id),
+      )?.complete ||
       badgesFor(p).includes(id) ||
       badgesFor(p).includes(items.find((item) => item.id === id)?.achievement)
     );
@@ -777,6 +861,8 @@
   }
   return {
     items,
+    emotes,
+    progress,
     choices,
     defaults,
     avatar,
@@ -793,6 +879,34 @@
     statusEmojis: ["✨", "🏁", "🎨", "🎮", "🎤", "🔥", "🌙", "💬", "🦆", "🏆"],
     badges,
     badgesFor,
-    version: 7,
+    gameIds: [
+      "race",
+      "snake",
+      "click",
+      "typing",
+      "pong",
+      "reaction",
+      "dub",
+      "draw",
+      "monster",
+      "quiz",
+      "bomber",
+      "golf",
+      "tag",
+      "dodge",
+      "runner",
+      "rhythm",
+      "aim",
+      "stack",
+      "memory",
+      "code",
+      "telephone",
+      "faker",
+      "estimate",
+      "onebutton",
+      "detective",
+      "coop",
+    ],
+    version: 9,
   };
 });

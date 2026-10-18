@@ -1,6 +1,7 @@
 "use strict";
 const express = require("express"),
   crypto = require("node:crypto"),
+  Controls = require("./public/control-settings"),
   G = require("./public/economy");
 const { initializeApp, cert, getApps } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
@@ -69,6 +70,8 @@ const expose = (p) => {
         effect: p.effect,
         trail: p.trail,
         car: p.car,
+        livery: p.livery || "default",
+        ball: p.ball || "default",
         bio: p.bio,
         status: p.status || "",
         statusEmoji: p.statusEmoji || "✨",
@@ -111,6 +114,18 @@ const fresh = (uid, username) => ({
   effect: "default",
   trail: "none",
   car: "truck",
+  livery: "default",
+  ball: "default",
+  mastery: {
+    carWins: 0,
+    cleanTrails: 0,
+    holeInOnes: 0,
+    birdies: 0,
+    creativeWins: 0,
+  },
+  goal: "",
+  emotes: ["wave", "laugh", "facepalm", "cheer"],
+  controls: Controls.normalize(),
   bio: "",
   status: "",
   statusEmoji: "✨",
@@ -466,6 +481,20 @@ function createAccounts(
       const u = await user(req),
         a = req.body || {};
       const profile = await mutate(u.uid, (p) => {
+        if (a.controls) p.controls = Controls.normalize(a.controls);
+        if (
+          typeof a.goal === "string" &&
+          (a.goal === "" || G.items.some((i) => i.id === a.goal && i.mastery))
+        )
+          p.goal = a.goal;
+        if (Array.isArray(a.emotes))
+          p.emotes = [...new Set(a.emotes)]
+            .filter(
+              (k) =>
+                G.emotes[k] &&
+                (!G.emotes[k].item || G.owns(p, G.emotes[k].item)),
+            )
+            .slice(0, 4);
         if (typeof a.bio === "string") p.bio = clean(a.bio, 180);
         if (typeof a.status === "string") p.status = clean(a.status, 60);
         if (G.statusEmojis.includes(a.statusEmoji))
@@ -606,6 +635,8 @@ function createAccounts(
           "effect",
           "trail",
           "car",
+          "livery",
+          "ball",
         ]) {
           const base = {
             theme: "default",
@@ -615,6 +646,8 @@ function createAccounts(
             effect: "default",
             trail: "none",
             car: "truck",
+            livery: "default",
+            ball: "default",
           }[k];
           const v = clean(a[k], 24),
             id = k + "-" + v;
@@ -647,9 +680,11 @@ function createAccounts(
             "Dieser Titel ist ausschließlich für das hinterlegte Erstellerkonto.",
             403,
           );
-        if (item.achievement)
+        if (item.achievement || item.mastery)
           throw fail(
-            "Diesen Titel kannst du nur erspielen: " + item.description + ".",
+            "Diesen Gegenstand kannst du nur erspielen: " +
+              item.description +
+              ".",
           );
         if (G.owns(p, id)) return;
         if (
@@ -1019,6 +1054,7 @@ function createAccounts(
       detail,
       margin,
       marginUnit,
+      facts = {},
     },
   ) {
     const coins = G.rewardCoins({
@@ -1035,6 +1071,23 @@ function createAccounts(
       p.receipts = p.receipts.slice(-100);
       p.coins += coins;
       p.earned += coins;
+      p.mastery ||= {
+        carWins: 0,
+        cleanTrails: 0,
+        holeInOnes: 0,
+        birdies: 0,
+        creativeWins: 0,
+      };
+      if (rank === 1 && game === "race") p.mastery.carWins++;
+      if (rank === 1 && ["draw", "faker", "telephone"].includes(game))
+        p.mastery.creativeWins++;
+      if (game === "monster" && facts.cleanTrail === true)
+        p.mastery.cleanTrails++;
+      if (game === "golf" && Number.isInteger(facts.birdies))
+        p.mastery.birdies =
+          (p.mastery.birdies || 0) + Math.max(0, Math.min(6, facts.birdies));
+      if (game === "golf" && Number.isInteger(facts.holeInOnes))
+        p.mastery.holeInOnes += Math.max(0, Math.min(6, facts.holeInOnes));
       p.stats.rounds++;
       if (rank === 1) p.stats.wins++;
       p.stats.games[game] = (p.stats.games[game] || 0) + 1;
@@ -1090,6 +1143,17 @@ function createAccounts(
       return { coins, profile: { ...p, owner: ownerOf(uid) } };
     });
   }
+  const social = require("./social")({
+    app,
+    db,
+    api,
+    user,
+    get,
+    expose,
+    decorate,
+    fail,
+    clean,
+  });
   app.use("/api", (err, req, res, next) => {
     if (!err) return next();
     res.status(err.status || 400).json({
@@ -1102,6 +1166,7 @@ function createAccounts(
   });
   return {
     enabled,
+    social,
     get,
     verify,
     mutate,
