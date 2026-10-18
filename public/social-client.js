@@ -139,6 +139,7 @@
         () => openPublicProfile(p.uid),
         "social-name quiet",
       );
+    name.dataset.userContent = "";
     copy.append(name);
     if (status) copy.append(el("small", "social-presence", status));
     r.append(avatarNode(p.avatar), copy);
@@ -378,6 +379,14 @@
               : e.name + " lädt dich ein",
         ),
         el("p", "muted small", e.game + " · " + e.players + " / 8 Personen"),
+        el("p", "small muted members-preview", (e.members || []).join(" · ")),
+        el(
+          "p",
+          "small",
+          ["playing", "countdown"].includes(e.phase)
+            ? "Runde läuft. Du schaust zunächst zu und spielst ab der nächsten Runde mit."
+            : "Die Lobby wartet auf die nächste Runde.",
+        ),
         action(
           e.kind === "request" ? "Beitritt erlauben" : "Beitreten",
           () => acceptEntry(e),
@@ -429,7 +438,13 @@
         );
         if (g.message) r.append(el("p", "", g.message));
         r.append(
-          el("small", "muted", new Date(g.at).toLocaleDateString("de-DE")),
+          el(
+            "small",
+            "muted",
+            new Date(g.at).toLocaleDateString(
+              window.GiGI18n?.locale || "de-DE",
+            ),
+          ),
         );
         body.append(r);
       }
@@ -465,15 +480,19 @@
           "article",
           "private-message" + (m.from === Account.profile.uid ? " mine" : ""),
         );
+        bubble.dataset.userContent = "";
         bubble.append(
           el("p", "", m.text),
           el(
             "time",
             "",
-            new Date(m.at).toLocaleTimeString("de-DE", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
+            new Date(m.at).toLocaleTimeString(
+              window.GiGI18n?.locale || "de-DE",
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+              },
+            ),
           ),
         );
         box.append(bubble);
@@ -712,6 +731,83 @@
     )();
     counters();
   }
+  const sidebar = el("aside", "friends-sidebar panel");
+  sidebar.id = "friendsSidebar";
+  sidebar.setAttribute("aria-label", "Freundesliste");
+  document.querySelector(".lobby-grid").prepend(sidebar);
+  let sidebarKey = "";
+  function renderSidebar() {
+    const key = JSON.stringify([
+      Account.profile?.uid,
+      S.data?.friends,
+      S.data?.incoming,
+      room?.code,
+      room?.players?.map((p) => p.uid),
+    ]);
+    if (key === sidebarKey) return;
+    sidebarKey = key;
+    sidebar.replaceChildren(el("h3", "", "Deine Leute"));
+    if (!Account.profile) {
+      sidebar.append(
+        el(
+          "p",
+          "muted small",
+          "Melde dich an, um Freunde hinzuzufügen, ihren Status zu sehen und zusammen zu spielen.",
+        ),
+        btn("Anmelden", () => Account.open("login"), "primary"),
+        btn("Konto erstellen", () => Account.open("register")),
+      );
+      return;
+    }
+    sidebar.append(
+      btn("Freunde suchen", () => S.open("search")),
+      btn(
+        "Anfragen" +
+          (S.data?.incoming?.length ? " · " + S.data.incoming.length : ""),
+        () => S.open("requests"),
+      ),
+    );
+    if (!S.data) {
+      sidebar.append(el("p", "small muted", "Freunde werden geladen …"));
+      return;
+    }
+    const list = el("div", "friends-sidebar-list");
+    sidebar.append(list);
+    const friends = [...S.data.friends].sort(
+      (a, b) =>
+        Number(b.pinned) - Number(a.pinned) ||
+        Number(b.presence.online) - Number(a.presence.online) ||
+        a.username.localeCompare(b.username),
+    );
+    if (!friends.length)
+      list.append(
+        el(
+          "p",
+          "small muted",
+          "Hier ist noch Platz für deine Leute. Suche nach ihrem Benutzernamen.",
+        ),
+      );
+    for (const p of friends) {
+      const entry = row(p, presenceLabel(p));
+      const name = entry.querySelector(".social-name");
+      name.dataset.userContent = "";
+      const b = action("Einladen", async () => {
+        const r = await rpc("social:invite", { uid: p.uid });
+        if (!r.ok) throw Error(r.error);
+        toast("Einladung gesendet.");
+      });
+      b.disabled =
+        !room ||
+        room.players.some((x) => x.uid === p.uid) ||
+        !p.presence.online;
+      entry.append(
+        b,
+        btn("Mehr …", () => S.open("friends")),
+      );
+      list.append(entry);
+    }
+  }
+  socket.on("room", () => setTimeout(renderSidebar, 0));
   async function loadPending() {
     const r = await rpc("social:pending", {});
     if (r.ok) S.pending = r.entries;
@@ -736,6 +832,8 @@
       }
       await loadPending();
       counters();
+      renderSidebar();
+      document.dispatchEvent(new CustomEvent("gig:social", { detail: S.data }));
       if (
         paint &&
         dialog.open &&
@@ -752,6 +850,7 @@
     });
     return refreshing;
   }
+  S.refresh = refresh;
   S.open = async (view = "friends") => {
     releaseKeys();
     S.view = view;
@@ -785,6 +884,8 @@
       body.replaceChildren();
       if (dialog.open) dialog.close();
     }
+    renderSidebar();
+    document.dispatchEvent(new CustomEvent("gig:social", { detail: S.data }));
     if (uid) await run(() => refresh(true));
   }
   document.addEventListener("gig:account", accountChanged);

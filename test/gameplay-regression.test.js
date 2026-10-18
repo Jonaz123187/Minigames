@@ -162,6 +162,11 @@ test("All 26 games: three clients share the start and pause clock; late spectato
   }
   for (const id of Object.keys(GAMES)) {
     const host = players[0];
+    if (id === "dub")
+      await call(host, "dub:clip", {
+        pcm: require("../voice").defaultClip.pcm,
+        name: "Uploaded test reference",
+      });
     await call(host, "wish", { game: id });
     for (const s of players) await call(s, "ready", { ready: true });
     assert.equal((await call(host, "start", { game: id })).ok, true, id);

@@ -30,3 +30,7 @@ Alle 26 Spielansichten überarbeitet, Monster Trails mit Checkpoints und getrenn
 ## Update v9.0
 
 Freundesliste mit Suche und Präsenz, Lobby-Einladungen, private Nachrichten und Vergleiche, Wunschlisten und Geschenke, erspielbare Kosmetik, Avatar-Reaktionen und gespeicherte Steuerung. Dazu Pixel Relay mit freien Farben, direkte Revanche, gemeinsame Lobby-Rückkehr und wesentlich längere Monster Trails: [Änderungen, Betrieb und Prüfungen](UPDATE-v9.md).
+
+## Update v10.0
+
+Deutsch/English, eigene Freundespalte, Benachrichtigungsglocke mit Erstellerneuigkeiten und optionalen Coin-Aktionen, Soundboard in jedem Spiel, Shop-Anprobe und höhere Preise. Dazu faire feste Belohnungen für längere Spiele, kräftigere Golfschläge und Meme-Dub-Start erst mit eigener Audiospur: [Bedienung, Betrieb und Prüfungen](UPDATE-v10.md).

@@ -172,7 +172,7 @@
   }
   const emoteBar = el("div", "avatar-emote-bar");
   emoteBar.id = "avatarEmotes";
-  $("lobbyReactions").before(emoteBar);
+  document.querySelector(".soundboard-panel").before(emoteBar);
   let emoteKey = "";
   function emoteButtons() {
     const p = Account.profile;

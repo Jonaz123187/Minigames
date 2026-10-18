@@ -358,6 +358,15 @@ renderPremiumLobby = function () {
         ),
         wish = catalog.find((g) => g.id === p.wish);
       if (wish) sub.textContent += " · " + wish.title;
+      const symbol = el(
+        "span",
+        "player-symbol",
+        ["◆", "●", "▲", "■", "★", "✚", "⬟", "✦"][
+          room.players.findIndex((x) => x.id === p.id) % 8
+        ],
+      );
+      symbol.setAttribute("aria-hidden", "true");
+      name.prepend(symbol);
       name.append(sub);
       const ping = el("i", "player-ping");
       ping.dataset.ping = p.id;

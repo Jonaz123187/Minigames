@@ -160,7 +160,10 @@ test("Golf: force cap, moving-ball lockout and all six completed holes", () => {
     game.input(g, "a", { action: "shoot", dx: 10000, dy: 10000 }, 11000),
     true,
   );
-  assert.ok(Math.hypot(g.players.a.vx, g.players.a.vy) <= 700.00001);
+  assert.ok(
+    Math.hypot(g.players.a.vx, g.players.a.vy) <=
+      require("../public/golf-shared").MAX_POWER + 0.00001,
+  );
   assert.equal(
     game.input(g, "a", { action: "shoot", dx: 1, dy: 0 }, 12000),
     false,
@@ -373,6 +376,11 @@ test(
     const c = await connect();
     await call(c, "lobby", { action: "join", name: "Ben", code: a.room.code });
     for (const [id, game] of Object.entries(GAMES)) {
+      if (id === "dub")
+        await call(a, "dub:clip", {
+          pcm: voice.defaultClip.pcm,
+          name: "Uploaded test reference",
+        });
       await call(a, "wish", { game: id });
       await call(a, "ready", { ready: true });
       await call(b, "ready", { ready: true });

@@ -181,14 +181,14 @@ function project(scene, camera, overlay, file) {
   new vm.Script(
     "(function(){const THREE=window.THREE,mergeGeometries=window.mergeGeometries;" +
       sceneSource +
-      ";window.GiGScene={createVehicle,disposeScene,batchScenery,groundShadow,label,skyBackdrop,surfaceTexture};})()",
+      ";window.GiGScene={createVehicle,disposeScene,batchScenery,groundShadow,label,identityBadge,skyBackdrop,surfaceTexture};})()",
   ).runInContext(h.context);
   for (const file of ["race-3d.js", "monster-3d.js"]) {
     const source = fs
       .readFileSync(path.join(base, file), "utf8")
       .replace(/^import[\s\S]*?;\n/gm, "");
     new vm.Script(
-      "(function(){const THREE=window.THREE,mergeGeometries=window.mergeGeometries;const {createVehicle,groundShadow,label,disposeScene,batchScenery,skyBackdrop,surfaceTexture}=window.GiGScene;" +
+      "(function(){const THREE=window.THREE,mergeGeometries=window.mergeGeometries;const {createVehicle,groundShadow,label,identityBadge,disposeScene,batchScenery,skyBackdrop,surfaceTexture}=window.GiGScene;" +
         source +
         "})()",
       { filename: file },

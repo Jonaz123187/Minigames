@@ -7,7 +7,7 @@
   const W = 900,
     H = 500,
     R = 9,
-    MAX_POWER = 650;
+    MAX_POWER = 1050;
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
   const courses = [
     {
@@ -125,7 +125,8 @@
   function launch(dx, dy) {
     const length = Math.hypot(dx, dy);
     if (!Number.isFinite(length) || length < 0.045) return null;
-    const scale = (MAX_POWER * Math.min(1, length)) / length;
+    // Progressive power keeps short putts precise while making a full swing travel far.
+    const scale = (MAX_POWER * Math.pow(Math.min(1, length), 1.35)) / length;
     return { vx: dx * scale, vy: dy * scale };
   }
   function collideRect(p, b) {
@@ -221,7 +222,7 @@
     if (!velocity) return [];
     const ball = { x: p.x, y: p.y, ...velocity },
       points = [{ x: p.x, y: p.y }];
-    for (let i = 0; i < 75; i++) {
+    for (let i = 0; i < 180; i++) {
       const result = stepBall(ball, 1 / 30, course, t + i / 30);
       if (i % 2 === 0 || result.cup || result.water)
         points.push({ x: ball.x, y: ball.y, ...result });

@@ -156,6 +156,13 @@
       friends.id = "friendsButton";
       bar.append(friends, coins, b);
     } else {
+      const friends = button(
+        "Freunde",
+        () => window.GiGSocial?.open(),
+        "friends-button quiet",
+      );
+      friends.id = "friendsButton";
+      bar.append(friends);
       bar.append(
         button("Login", () => A.open("login"), "quiet"),
         button("Konto erstellen", () => A.open("register")),
@@ -483,7 +490,10 @@
         "p",
         "profile-title",
         GiG.items.find((i) => i.id === "title-" + p.title)?.name ||
-          "Am Start seit " + new Date(p.joinedAt).toLocaleDateString("de-DE"),
+          "Am Start seit " +
+            new Date(p.joinedAt).toLocaleDateString(
+              window.GiGI18n?.locale || "de-DE",
+            ),
       ),
     );
     if (p.owner)
@@ -494,6 +504,7 @@
       names.append(
         el("p", "profile-status", (p.statusEmoji || "✨") + " " + p.status),
       );
+    names.querySelector("h2").dataset.userContent = "";
     hero.append(names);
     if (p.pet && p.pet !== "none") hero.append(petNode(p.pet));
     if (p.bannerFile) {
@@ -513,6 +524,7 @@
         p.bio || "Noch keine Beschreibung. Dafür bereit für die nächste Runde.",
       ),
     );
+    if (p.bio) about.querySelector(".profile-bio").dataset.userContent = "";
     card.append(banner, hero, about);
     const links = el("div", "profile-links");
     for (const link of p.links || []) {
@@ -1053,10 +1065,12 @@
       ),
     );
   }
+  A.previewProfile = profileCard;
+  A.playSound = playSlot;
   function shop() {
     heading(
       "Gute Runden. Guter Geschmack.",
-      "Coins gibt es nur in Multiplayer-Runden mit mindestens zwei verschiedenen Spielern. Aktive Teilnahme: 20 Coins, dazu 30 / 15 / 5 für Platz 1 / 2 / 3. Mindestens acht Sekunden Spielzeit; Training bringt keine Coins.",
+      "Coins gibt es nur in Multiplayer-Runden mit mindestens zwei verschiedenen Spielern. Aktive Teilnahme: 20 Coins, dazu 30 / 15 / 5 für Platz 1 / 2 / 3. Längere Spiele geben den zwei- bis dreifachen Betrag. Mindestens acht Sekunden Spielzeit; Training bringt keine Coins.",
     );
     panel.append(
       el(
@@ -1313,7 +1327,7 @@
         el("p", "small muted", "Stufe " + level + " / 5"),
       );
       const b = button(
-        level >= 5 ? "Voll ausgebaut" : 60 * 2 ** level + " GiG-Coins",
+        level >= 5 ? "Voll ausgebaut" : GiG.upgradeCost(level) + " GiG-Coins",
         () =>
           attempt(async () => {
             const r = await api("/api/upgrade", "POST", { key });
@@ -1321,7 +1335,7 @@
             A.open("garage");
           }),
       );
-      b.disabled = level >= 5 || A.profile.coins < 60 * 2 ** level;
+      b.disabled = level >= 5 || A.profile.coins < GiG.upgradeCost(level);
       card.append(b);
       grid.append(card);
     }
@@ -1423,7 +1437,7 @@
             ),
           );
           card.append(
-            button("In der Lobby abspielen", () => playSlot(slot), "quiet"),
+            button("Im Soundboard abspielen", () => playSlot(slot), "quiet"),
           );
         }
       } else
@@ -1886,7 +1900,7 @@
             name:
               (room?.lastResult?.title || "Meine Zeichnung") +
               " · " +
-              new Date().toLocaleDateString("de-DE"),
+              new Date().toLocaleDateString(window.GiGI18n?.locale || "de-DE"),
             entries: chain.entries.map((e) =>
               e.kind === "drawing" && !Array.isArray(e.value)
                 ? { ...e, value: GiGSketch.thumbnail(e.value) }
@@ -2290,6 +2304,7 @@
   function accountBenefits() {
     const benefits = el("ul", "account-benefits");
     for (const text of [
+      "Freunde hinzufügen & in die Lobby einladen",
       "GiG-Coins im Multiplayer",
       "50 Coins nach E-Mail-Bestätigung",
       "Pixelprofil & eigene Sounds",
@@ -2832,13 +2847,16 @@
       })
       .catch(() => {});
   });
+  document.addEventListener("gig:language", () => {
+    if (A.auth) A.auth.languageCode = GiGI18n.language;
+  });
   A.ready = (async () => {
     try {
       A.config = await (await fetch("/api/config")).json();
       if (A.config.enabled) {
         const app = GiGFirebase.initializeApp(A.config.firebase);
         A.auth = GiGFirebase.getAuth(app);
-        A.auth.languageCode = "de";
+        A.auth.languageCode = window.GiGI18n?.language || "de";
         await GiGFirebase.setPersistence(
           A.auth,
           GiGFirebase.browserLocalPersistence,

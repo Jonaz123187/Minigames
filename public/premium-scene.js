@@ -96,6 +96,36 @@ export function batchScenery(parent) {
     parent.add(mesh);
   }
 }
+// A stable shape supplements colour; billboards do not alter vehicle physics or hitboxes.
+export function identityBadge(index, color, size = 2.2) {
+  const surface = document.createElement("canvas");
+  surface.width = surface.height = 128;
+  const c = surface.getContext("2d");
+  c.fillStyle = "#14232dee";
+  c.beginPath();
+  c.arc(64, 64, 57, 0, Math.PI * 2);
+  c.fill();
+  c.lineWidth = 5;
+  c.strokeStyle = color || "#eef5df";
+  c.stroke();
+  c.fillStyle = "#f4f7eb";
+  c.font = "800 66px Arial,sans-serif";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText(
+    ["◆", "●", "▲", "■", "★", "✚", "⬟", "✦"][Math.max(0, index) % 8],
+    64,
+    66,
+  );
+  const texture = new THREE.CanvasTexture(surface);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: texture, depthTest: true }),
+  );
+  sprite.scale.set(size, size, 1);
+  sprite.userData.dynamic = true;
+  return sprite;
+}
 export function label(
   text,
   color = "#edf5ef",

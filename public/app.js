@@ -563,7 +563,11 @@ function updateWords() {
       return span;
     }),
   );
-  $("typingInput").placeholder = words[typingIndex] || "Text geschafft!";
+  $("typingInput").setAttribute("translate", "no");
+  $("typingInput").placeholder =
+    words[typingIndex] ||
+    window.GiGI18n?.t("Text geschafft!") ||
+    "Text geschafft!";
 }
 async function submitWord() {
   if (!active() || typingPending || room.round.game !== "typing") return;
@@ -629,7 +633,7 @@ function text(value, x, y, size = 14, color = "#f1f4e9", align = "left") {
   ctx.fillStyle = color;
   ctx.font = `${size >= 24 ? 700 : 500} ${size}px Arial,sans-serif`;
   ctx.textAlign = align;
-  ctx.fillText(String(value), x, y);
+  ctx.fillText(window.GiGI18n?.t(String(value)) ?? String(value), x, y);
 }
 function rect(x, y, w, h, color, r = 0) {
   ctx.fillStyle = color;

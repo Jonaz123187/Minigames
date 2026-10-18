@@ -242,6 +242,20 @@
     if (p.id === viewId()) {
       ring(x, y - 2, radius + 5, 1, "#eff9ed", 1.5);
     }
+    ctx.fillStyle = "#13242d";
+    ctx.font = `800 ${Math.max(10, radius * 0.8)}px Arial,sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(
+      ["◆", "●", "▲", "■", "★", "✚", "⬟", "✦"][
+        Math.max(
+          0,
+          roster().findIndex((x) => x.id === p.id),
+        ) % 8
+      ],
+      x,
+      y + radius * 0.45,
+    );
     ctx.restore();
   }
   function startSurface(width = 900, height = 500, fill = "#14353e") {
@@ -278,7 +292,7 @@
     ctx.font = `${size >= 23 ? 800 : size >= 13 ? 600 : 500} ${size}px 'Inter', 'Segoe UI', Arial, sans-serif`;
     ctx.textAlign = align;
     ctx.textBaseline = "alphabetic";
-    ctx.fillText(String(value), x, y);
+    ctx.fillText(window.GiGI18n?.t(String(value)) ?? String(value), x, y);
   };
   heading = frameTitle;
   drawAvatar = (p, x, y, r = 13, alpha = 1) => actor(p, x, y, r, alpha > 0.5);

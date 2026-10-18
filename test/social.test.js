@@ -285,7 +285,7 @@ test("Wishlist gifts are atomic, idempotent, priced on the server and never gran
   const { api, store, friends } = await setup(t);
   await friends();
   const p = store.data.get("gigPlayers/alice");
-  p.coins = 500;
+  p.coins = 1500;
   store.data.set("gigPlayers/alice", p);
   await api("/api/social/wishlist", "bob", "POST", {
     ids: ["pet-cat", "frame-gold", "emote-dance", "title-origin", "invalid"],
@@ -306,7 +306,7 @@ test("Wishlist gifts are atomic, idempotent, priced on the server and never gran
     api("/api/social/gift", "alice", "POST", gift),
   ]);
   assert.ok(both.every((x) => x.ok));
-  assert.equal(store.data.get("gigPlayers/alice").coins, 300);
+  assert.equal(store.data.get("gigPlayers/alice").coins, 500);
   assert.ok(store.data.get("gigPlayers/bob").owned.includes("pet-cat"));
   assert.equal((await api("/api/social", "bob")).gifts.length, 1);
   assert.deepEqual((await api("/api/social/wishlist/bob")).items, [
@@ -332,7 +332,7 @@ test("Wishlist gifts are atomic, idempotent, priced on the server and never gran
       ).status,
       400,
     );
-  assert.equal(store.data.get("gigPlayers/alice").coins, 300);
+  assert.equal(store.data.get("gigPlayers/alice").coins, 500);
 });
 test("Private rivalry and mastery count only real rewarded rounds; the host starts without a ready click and Revanche starts a fresh round", async (t) => {
   const h = await setup(t),
@@ -497,7 +497,7 @@ test("Avatar emotes are account-only, equipped and entitled, room-scoped and rat
   step(4100);
   assert.equal((await call(a, "avatar:emote", { key: "dance" })).ok, false);
   const p = store.data.get("gigPlayers/alice");
-  p.coins = 200;
+  p.coins = 800;
   store.data.set("gigPlayers/alice", p);
   await api("/api/buy", "alice", "POST", { id: "emote-spin" });
   await api("/api/profile", "alice", "POST", {

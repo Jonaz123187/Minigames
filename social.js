@@ -32,6 +32,7 @@ module.exports = function createSocial({
     wishlist: [],
     inbox: {},
     gifts: [],
+    notifications: [],
     prefs: {
       visibility: "online",
       dnd: false,
@@ -128,6 +129,7 @@ module.exports = function createSocial({
                       presence: presence(other, v),
                       pinned: s.pinned.includes(other),
                       unread: s.inbox[other]?.unread || 0,
+                      lastMessageAt: s.inbox[other]?.lastAt || 0,
                     }
                   : {}),
               };
@@ -150,6 +152,9 @@ module.exports = function createSocial({
         prefs: s.prefs,
         wishlist: s.wishlist,
         gifts: s.gifts.slice(-20).reverse(),
+        notifications: s.notifications.filter(
+          (n) => !s.blocked.includes(n.uid),
+        ),
         blockedCount: s.blocked.length,
       });
     }),
@@ -281,6 +286,12 @@ module.exports = function createSocial({
               throw fail("Zu viele offene Freundschaftsanfragen.");
             a.outgoing.push({ uid: other, at: Date.now() });
             b.incoming.push({ uid, at: Date.now() });
+            b.notifications.push({
+              id: crypto.randomUUID(),
+              kind: "friend-request",
+              uid,
+              at: Date.now(),
+            });
           } else if (action === "accept") {
             if (
               !a.incoming.some((x) => x.uid === other) ||
@@ -292,6 +303,12 @@ module.exports = function createSocial({
             clear();
             a.friends.push(other);
             b.friends.push(uid);
+            b.notifications.push({
+              id: crypto.randomUUID(),
+              kind: "friend-accepted",
+              uid,
+              at: Date.now(),
+            });
           } else if (action === "decline") {
             a.incoming = a.incoming.filter((x) => x.uid !== other);
             b.outgoing = b.outgoing.filter((x) => x.uid !== uid);
@@ -307,6 +324,12 @@ module.exports = function createSocial({
               : [...a.pinned, other].slice(-12);
           }
         }
+        a.notifications = a.notifications
+          .filter((n) => !a.blocked.includes(n.uid))
+          .slice(-60);
+        b.notifications = b.notifications
+          .filter((n) => !b.blocked.includes(n.uid))
+          .slice(-60);
         t.set(ref(uid), a);
         t.set(ref(other), b);
       });

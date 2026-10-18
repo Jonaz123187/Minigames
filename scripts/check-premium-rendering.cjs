@@ -110,6 +110,8 @@ function harness(touch = false, reduced = false) {
   w.io = () => sock;
   const run = (s) => new vm.Script(s).runInContext(context);
   for (const file of [
+    "i18n-catalog.js",
+    "i18n.js",
     "economy.js",
     "control-settings.js",
     "vehicle-models.js",
@@ -131,6 +133,8 @@ function harness(touch = false, reduced = false) {
     "social-client.js",
     "rewards-client.js",
     "controls-client.js",
+    "community-client.js",
+    "shop-preview.js",
   ])
     new vm.Script(fs.readFileSync(path.join(base, file), "utf8"), {
       filename: file,
@@ -408,6 +412,7 @@ async function main() {
   for (const [touch, reduced] of modes[selectedMode]) {
     const h = harness(touch, reduced);
     await h.w.Account.ready;
+    if (process.env.GIG_QA_LANGUAGE === "en") h.w.GiGI18n.set("en");
     for (const id of Object.keys(GAMES)) {
       h.make(id, 8);
       populate(h, id);

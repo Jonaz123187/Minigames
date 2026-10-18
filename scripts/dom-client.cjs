@@ -23,6 +23,7 @@ module.exports = async function makeClient({ base, uid, now, profile }) {
   w.Date.now = () => now();
   Object.defineProperty(w.performance, "now", { value: () => now() });
   w.scrollTo = () => {};
+  w.structuredClone = structuredClone;
   w.ImageData = ImageData;
   w.localStorage.setItem("gig-welcome-dismissed", "1");
   w.CSS = { escape: (x) => x };
@@ -68,6 +69,8 @@ module.exports = async function makeClient({ base, uid, now, profile }) {
     this.dispatchEvent(new w.Event("close"));
   };
   for (const file of [
+    "i18n-catalog.js",
+    "i18n.js",
     "economy.js",
     "control-settings.js",
     "vehicle-models.js",
@@ -89,6 +92,8 @@ module.exports = async function makeClient({ base, uid, now, profile }) {
     "social-client.js",
     "rewards-client.js",
     "controls-client.js",
+    "community-client.js",
+    "shop-preview.js",
   ]) {
     new vm.Script(fs.readFileSync(path.join(root, "public", file), "utf8"), {
       filename: file,

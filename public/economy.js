@@ -105,7 +105,12 @@
     400,
   );
   for (let i = 1; i <= 6; i++)
-    add("sound-" + i, "Sound-Slot " + i, "Soundboard", i * 90);
+    add(
+      "sound-" + i,
+      "Sound-Slot " + i,
+      "Soundboard",
+      [500, 800, 1200, 1800, 2400, 3000][i - 1],
+    );
   for (const [id, name, price] of [
     ["arcade", "Arcade Afterhours", 180],
     ["space", "Orbit Club", 220],
@@ -380,7 +385,35 @@
     ownerOnly: true,
     description: "Exklusiv für das hinterlegte Erstellerkonto",
   });
-  function rewardCoins({ practice, participants, active, duration, rank }) {
+  const upgradeCost = (level) =>
+    300 * 2 ** Math.max(0, Math.min(4, Math.trunc(Number(level) || 0)));
+  const rewardFactor = (game) =>
+    ({
+      golf: 3,
+      monster: 3,
+      race: 2,
+      dub: 2,
+      draw: 2,
+      telephone: 2,
+      faker: 2,
+      detective: 2,
+      coop: 2,
+    })[game] || 1;
+  // Prices are authoritative here and shared by purchases, gifts and the client.
+  for (const item of items)
+    if (Number.isFinite(item.price) && !item.id.startsWith("sound-"))
+      item.price = Math.round((item.price * 5) / 50) * 50;
+  for (const [id, t] of Object.entries(siteThemes))
+    if (t.price) t.price = items.find((i) => i.id === "site-" + id).price;
+  items.find((i) => i.id === "custom-avatar").price = 2400;
+  function rewardCoins({
+    practice,
+    participants,
+    active,
+    duration,
+    rank,
+    rewardFactor: factor = 1,
+  }) {
     if (
       practice ||
       !Number.isFinite(participants) ||
@@ -392,7 +425,10 @@
       rank < 1
     )
       return 0;
-    return 20 + (rank === 1 ? 30 : rank === 2 ? 15 : rank === 3 ? 5 : 0);
+    return (
+      (20 + (rank === 1 ? 30 : rank === 2 ? 15 : rank === 3 ? 5 : 0)) *
+      Math.max(1, Math.min(3, Number.isInteger(factor) ? factor : 1))
+    );
   }
   const defaults = {
     kind: 0,
@@ -873,7 +909,9 @@
     avatarMotion,
     avatarPivots,
     jointTransform,
+    upgradeCost,
     rewardCoins,
+    rewardFactor,
     siteThemes,
     soundEmojis,
     statusEmojis: ["✨", "🏁", "🎨", "🎮", "🎤", "🔥", "🌙", "💬", "🦆", "🏆"],

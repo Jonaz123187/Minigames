@@ -677,7 +677,7 @@
                 ? board(state.task.value)
                 : sketchBoard(state.task.value),
             );
-          else box.append(el("blockquote", "", state.task.value));
+          else {const quote=el("blockquote", "story-task-value", state.task.value);quote.dataset.userContent="";box.append(quote);}
         }
         if (can && !me.submitted) {
           if (state.kind === "drawing") freePaintTools(box, true);
@@ -778,7 +778,7 @@
           el(
             "h2",
             "answer-number",
-            state.answer.toLocaleString("de-DE") + " " + state.unit,
+            state.answer.toLocaleString(window.GiGI18n?.locale || "de-DE") + " " + state.unit,
           ),
         );
         for (const [pid, r] of Object.entries(state.results))
@@ -786,7 +786,7 @@
             el(
               "p",
               "",
-              `${name(pid)}: ${r.answer.toLocaleString("de-DE")} · +${r.points}`,
+              `${name(pid)}: ${r.answer.toLocaleString(window.GiGI18n?.locale || "de-DE")} · +${r.points}`,
             ),
           );
       }
@@ -937,6 +937,7 @@
       wrap.append(nav);
       for (const e of chain.entries) {
         const card = el("article", "story-entry");
+        card.dataset.userContent="";
         card.append(el("small", "", name(e.author)));
         card.append(
           e.kind === "drawing"
